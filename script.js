@@ -1613,14 +1613,18 @@ function skyBuildPoleLabel(){   // i18n — til almashganda qayta chiziladi
 }
 skyBuildPoleLabel();
 // To'r fade — faqat opacity animatsiyasi, geometriya qayta hisoblanmaydi
-let skyFade=0, skyFadeT=0;
+// To'r yulduzlar osmoni bilan birga so'nadi (avval uzoqlashganda yulduzlar so'nsa ham to'r yorqin qolardi)
+let skyFade=0, skyFadeT=0, skyGridK=-1;
 function skyGridStep(dt2){
-  if(skyFade===skyFadeT) return;
-  skyFade += Math.sign(skyFadeT-skyFade)*dt2*1.6;
-  skyFade = Math.max(0, Math.min(1, skyFade));
-  const k=easeInOut(skyFade);
+  if(skyFade!==skyFadeT){
+    skyFade += Math.sign(skyFadeT-skyFade)*dt2*1.6;
+    skyFade = Math.max(0, Math.min(1, skyFade));
+  }
+  if(skyFade===0){ skyGrid.visible=false; skyGridK=0; return; }
+  const k=easeInOut(skyFade)*COSMO.skyFade;   // kosmik uzoqlashishda osmon bilan birga so'nadi
+  if(Math.abs(k-skyGridK)<0.002) return;
+  skyGridK=k; skyGrid.visible=k>0.003;
   skyGridMats.forEach(m=>{ m.opacity=m.userData.base*k; });
-  if(skyFade===0) skyGrid.visible=false;
 }
 document.getElementById('gridBtn').addEventListener('click', ()=>{
   skyFadeT = skyFadeT===1?0:1;
@@ -2186,7 +2190,9 @@ function cosmicStep(dt){
   if(Math.abs(nr-camera.near)/camera.near>0.08){ camera.near=nr; camera.updateProjectionMatrix(); }
   controls.zoomSpeed = 0.9 + 2.0*Math.min(1, Math.max(0, Math.log10(Math.max(tD,1)/2500)/3));
   PX_SCALE.value = renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360));
-  skyRoot.position.copy(camera.position).multiplyScalar(sstep(1200,3000,camD));
+  // Osmon cheksiz uzoqda: sfera doim kamera markazida (aks holda yaqinlashib-uzoqlashganda to'r va burjlar
+  // Quyosh tizimi atrofidagi "shar" bo'lib joyida qolardi, kamera sfera chetiga yetib uni buzib ko'rsatardi)
+  skyRoot.position.copy(camera.position);
   const sf=1-sstep(2600,14000,camD); COSMO.skyFade=sf;
   skyRoot.visible = sf>0.004;
   for(let i=0;i<SKY_FADE_MATS.length;i++){ const m=SKY_FADE_MATS[i]; m.opacity=m.userData.skyBase*sf; }
@@ -2680,7 +2686,7 @@ function applyLanguage(lang){
   // Kirish oynasi matnlari yangi tilda (startupda hali yuklanmagan bo'lishi mumkin)
   if(window.__authReady) authBuildUI();
   // Osmon to'ri yorliqlari yangi tilda
-  if(typeof skyBuildPoleLabel==='function'){ skyBuildPoleLabel();
+  if(typeof skyBuildPoleLabel==='function'){ skyBuildPoleLabel(); skyGridK=-1;
     const gb=document.getElementById('gridBtn'), gt=window.LOC[LANG].sky;
     if(gb&&gt) gb.title=gt.btn; }
   const scEl=document.getElementById('starCard'); if(scEl) scEl.classList.remove('on');
