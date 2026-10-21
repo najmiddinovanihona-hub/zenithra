@@ -140,9 +140,14 @@ function stage3d(host, T){
   const W=new THREE.Group(); S.add(W);
   const ring=(r,col,op)=>{ const p=[]; for(let i=0;i<=160;i++){ const a=i/160*TAU; p.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r)); }
     return new THREE.Line(new THREE.BufferGeometry().setFromPoints(p),new THREE.LineBasicMaterial({color:col,transparent:true,opacity:op})); };
-  const ball=k=>{ const [c,r]=BODY[k], sun=k==='sun'; const m=new THREE.Mesh(new THREE.SphereGeometry(r,24,16), sun?new THREE.MeshBasicMaterial({color:c}):new THREE.MeshStandardMaterial({color:c,roughness:.85,metalness:0}));
+  const RT=window.REALTEX&&window.REALTEX.ok?window.REALTEX:null;   // haqiqiy teksturalar (NASA asosida)
+  const ball=k=>{ const [c,r]=BODY[k], sun=k==='sun'; const m=new THREE.Mesh(new THREE.SphereGeometry(r,RT?48:24,RT?32:16), sun?new THREE.MeshBasicMaterial({color:c}):new THREE.MeshStandardMaterial({color:c,roughness:.85,metalness:0}));
     if(sun){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); s.scale.set(r*5,r*5,1); m.add(s); }
-    if(k==='saturn'){ const rg=new THREE.Mesh(new THREE.RingGeometry(r*1.35,r*2.1,48),new THREE.MeshBasicMaterial({color:0xd9c08a,side:THREE.DoubleSide,transparent:true,opacity:.6})); rg.rotation.x=-Math.PI/2+.45; m.add(rg); }
+    if(k==='saturn'){ const rg=new THREE.Mesh(new THREE.RingGeometry(r*1.35,r*2.1,64),new THREE.MeshBasicMaterial({color:0xd9c08a,side:THREE.DoubleSide,transparent:true,opacity:.6})); rg.rotation.x=-Math.PI/2+.45; m.add(rg);
+      if(RT){ const uv=rg.geometry.attributes.uv, pos=rg.geometry.attributes.position, v=new THREE.Vector3();   // radial UV — halqa xaritasi uchun
+        for(let i=0;i<uv.count;i++){ v.fromBufferAttribute(pos,i); uv.setXY(i,(v.length()-r*1.35)/(r*.75),.5); }
+        RT.texture('saturnRing',{srgb:false}).then(t=>{ const mm=rg.material; mm.map=t; mm.color.set(0xffffff); mm.opacity=1; mm.needsUpdate=true; }).catch(()=>{}); } }
+    if(RT){ if(sun) RT.apply(m,'sun',{srgb:false,gain:1.15}); else RT.apply(m,k,{srgb:false,bump:(k==='mercury'||k==='mars'||k==='moon')?.002:0}); }
     return m; };
   let items=[], mode='geo', t=0, run=true, spd=1, alive=true, raf=0, last=performance.now(), labels=[], seen=true;
   const vio=new IntersectionObserver(es=>{ seen=es[0].isIntersecting; },{threshold:0}); vio.observe(host);

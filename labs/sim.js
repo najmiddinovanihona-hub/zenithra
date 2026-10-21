@@ -39,6 +39,10 @@ register('trappist',{ ico:'🔴', name:TR.name, sub:TR.sub,
     const sgc=document.createElement('canvas'); sgc.width=sgc.height=256; const sx=sgc.getContext('2d'), gg=sx.createRadialGradient(128,128,0,128,128,128);
     gg.addColorStop(0,'rgba(255,200,150,1)'); gg.addColorStop(0.2,'rgba(255,110,60,0.8)'); gg.addColorStop(0.5,'rgba(220,60,30,0.25)'); gg.addColorStop(1,'rgba(160,30,20,0)'); sx.fillStyle=gg; sx.fillRect(0,0,256,256);
     const star=new THREE.Mesh(new THREE.SphereGeometry(1.6,48,32), new THREE.MeshBasicMaterial({color:0xff6a3a})); sc.add(star);
+    // Haqiqiy teksturalar (NASA asosida): qizil mitti — Quyosh fotosferasi naqshi qizil rangda; sayyoralar sirti noma'lum,
+    // shuning uchun haqiqiy toshli (Oy) va muzli (Serera) sirt suratlari ularning rangiga bo'yaladi.
+    const RT=window.REALTEX&&window.REALTEX.ok?window.REALTEX:null;
+    if(RT) RT.star(star,0xff6a3a,{gain:1.45,glow:false});   // o'z nuri (glow) allaqachon bor
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(sgc), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false})); glow.scale.set(14,14,1); sc.add(glow);
     const hz=new THREE.Mesh(new THREE.RingGeometry(0.025*SCALE,0.05*SCALE,128), new THREE.MeshBasicMaterial({color:0x3ccf7a, transparent:true, opacity:0.12, side:THREE.DoubleSide, depthWrite:false}));
     hz.rotation.x=-Math.PI/2; sc.add(hz);
@@ -51,7 +55,8 @@ register('trappist',{ ico:'🔴', name:TR.name, sub:TR.sub,
     const lbl=$('tpLbl');
     const P=TP.map((d,i)=>{ const r=d[1]*0.55, a=d[4]*SCALE; ring(a,0x9fb8ff,0.18,false);
       const m=new THREE.Mesh(new THREE.SphereGeometry(r,48,32), new THREE.MeshStandardMaterial({map:planetTex(d[6],i+3,i>=4), roughness:0.9}));
-      m.userData.i=i; sc.add(m); const el=document.createElement('div'); el.className='tp-lbl'; el.textContent=d[0]; lbl.appendChild(el);
+      m.userData.i=i; sc.add(m);
+      if(RT) RT.apply(m, i>=4?'ceres':'moon', { tint:d[6], gain:1.25, bump:r*.01, renderer:R }); const el=document.createElement('div'); el.className='tp-lbl'; el.textContent=d[0]; lbl.appendChild(el);
       return {d,m,a,ang:Math.random()*Math.PI*2,el}; });
     let sel=-1;
     function show(i){ sel=i; const d=TP[i]; $('tpN').textContent='TRAPPIST-1'+d[0]; $('tpD').textContent=T(d[7]);

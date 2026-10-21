@@ -4999,6 +4999,7 @@ function cutBuildModel(key){
         const cl=new THREE.Mesh(new THREE.SphereGeometry(r*1.02,seg,seg,0,Math.PI*1.5),
           new THREE.MeshBasicMaterial({map:cloudTexture(), transparent:true, opacity:0.8, depthWrite:false}));
         cl.userData.layerIndex=i; cl.userData.baseOp=0.8; grp.add(cl);
+        if(window.REALTEX) window.REALTEX.clouds(cl, { opacity:0.8 });   // haqiqiy bulut xaritasi
       }
     }
     // Portlagan joylashuv: yadro tepada, har qatlam TO'LIQ ajralgan holda pastga
@@ -5481,6 +5482,14 @@ function snBuild(){
   snEarthMesh=new THREE.Mesh(new THREE.SphereGeometry(SN_ER,48,48),snEarthMaterial());
   snCloudsM=new THREE.Mesh(new THREE.SphereGeometry(SN_ER*1.02,48,48),
     new THREE.MeshBasicMaterial({map:cloudTexture(),transparent:true,opacity:0.4,depthWrite:false}));
+  // Haqiqiy teksturalar (NASA asosida): Quyosh fotosferasi, Yer kunduz/tun xaritasi va bulutlar
+  if(window.REALTEX && window.REALTEX.ok){
+    const RT=window.REALTEX, em=snEarthMesh.material;
+    RT.texture('sun').then(t=>{ sunM.material.map=t; sunM.material.color.setScalar(1.15); sunM.material.needsUpdate=true; }).catch(()=>{});
+    RT.texture('earth').then(t=>{ em.uniforms.dayTex.value=t; }).catch(()=>{});
+    RT.texture('earthNight').then(t=>{ em.uniforms.nightTex.value=t; }).catch(()=>{});
+    RT.clouds(snCloudsM, { opacity:0.5 });
+  }
   // O'q tayoqchasi — doim bir tomonga (Qutb yulduziga) parallel qolishi ko'rinadi
   const axG=new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0,-SN_ER*1.45,0), new THREE.Vector3(0,SN_ER*1.8,0)]);
@@ -5892,32 +5901,18 @@ window.addEventListener('resize',()=>{ if(ubActive&&ubTab===1) ubDraw(); });
 
 /* --------------------------------------------------------------------------
    26b. HAQIQIY TEKSTURALAR (NASA ma'lumotlari asosida — Solar System Scope, CC BY 4.0)
-   Sahna avval protsedural teksturalar bilan darhol ochiladi; so'ng textures/ dagi 2K
-   xaritalar fonda NAVBAT bilan yuklanib almashtiriladi:
-   - rasm createImageBitmap orqali asosiy oqimdan tashqarida dekodlanadi (qotish yo'q);
-   - har bir almashtirish orasida tanaffus — GPU'ga yuklash bir kadrda to'planmaydi;
-   - file:// rejimida (serversiz) yoki xato bo'lsa protsedural teksturalar qoladi.
+   Yuklash umumiy realtex.js modulida (barcha 3D sahnalar bilan bitta kesh). Sahna avval
+   protsedural teksturalar bilan darhol ochiladi; so'ng 2K xaritalar fonda NAVBAT bilan
+   almashtiriladi — har biri darhol GPU'ga yuklanadi va shader oldindan kompilyatsiya
+   qilinadi, shuning uchun sayyora ko'rinishga kirganda qotish bo'lmaydi.
+   file:// rejimida (serversiz) yoki ?notex bo'lsa protsedural teksturalar qoladi.
    -------------------------------------------------------------------------- */
-window.__REALTEX = {};
+window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini shu yerdan oladi
 (function(){
-  if(!/^https?:$/.test(location.protocol) || typeof createImageBitmap!=='function') return;
-  if(/[?&]notex\b/.test(location.search)) return;   // solishtirish/diagnostika: ?notex — faqat protsedural
-  const DIR='textures/', V='?v=1';
-  const ANISO=renderer.capabilities.getMaxAnisotropy();
-  async function load(file, srgb){
-    const r=await fetch(DIR+file+V); if(!r.ok) throw new Error(file);
-    const bmp=await createImageBitmap(await r.blob(), { imageOrientation:'flipY' });
-    const t=new THREE.Texture(bmp);
-    t.flipY=false;                       // bitmap allaqachon aylantirilgan
-    t.anisotropy=ANISO; t.wrapS=THREE.RepeatWrapping;
-    t.minFilter=THREE.LinearMipmapLinearFilter; t.magFilter=THREE.LinearFilter;
-    if(srgb!==false) t.encoding=THREE.sRGBEncoding;
-    t.needsUpdate=true;
-    return t;
-  }
+  const RT=window.REALTEX;
+  if(!RT || !RT.ok) return;
   const rec=k=>orbitObjects.find(o=>o.key===k);
   const disposeOld=(...ts)=>ts.forEach(t=>{ if(t && t.dispose) t.dispose(); });
-  // Standart material (sayyora/oy): real rang xaritasi; toshli jismlarda relyef shu rasmdan (bumpMap)
   // Sahna yorug'ligi (PointLight 3.2) eski, to'qroq protsedural teksturalarga moslangan — haqiqiy suratlar
   // yorqinroq, shuning uchun rang koeffitsienti bilan pasaytiriladi (aks holda gaz gigantlari oqarib "kuyadi").
   const GAIN={ gas:0.4, rock:0.55 };
@@ -5930,33 +5925,33 @@ window.__REALTEX = {};
     m.color.setScalar(bump?GAIN.rock:GAIN.gas); m.needsUpdate=true;
   }
   const JOBS=[
-    ['2k_earth_daymap.jpg', t=>{ const m=rec('earth').mesh.material; m.uniforms.dayTex.value=t; m.uniforms.realMap.value=1; __REALTEX.earth=t; }],
-    ['2k_sun.jpg',          t=>{ sunMat.uniforms.sunTex.value=t; sunMat.uniforms.realMap.value=1; __REALTEX.sun=t; }],
-    ['2k_earth_nightmap.jpg', t=>{ rec('earth').mesh.material.uniforms.nightTex.value=t; }],
-    ['2k_earth_clouds.jpg', t=>{ const c=rec('earth').extras.clouds; if(!c) return; const m=c.material;
-        t.encoding=THREE.LinearEncoding; disposeOld(m.map); m.map=null; m.alphaMap=t; m.color.set(0xffffff); m.opacity=0.9; m.needsUpdate=true; }, false],
-    ['2k_moon.jpg',    t=>{ const p=rec('earth').extras.moonPivot; applyStd(p&&p.children[0], t, 0.012); }],
-    ['2k_mars.jpg',    t=>{ applyStd(rec('mars').mesh, t, 0.02); __REALTEX.mars=t; }],
-    ['2k_jupiter.jpg', t=>{ applyStd(rec('jupiter').mesh, t); __REALTEX.jupiter=t; }],
-    ['2k_saturn.jpg',  t=>{ applyStd(rec('saturn').mesh, t); __REALTEX.saturn=t; }],
-    ['2k_saturn_ring_alpha.png', t=>{ const r=rec('saturn').extras.ring; if(!r) return; const m=r.material;
-        t.wrapS=THREE.ClampToEdgeWrapping; disposeOld(m.map); m.map=t; m.opacity=1; m.needsUpdate=true; }],
-    ['2k_venus_atmosphere.jpg', t=>{ applyStd(rec('venus').mesh, t); __REALTEX.venus=t; }],
-    ['2k_mercury.jpg', t=>{ applyStd(rec('mercury').mesh, t, 0.02); __REALTEX.mercury=t; }],
-    ['2k_uranus.jpg',  t=>{ applyStd(rec('uranus').mesh, t); __REALTEX.uranus=t; }],
-    ['2k_neptune.jpg', t=>{ applyStd(rec('neptune').mesh, t); __REALTEX.neptune=t; }],
-    ['2k_ceres_fictional.jpg', t=>{ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); applyStd(b&&b.mesh, t, 0.02); }],
+    ['earth',      t=>{ const m=rec('earth').mesh.material; m.uniforms.dayTex.value=t; m.uniforms.realMap.value=1; __REALTEX.earth=t; }],
+    ['sun',        t=>{ sunMat.uniforms.sunTex.value=t; sunMat.uniforms.realMap.value=1; __REALTEX.sun=t; }],
+    ['earthNight', t=>{ rec('earth').mesh.material.uniforms.nightTex.value=t; __REALTEX.earthNight=t; }],
+    ['clouds',     t=>{ const c=rec('earth').extras.clouds; if(!c) return; const m=c.material;
+        disposeOld(m.map); m.map=null; m.alphaMap=t; m.color.set(0xffffff); m.opacity=0.9; m.needsUpdate=true; __REALTEX.clouds=t; }],
+    ['moon',       t=>{ const p=rec('earth').extras.moonPivot; applyStd(p&&p.children[0], t, 0.012); __REALTEX.moon=t; }],
+    ['mars',       t=>{ applyStd(rec('mars').mesh, t, 0.02); __REALTEX.mars=t; }],
+    ['jupiter',    t=>{ applyStd(rec('jupiter').mesh, t); __REALTEX.jupiter=t; }],
+    ['saturn',     t=>{ applyStd(rec('saturn').mesh, t); __REALTEX.saturn=t; }],
+    ['saturnRing', t=>{ const r=rec('saturn').extras.ring; if(!r) return; const m=r.material;
+        disposeOld(m.map); m.map=t; m.opacity=1; m.needsUpdate=true; }],
+    ['venus',      t=>{ applyStd(rec('venus').mesh, t); __REALTEX.venus=t; }],
+    ['mercury',    t=>{ applyStd(rec('mercury').mesh, t, 0.02); __REALTEX.mercury=t; }],
+    ['uranus',     t=>{ applyStd(rec('uranus').mesh, t); __REALTEX.uranus=t; }],
+    ['neptune',    t=>{ applyStd(rec('neptune').mesh, t); __REALTEX.neptune=t; }],
+    ['ceres',      t=>{ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); applyStd(b&&b.mesh, t, 0.02); }],
   ];
   const pause=ms=>new Promise(r=>setTimeout(r,ms));
   async function run(){
-    for(const [file, apply, srgb] of JOBS){
+    for(const [key, apply] of JOBS){
       try{
-        const t=await load(file, srgb);
+        const t=await RT.texture(key);
         renderer.initTexture(t);          // GPU'ga hozir yuklanadi — sayyora ko'rinishga kirganda emas
         apply(t);
         await pause(16);
         renderer.compile(scene, camera);  // o'zgargan materiallar shaderi oldindan tayyorlanadi
-      }catch(e){ console.warn('[tekstura]', file, e.message||e); }
+      }catch(e){}
       await pause(120);
     }
   }

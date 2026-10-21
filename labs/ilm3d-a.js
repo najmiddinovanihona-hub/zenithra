@@ -28,7 +28,7 @@ ILM3D.add('⭐',{title:{uz:"Yulduzlar — 3D ko'rgazma",ru:"Звёзды — 3D-
  {n:{uz:"Spektral sinflar",ru:"Спектральные классы",en:"Spectral classes"},
   d:{uz:"O dan M gacha bo'lgan asosiy ketma-ketlik yulduzlari: issiqroq yulduzlar ko'kish va kattaroq, sovuqlari qizg'ish va kichikroq. O'lchamlar nisbiy (taxminiy), Quyosh — G sinf.",ru:"Звёзды главной последовательности от O до M: горячие — голубоватые и крупнее, холодные — красноватые и меньше. Размеры относительные (приблизительно), Солнце — класс G.",en:"Main-sequence stars from O to M: hotter stars are bluer and larger, cooler ones redder and smaller. Sizes are relative (approximate); the Sun is class G."},
   build(H){const G=new THREE.Group(),D=[['O',3,0x9bb0ff],['B',2.2,0xaabfff],['A',1.5,0xcad7ff],['F',1.2,0xf8f7ff],['G',1,0xffe9a8],['K',.8,0xffc98a],['M',.45,0xff9a5a]];let x=-14;
-   D.forEach(d=>{x+=d[1];const b=H.ball(d[1],d[2],40);b.position.x=x;G.add(b);const s=H.label(d[0],'#cfe0ff',1);s.position.set(x,-d[1]-1,0);G.add(s);x+=d[1]+1.1;});
+   D.forEach(d=>{x+=d[1];const b=H.ball(d[1],d[2],40);b.position.x=x;G.add(b);if(window.REALTEX&&window.REALTEX.ok)window.REALTEX.star(b,d[2]);const s=H.label(d[0],'#cfe0ff',1);s.position.set(x,-d[1]-1,0);G.add(s);x+=d[1]+1.1;});
    G.position.x=-(x-14)/2-0.5;return {G,cam:[0,3,22],tg:[0,0,0],u(t){G.rotation.y=Math.sin(t*.3)*.25;}};}}
 ]});
 

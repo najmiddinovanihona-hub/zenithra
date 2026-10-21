@@ -1,7 +1,7 @@
 /* Darslik fayllarini sahifa ochilgandan keyin, fonda ketma-ket yuklaydi (asosiy 3D sahifa tezroq ochilishi uchun).
    Darslik yoki test tugmasi bosilsa — darhol yuklashni boshlaydi. */
 (function(){
-const FILES=["labs/dz-t01.js?v=4",
+const FILES=["labs/dz-t01.js?v=5",
  "labs/dz-t02.js?v=3",
  "labs/dz-t03.js?v=2",
  "labs/dz-t04.js?v=2",
