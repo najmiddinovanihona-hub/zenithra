@@ -1979,22 +1979,83 @@ dust.material.userData.skyBase = dust.material.opacity; SKY_FADE_MATS.push(dust.
        Osmon guruhida — yulduzlar bilan aniq ustma-ust tushadi va kosmik uzoqlashishda ular bilan birga so'nadi. --- */
 const CON_ALL = (function(){
   const D=window.SKY_CONSTELLATIONS||[], grp=new THREE.Group(); grp.visible=false; skyRoot.add(grp);
-  const R=CONST_R*0.995, segPts=[];
-  D.forEach(c=>c.l.forEach(s=>{ for(let i=0;i<s.length-1;i++) segPts.push(radecToVector(s[i][0],s[i][1],R), radecToVector(s[i+1][0],s[i+1][1],R)); }));
-  const lineMat=new THREE.LineBasicMaterial({ color:0x8fb4ff, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending });
-  grp.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(segPts), lineMat));
+  const R=CONST_R*0.995;
+  /* Porlovchi chiziqlar: har bir kesma — ekranga qaragan tasma (WebGL chizig'i 1 px va "quruq" bo'lardi).
+     Ko'ndalang kesimi: ingichka oq-issiq o'zak + keng yumshoq nur; bo'ylab sekin oqib o'tadigan yorug'lik;
+     yoqilganda har bir chiziq boshidan oxirigacha "chizilib" paydo bo'ladi. Qalinlik — piksellarda (masofaga bog'liq emas). */
+  const BLUE=[0.55,0.72,1.0], GOLD=[1.0,0.80,0.45];
+  const P=[], O=[], S=[], A=[], SD=[], CL=[], IX=[]; let nv=0;
+  const nodeP=[], nodeC=[], nodeS=[];
+  D.forEach((c,ci)=>{ const col=c.z?GOLD:BLUE, seed=ci/D.length, seen=new Set();
+    c.l.forEach(s=>{ const v=s.map(p=>radecToVector(p[0],p[1],R));
+      s.forEach((p,i)=>{ const key=p[0]+','+p[1]; if(seen.has(key)) return; seen.add(key);
+        nodeP.push(v[i].x,v[i].y,v[i].z); nodeC.push(...col); nodeS.push(Math.random()); });
+      for(let i=0;i<v.length-1;i++){ const a=v[i], b=v[i+1];
+        [[a,b,-1,0],[a,b,1,0],[b,a,-1,1],[b,a,1,1]].forEach(([p,o,sd,al])=>{
+          P.push(p.x,p.y,p.z); O.push(o.x,o.y,o.z); S.push(sd); A.push(al); SD.push(seed+i*0.137); CL.push(...col); });
+        IX.push(nv,nv+2,nv+1, nv+1,nv+2,nv+3); nv+=4; } }); });   // uchburchaklar ekranda soat strelkasiga qarshi — old tomon
+  const lg=new THREE.BufferGeometry();
+  lg.setAttribute('position',new THREE.Float32BufferAttribute(P,3)); lg.setAttribute('other',new THREE.Float32BufferAttribute(O,3));
+  lg.setAttribute('side',new THREE.Float32BufferAttribute(S,1)); lg.setAttribute('along',new THREE.Float32BufferAttribute(A,1));
+  lg.setAttribute('seed',new THREE.Float32BufferAttribute(SD,1)); lg.setAttribute('acol',new THREE.Float32BufferAttribute(CL,3)); lg.setIndex(IX);
+  // ("acol": "color" nomi three.js bilan to'qnashib 0 bo'lib kelardi)
+  const U={ uRes:{value:new THREE.Vector2(1,1)}, uWidth:{value:6}, uOpacity:{value:0}, uTime:{value:0}, uReveal:{value:0} };
+  const lineMat=new THREE.ShaderMaterial({ uniforms:U, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,   // FrontSide: barcha tasmalar ekranda bir xil aylanish yo'nalishida; teskarisi — buzilgan (kamera tekisligini kesuvchi) kesma
+    vertexShader:[
+      'attribute vec3 other; attribute float side; attribute float along; attribute float seed; attribute vec3 acol;',
+      'uniform vec2 uRes; uniform float uWidth;',
+      'varying float vSide; varying float vAlong; varying float vSeed; varying vec3 vCol;',
+      'void main(){',
+      '  vSide=side; vAlong=along; vSeed=seed; vCol=acol;',
+      '  vec4 a=projectionMatrix*modelViewMatrix*vec4(position,1.0);',
+      '  vec4 b=projectionMatrix*modelViewMatrix*vec4(other,1.0);',
+      '  if(a.w<=0.0||b.w<=0.0){ gl_Position=vec4(2.0,2.0,2.0,1.0); return; }',   // kamera ortidagi kesma
+      '  vec2 sa=a.xy/a.w*uRes*0.5, sb=b.xy/b.w*uRes*0.5;',
+      '  vec2 d=sb-sa; if(length(d)<1e-4) d=vec2(1.0,0.0); d=normalize(d); if(along>0.5) d=-d;',
+      '  vec2 n=vec2(-d.y,d.x);',
+      '  vec2 off=(n*side*uWidth + d*(along>0.5?1.0:-1.0)*uWidth*0.35)/(uRes*0.5);',   // uchlari biroz uzaytiriladi — tugunlarda uzilish yo'q
+      '  a.xy+=off*a.w; gl_Position=a;',
+      '}'].join('\n'),
+    fragmentShader:[
+      'uniform float uOpacity; uniform float uTime; uniform float uReveal;',
+      'varying float vSide; varying float vAlong; varying float vSeed; varying vec3 vCol;',
+      'void main(){',
+      '  float d=abs(vSide);',
+      '  float core=exp(-d*d*30.0), glow=exp(-d*d*3.2)*0.5;',
+      '  float flow=0.72+0.28*sin(vAlong*6.2832-uTime*1.4+vSeed*37.0);',          // chiziq bo'ylab oqib o'tuvchi yorug'lik
+      '  float rev=smoothstep(vAlong-0.08,vAlong,uReveal*1.25-fract(vSeed*7.31)*0.25);',   // chizilib paydo bo'lish
+      '  vec3 c=mix(vCol,vec3(1.0,0.98,0.95),core*0.7);',
+      '  float al=(core+glow)*flow*rev*uOpacity;',
+      '  if(al<0.004) discard;',
+      '  gl_FragColor=vec4(c,al);',
+      '}'].join('\n') });
+  const lineMesh=new THREE.Mesh(lg,lineMat); lineMesh.frustumCulled=false; lineMesh.renderOrder=2; grp.add(lineMesh);
+  // Tugunlar — chiziqlar uchrashgan yulduzlar: yumshoq miltillovchi nur
+  const ng=new THREE.BufferGeometry();
+  ng.setAttribute('position',new THREE.Float32BufferAttribute(nodeP,3)); ng.setAttribute('acol',new THREE.Float32BufferAttribute(nodeC,3)); ng.setAttribute('seed',new THREE.Float32BufferAttribute(nodeS,1));
+  const NU={ uOpacity:{value:0}, uTime:{value:0}, uPx:{value:1} };
+  const nodeMat=new THREE.ShaderMaterial({ uniforms:NU, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+    vertexShader:'attribute vec3 acol; attribute float seed; uniform float uTime; uniform float uPx; varying vec3 vCol; varying float vTw;\n'+
+      'void main(){ vCol=acol; vTw=0.75+0.25*sin(uTime*(1.3+seed*1.7)+seed*40.0); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_PointSize=(15.0+5.0*vTw)*uPx; }',
+    fragmentShader:'uniform float uOpacity; varying vec3 vCol; varying float vTw;\n'+
+      'void main(){ vec2 p=gl_PointCoord-0.5; float r=length(p)*2.0; if(r>1.0) discard;\n'+
+      '  float core=exp(-r*r*22.0), halo=exp(-r*r*4.0)*0.55; vec3 c=mix(vCol,vec3(1.0),core*0.8);\n'+
+      '  gl_FragColor=vec4(c,(core+halo)*vTw*uOpacity); }' });
+  const nodes=new THREE.Points(ng,nodeMat); nodes.frustumCulled=false; nodes.renderOrder=3; grp.add(nodes);
   // Nom joyi — turkum chiziqlari nuqtalarining o'rtacha yo'nalishi
   const cent=D.map(c=>{ const v=new THREE.Vector3(); c.l.flat().forEach(p=>v.add(radecToVector(p[0],p[1],1))); return v.normalize().multiplyScalar(CONST_R*0.97); });
   function tex(txt, zod){
     const c=makeCanvas(512,96), x=c.getContext('2d');
     x.font='500 42px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='2px';
     const w=Math.min(500, x.measureText(txt).width+24);
-    x.textAlign='center'; x.textBaseline='middle'; x.shadowColor='rgba(0,0,0,0.95)'; x.shadowBlur=8;
-    x.fillStyle=zod?'#ffd98a':'#b4cbff'; x.fillText(txt,256,50);
+    const col=zod?'#ffd98a':'#b4cbff';
+    x.textAlign='center'; x.textBaseline='middle';
+    x.shadowColor=zod?'rgba(255,190,90,0.9)':'rgba(110,160,255,0.9)'; x.shadowBlur=18; x.fillStyle=col; x.globalAlpha=0.55; x.fillText(txt,256,50);   // rangli nur
+    x.globalAlpha=1; x.shadowColor='rgba(0,0,0,0.9)'; x.shadowBlur=6; x.fillStyle=col; x.fillText(txt,256,50);
     return { map:asTexture(c,false), w:w/512 };
   }
   let labels=[];
-  const st={ f:0, t:0, k:-1 };
+  const st={ f:0, t:0, k:-1, r:0 };
   function build(){
     labels.forEach(s=>{ grp.remove(s); s.material.map.dispose(); s.material.dispose(); }); labels=[];
     const li={uz:0,ru:1,en:2}[LANG]; const ix=li==null?0:li;
@@ -2004,14 +2065,21 @@ const CON_ALL = (function(){
     st.k=-1;
   }
   build();
+  const _rs=new THREE.Vector2();
   function step(dt){
     if(st.f!==st.t){ st.f=Math.max(0,Math.min(1, st.f+Math.sign(st.t-st.f)*dt*1.6)); }
+    // yoqilganda ~1.8 s da chizilib chiqadi — haqiqiy vaqt bo'yicha (kadr tezligiga bog'liq emas)
+    if(st.t===1) st.r=Math.min(1, (performance.now()-st.t0)/1800); else if(st.f===0) st.r=0;
     const k=easeInOut(st.f)*COSMO.skyFade;
+    grp.visible=k>0.003; if(!grp.visible){ st.k=k; return; }
+    // har kadr: vaqt (oqim, miltillash) va ekran o'lchami
+    renderer.getDrawingBufferSize(_rs); U.uRes.value.copy(_rs); const dpr=renderer.getPixelRatio();
+    U.uWidth.value=6.5*dpr; NU.uPx.value=dpr; U.uTime.value=NU.uTime.value=clock.elapsedTime;
+    U.uReveal.value=easeInOut(st.r);
     if(Math.abs(k-st.k)<0.002) return;
-    st.k=k; grp.visible=k>0.003;
-    lineMat.opacity=0.42*k; labels.forEach(s=>{ s.material.opacity=0.88*k; });
+    st.k=k; U.uOpacity.value=0.95*k; NU.uOpacity.value=0.9*k; labels.forEach(s=>{ s.material.opacity=0.9*k; });
   }
-  function toggle(){ st.t=st.t?0:1; return st.t===1; }
+  function toggle(){ st.t=st.t?0:1; if(st.t===1 && st.r===0) st.t0=performance.now(); return st.t===1; }
   return { step, toggle, build, count:D.length };
 })();
 const CON_BTN_T={ uz:'Yulduz turkumlari (88)', ru:'Созвездия (88)', en:'Constellations (88)' };
