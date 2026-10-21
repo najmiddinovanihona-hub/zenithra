@@ -1596,24 +1596,97 @@ function skyPoleStep(dt){
   POLE_FX.forEach((p,i)=>{ const s=i?-1:1;
     p.ring.material.rotation += dt*0.035*s; p.cross.material.rotation -= dt*0.09*s;
     const k=0.85+0.18*Math.sin(t*2.1+i*1.7); p.core.scale.set(30*k,30*k,1); });
+  // Yorliqlar sfera bilan birga kichrayadi, lekin o'qib bo'lmas darajada emas; sfera juda kichik bo'lganda
+  // avval mayda belgilar (soat/gradus), keyin nomlar ham sekin yashiriladi — bir joyga to'planib qolmasin
+  const cp=camera.position, PX=PX_SCALE.value, Rpx=CONST_R*PX/Math.max(1,cp.length());
+  const fTag=sstep(90,170,Rpx), fTick=sstep(240,400,Rpx);
+  // Shar tashqarisidan qaralganda orqa yarim shardagi yorliqlar yashiriladi (oldingilari bilan ustma-ust tushmasin)
+  const cl=Math.max(1,cp.length()), out=sstep(CONST_R*0.95,CONST_R*1.35,cl);
+  skyPoleLbl.forEach(sp=>{ const L=sp.userData.lbl; if(!L) return;
+    const side=sp.position.dot(cp)/cl, back=1-out*(1-sstep(-0.4*CONST_R,-0.12*CONST_R,side));
+    const f=(L.kind==='tick'?fTick:fTag)*back; sp.visible=f>0.01; if(!sp.visible) return;
+    const d=Math.max(1,sp.position.distanceTo(cp)), px=L.w*PX/d, sc=px<L.min?L.min/px:1;
+    sp.scale.set(L.w*sc,L.h*sc,1); sp.material.opacity=sp.material.userData.base*Math.max(0,skyGridK)*f; });
 }
 let skyPoleLbl=[];
 function skyBuildPoleLabel(){   // i18n — til almashganda qayta chiziladi
-  skyPoleLbl.forEach(l=>{ skyGrid.remove(l); l.material.map.dispose();
+  skyPoleLbl.forEach(l=>{ skyGrid.remove(l); if(l.material.map!==SPRITE) l.material.map.dispose();
     const ix=skyGridMats.indexOf(l.material); if(ix>-1) skyGridMats.splice(ix,1); l.material.dispose(); });
   skyPoleLbl=[];
   const t=POLE_TXT[LANG]||POLE_TXT.uz, op=skyGrid.visible?0.95:0;
   const mk=(title,sub,col,pos,w,h)=>{ const m=new THREE.SpriteMaterial({map:poleLabelTex(title,sub,col), transparent:true, opacity:op, depthWrite:false});
-    m.userData.base=0.95; skyGridMats.push(m); const sp=new THREE.Sprite(m); sp.scale.set(w,h,1); sp.position.copy(pos); skyGrid.add(sp); skyPoleLbl.push(sp); };
+    m.userData.base=0.95; skyGridMats.push(m); const sp=new THREE.Sprite(m); sp.scale.set(w,h,1); sp.position.copy(pos); sp.userData.lbl={ w, h, min:170, kind:'tag' }; skyGrid.add(sp); skyPoleLbl.push(sp); };
   mk(t.n, t.ns, '#ffdca0', skyNP.clone().multiplyScalar(0.94).add(new THREE.Vector3(0,320,0)), 600, 118);
   mk(t.s, t.ss, '#a8dcff', skySP.clone().multiplyScalar(0.94).add(new THREE.Vector3(0,-320,0)), 600, 118);
   const pp=new THREE.Vector3(Math.sin(EPS_OBL), Math.cos(EPS_OBL), 0).multiplyScalar(CONST_R*0.95).add(new THREE.Vector3(0,40,0));
   const m=new THREE.SpriteMaterial({map:poleLabelTex(t.p,'',"#ffdca0"), transparent:true, opacity:op*0.6, depthWrite:false});
   m.userData.base=0.55; skyGridMats.push(m); const sp=new THREE.Sprite(m); sp.scale.set(380,74,1); sp.position.copy(pp); skyGrid.add(sp); skyPoleLbl.push(sp);
+  skyGridLabels(op);
+}
+/* --- To'r qismlarining nomlari: ekvator, ekliptika, tengkunlik/quyosh turishi nuqtalari, soat va gradus belgilari --- */
+const GRID_TXT={
+  uz:{eq:'Osmon ekvatori', eqs:'Yer ekvatorining osmondagi davomi', ecl:'Ekliptika', ecls:'Quyoshning yillik yo‘li',
+      ve:'Bahorgi tengkunlik', ves:'≈ 20-mart · kun = tun', ae:'Kuzgi tengkunlik', aes:'≈ 22-sentabr · kun = tun',
+      ss:'Yozgi quyosh turishi', sss:'≈ 21-iyun · eng uzun kun', ws:'Qishki quyosh turishi', wss:'≈ 21-dekabr · eng qisqa kun',
+      ra:'To‘g‘ri chiqish', dec:'Og‘ish', h:'s'},
+  ru:{eq:'Небесный экватор', eqs:'Продолжение земного экватора на небе', ecl:'Эклиптика', ecls:'Годовой путь Солнца',
+      ve:'Весеннее равноденствие', ves:'≈ 20 марта · день = ночь', ae:'Осеннее равноденствие', aes:'≈ 22 сентября · день = ночь',
+      ss:'Летнее солнцестояние', sss:'≈ 21 июня · самый длинный день', ws:'Зимнее солнцестояние', wss:'≈ 21 декабря · самый короткий день',
+      ra:'Прямое восхождение', dec:'Склонение', h:'ч'},
+  en:{eq:'Celestial equator', eqs:'Earth’s equator projected onto the sky', ecl:'Ecliptic', ecls:'The Sun’s yearly path',
+      ve:'March equinox', ves:'≈ Mar 20 · day = night', ae:'September equinox', aes:'≈ Sep 22 · day = night',
+      ss:'June solstice', sss:'≈ Jun 21 · longest day', ws:'December solstice', wss:'≈ Dec 21 · shortest day',
+      ra:'Right ascension', dec:'Declination', h:'h'}
+};
+// Shisha "yorliq": qorong'i fon, rangli chegara va nuqta, sarlavha + izoh
+function gridTagTex(title, sub, col){
+  const W=640, H=sub?168:104, c=makeCanvas(W,H), x=c.getContext('2d'), r=H/2-6;
+  x.font='600 40px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='3px';
+  const tw=x.measureText(title.toUpperCase()).width;
+  x.font='400 28px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='1px';
+  const sw=sub?x.measureText(sub).width:0, bw=Math.min(W-12, Math.max(tw, sw)+110), bx=(W-bw)/2;
+  x.beginPath(); x.moveTo(bx+r,6); x.arcTo(bx+bw,6,bx+bw,H-6,r); x.arcTo(bx+bw,H-6,bx,H-6,r); x.arcTo(bx,H-6,bx,6,r); x.arcTo(bx,6,bx+bw,6,r); x.closePath();
+  x.fillStyle='rgba(6,12,28,0.72)'; x.fill(); x.globalAlpha=0.7; x.strokeStyle=col; x.lineWidth=2.5; x.stroke(); x.globalAlpha=1;
+  x.fillStyle=col; x.shadowColor=col; x.shadowBlur=14; x.beginPath(); x.arc(bx+36, sub?58:H/2, 9, 0, TAU); x.fill();
+  x.textAlign='center'; x.textBaseline='middle'; x.fillStyle=col;
+  x.font='600 40px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='3px';
+  x.fillText(title.toUpperCase(), W/2+18, sub?60:H/2);
+  if(sub){ x.shadowBlur=0; x.fillStyle='#dfe8ff'; x.globalAlpha=0.85; x.font='400 28px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='1px'; x.fillText(sub, W/2+18, 116); }
+  return { tex:asTexture(c,false), aspect:H/W };
+}
+function gridTickTex(txt, col){
+  const c=makeCanvas(128,64), x=c.getContext('2d');
+  x.font='600 34px "Segoe UI", system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+  x.shadowColor='rgba(0,0,0,0.9)'; x.shadowBlur=6; x.fillStyle=col; x.fillText(txt,64,33);
+  return asTexture(c,false);
+}
+function skyGridLabels(op){
+  const g=GRID_TXT[LANG]||GRID_TXT.uz, R=CONST_R;
+  const add=(map, base, pos, w, h, min, kind)=>{ const m=new THREE.SpriteMaterial({map, transparent:true, opacity:op*base, depthWrite:false});
+    m.userData.base=base; skyGridMats.push(m); const sp=new THREE.Sprite(m); sp.scale.set(w,h,1); sp.position.copy(pos);
+    if(min) sp.userData.lbl={ w, h, min, kind };   // ekranda o'qiladigan eng kichik kenglik (px)
+    skyGrid.add(sp); skyPoleLbl.push(sp); return sp; };
+  const tag=(title, sub, col, pos, w)=>{ const t=gridTagTex(title, sub, col); add(t.tex, 0.95, pos, w, w*t.aspect, sub?150:110, 'tag'); };
+  const up=(v,dy)=>v.add(new THREE.Vector3(0,dy,0));
+  // Asosiy aylanalar — har biri ikki qarama-qarshi tomonda (qayerdan qaramang, bittasi ko'rinadi)
+  [4.5,16.5].forEach(h=>tag(g.eq, g.eqs, '#ffe8c0', up(radecToVector(h,0,R*0.97),70), 330));
+  [130,310].forEach(d=>{ const l=d*Math.PI/180; tag(g.ecl, g.ecls, '#ffd54f', new THREE.Vector3(Math.cos(l)*R*0.97,-72,-Math.sin(l)*R*0.97), 300); });
+  // Tengkunlik va quyosh turishi nuqtalari: ekliptikadagi yorqin nishon + yorliq
+  [[0,g.ve,g.ves,'#9dffb0'],[180,g.ae,g.aes,'#ffb37a'],[90,g.ss,g.sss,'#ffe066'],[270,g.ws,g.wss,'#8fd0ff']].forEach(([d,t,s,col])=>{
+    const l=d*Math.PI/180, p=new THREE.Vector3(Math.cos(l)*R,0,-Math.sin(l)*R);
+    add(glowTexture(), 0.75, p, 120, 120).material.color.set(col);
+    add(SPRITE, 1, p, 26, 26);
+    tag(t, s, col, up(p.clone().multiplyScalar(0.97), d===90||d===270?150:-130), 340);
+  });
+  // To'g'ri chiqish (soat) — ekvator bo'ylab, og'ish (gradus) — 9ʰ meridiani bo'ylab
+  for(let h=0;h<24;h+=2) add(gridTickTex(h+g.h,'#b9cdff'), 0.8, up(radecToVector(h,0,R*0.985),-34), 64, 32, 30, 'tick');
+  [-60,-30,30,60].forEach(d=>add(gridTickTex((d>0?'+':'−')+Math.abs(d)+'°','#b9cdff'), 0.75, radecToVector(9,d,R*0.985), 70, 35, 32, 'tick'));
+  tag(g.ra, '', '#b9cdff', up(radecToVector(1,0,R*0.97),-90), 230);
+  tag(g.dec, '', '#b9cdff', radecToVector(9,45,R*0.97), 170);
 }
 skyBuildPoleLabel();
 // To'r fade — faqat opacity animatsiyasi, geometriya qayta hisoblanmaydi
-// To'r yulduzlar osmoni bilan birga so'nadi (avval uzoqlashganda yulduzlar so'nsa ham to'r yorqin qolardi)
+// To'r Quyosh tizimiga biriktirilgan model (osmon guruhida emas): kichraytirganda tizim bilan birga kichrayadi, so'nmaydi
 let skyFade=0, skyFadeT=0, skyGridK=-1;
 function skyGridStep(dt2){
   if(skyFade!==skyFadeT){
@@ -1621,7 +1694,7 @@ function skyGridStep(dt2){
     skyFade = Math.max(0, Math.min(1, skyFade));
   }
   if(skyFade===0){ skyGrid.visible=false; skyGridK=0; return; }
-  const k=easeInOut(skyFade)*COSMO.skyFade;   // kosmik uzoqlashishda osmon bilan birga so'nadi
+  const k=easeInOut(skyFade);
   if(Math.abs(k-skyGridK)<0.002) return;
   skyGridK=k; skyGrid.visible=k>0.003;
   skyGridMats.forEach(m=>{ m.opacity=m.userData.base*k; });
@@ -1892,7 +1965,7 @@ const COSMO = { skyFade:1, mwFade:0, camD:0, lang:null, pos:{}, labels:[] };
 
 // Osmon qatlamlari bitta guruhda — uzoqlashganda kamera bilan yuradi (cheksiz uzoq fon) va so'nadi
 const skyRoot = new THREE.Group(); scene.add(skyRoot);
-[starsFar, starsNear, nebulaGroup, skyGrid, ...galaxySprites,
+[starsFar, starsNear, nebulaGroup, ...galaxySprites,
  ...scene.children.filter(o=>o.userData && o.userData.skyLayer)].forEach(o=>skyRoot.add(o));
 const SKY_FADE_MATS = [];
 skyRoot.traverse(o=>{
@@ -2190,9 +2263,7 @@ function cosmicStep(dt){
   if(Math.abs(nr-camera.near)/camera.near>0.08){ camera.near=nr; camera.updateProjectionMatrix(); }
   controls.zoomSpeed = 0.9 + 2.0*Math.min(1, Math.max(0, Math.log10(Math.max(tD,1)/2500)/3));
   PX_SCALE.value = renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360));
-  // Osmon cheksiz uzoqda: sfera doim kamera markazida (aks holda yaqinlashib-uzoqlashganda to'r va burjlar
-  // Quyosh tizimi atrofidagi "shar" bo'lib joyida qolardi, kamera sfera chetiga yetib uni buzib ko'rsatardi)
-  skyRoot.position.copy(camera.position);
+  skyRoot.position.copy(camera.position).multiplyScalar(sstep(1200,3000,camD));
   const sf=1-sstep(2600,14000,camD); COSMO.skyFade=sf;
   skyRoot.visible = sf>0.004;
   for(let i=0;i<SKY_FADE_MATS.length;i++){ const m=SKY_FADE_MATS[i]; m.opacity=m.userData.skyBase*sf; }
