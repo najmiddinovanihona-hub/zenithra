@@ -45,7 +45,9 @@ register('spacewx',{ ico:'☀', group:GROUP, name:SW.name, sub:SW.sub,
     body.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{ lab.img=b.dataset.i; click(740); setImg(); });
     setImg();
     lab.onLoc=()=>{ if(lab.D) aurora(); };
-    async function load(force){
+    // Bir vaqtda faqat bitta yuklash (build va open ikkalasi chaqiradi — avval 14 ta so'rov ketardi, 7 o'rniga)
+    function load(force){ if(lab._loading) return lab._loading; return (lab._loading=loadNow(force).finally(()=>{ lab._loading=null; })); }
+    async function loadNow(force){
       if(!force&&lab.D&&Date.now()-lab.D.t<5*60000){ render(); return; }
       try{ const B='https://services.swpc.noaa.gov/';
         const [sc,kp,kpf,spd,bz,fl,xr]=await Promise.all([getJ(B+'products/noaa-scales.json'),getJ(B+'products/noaa-planetary-k-index.json'),getJ(B+'products/noaa-planetary-k-index-forecast.json'),
@@ -94,7 +96,7 @@ register('spacewx',{ ico:'☀', group:GROUP, name:SW.name, sub:SW.sub,
         ${need>9?`<p class="lab-note" style="margin-top:8px">${esc(T(SW.never))}</p>`:''}`;
       locPicker($('swLoc')); }
     lab.load=load; load(false);
-    lab.timer=setInterval(()=>{ if(lab.isOpen) load(true); },5*60000);
+    clearInterval(lab.timer); lab.timer=setInterval(()=>{ if(lab.isOpen) load(true); },5*60000);
   },
   open(){ this.load&&this.load(false); }
 });
@@ -333,7 +335,7 @@ register('launches',{ ico:'🚀', group:GROUP, name:LN.name, sub:LN.sub,
       if($('coPast')) $('coPast').onclick=()=>{ lab.pf={p:String(a.id),y:'',s:'',q:''}; lab.tab='past'; show(); };
       if($('coUp')) $('coUp').onclick=()=>{ lab.f=a.name; lab.tab='up'; show(); };
     }
-    lab.show=show; show(); lab.timer=setInterval(()=>{ if(lab.isOpen) tick(); },1000);
+    lab.show=show; show(); clearInterval(lab.timer); lab.timer=setInterval(()=>{ if(lab.isOpen) tick(); },1000);
   },
   open(){ this.show&&this.show(); }
 });
@@ -398,7 +400,7 @@ register('eclipses',{ ico:'🌑', group:GROUP, name:EC.name, sub:EC.sub,
             <div class="sp-ecw">${esc(T(EC.where))}: ${esc(T(e.w))}</div><a href="${url}" target="_blank" rel="noopener">${esc(T(EC.more))} ↗</a></div></div>`; }).join('');
     }
     function tick(){ const e=$('ecCd'); if(e&&lab.nx) e.textContent=cdown(lab.nx.t-Date.now()); }
-    lab.render=render; render(); lab.timer=setInterval(()=>{ if(lab.isOpen) tick(); },1000);
+    lab.render=render; render(); clearInterval(lab.timer); lab.timer=setInterval(()=>{ if(lab.isOpen) tick(); },1000);
   },
   open(){ this.render&&this.render(); }
 });

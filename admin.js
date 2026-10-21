@@ -57,8 +57,10 @@ const pctCls = p => p>=80?'hi':p>=50?'mid':'lo';
 let ME = null, TOPICS = {};
 
 async function api(method, url, body){
-  const r = await fetch(url, { method, credentials:'same-origin',
-    headers: body!==undefined ? {'Content-Type':'application/json'} : {}, body: body!==undefined ? JSON.stringify(body) : undefined });
+  let r;
+  try{ r = await fetch(url, { method, credentials:'same-origin',
+    headers: body!==undefined ? {'Content-Type':'application/json'} : {}, body: body!==undefined ? JSON.stringify(body) : undefined }); }
+  catch(e){ throw new Error('NETWORK'); }
   let data=null; try{ data=await r.json(); }catch(e){}
   if(r.status===401 || r.status===403){ location.href='/#login'; throw new Error('auth'); }
   if(!r.ok) throw new Error((data&&data.error)||('HTTP '+r.status));
@@ -66,7 +68,15 @@ async function api(method, url, body){
 }
 function toast(msg, err){ const t=$('adToast'); t.textContent=msg; t.classList.toggle('err',!!err); t.classList.add('on');
   clearTimeout(toast.tm); toast.tm=setTimeout(()=>t.classList.remove('on'), 2600); }
-const fail = e => { if(e.message!=='auth') toast(T(TX.err)+e.message, true); };
+// Server xato kodlari → tushunarli 3 tilli matn (xom "SELF_ACTION" o'rniga)
+const ERR = {
+  SELF_ACTION:{uz:'O‘zingizga nisbatan bu amalni bajarib bo‘lmaydi',ru:'Это действие нельзя применить к себе',en:'You cannot do this to your own account'},
+  LAST_ADMIN:{uz:'Tizimda kamida bitta faol admin qolishi kerak',ru:'В системе должен остаться хотя бы один активный админ',en:'At least one active admin must remain'},
+  NOT_FOUND:{uz:'Topilmadi (ehtimol, allaqachon o‘chirilgan)',ru:'Не найдено (возможно, уже удалено)',en:'Not found (maybe already deleted)'},
+  RATE_LIMIT:{uz:'Juda ko‘p so‘rov — biroz kuting',ru:'Слишком много запросов — подождите',en:'Too many requests — please wait'},
+  NETWORK:{uz:'Server bilan aloqa yo‘q',ru:'Нет связи с сервером',en:'Cannot reach the server'},
+};
+const fail = e => { if(e.message==='auth') return; toast(ERR[e.message] ? T(ERR[e.message]) : T(TX.err)+e.message, true); };
 
 // Test ID → o'qiladigan nom: quiz:easy, quiz:dz:1-40, topic:t05
 function quizName(id){
@@ -88,6 +98,8 @@ function applyLang(){
 }
 document.querySelectorAll('.ad-langs button').forEach(b => b.onclick = () => {
   LANG = b.dataset.lang; try{ localStorage.setItem('solar_lang', LANG); }catch(e){}
+  // Serverga ham — aks holda asosiy saytga qaytganda sinxron eski tilni qaytarib qo'yardi
+  api('PUT', '/api/me/settings', { lang:LANG }).catch(()=>{});
   applyLang(); load(cur);
 });
 
@@ -129,7 +141,7 @@ async function loadStats(){
 
   $('topQuizzes').innerHTML = s.topQuizzes.length
     ? `<tr><th>${esc(T(TX.quiz))}</th><th class="num">${esc(T(TX.attempts))}</th><th class="num">${esc(T(TX.avg))}</th></tr>` +
-      s.topQuizzes.map(q => `<tr><td>${esc(quizName(q.quizId))} <span class="em">${esc(q.quizId)}</span></td><td class="num">${num(q.attempts)}</td><td class="num"><span class="pct ${pctCls(q.avgPercent)}">${q.avgPercent ?? '—'}%</span></td></tr>`).join('')
+      s.topQuizzes.map(q => `<tr><td>${esc(quizName(q.quizId))} <span class="em">${esc(q.quizId)}</span></td><td class="num">${num(q.attempts)}</td><td class="num">${q.avgPercent==null ? '—' : `<span class="pct ${pctCls(q.avgPercent)}">${q.avgPercent}%</span>`}</td></tr>`).join('')
     : `<tr><td class="ad-empty">${esc(T(TX.empty))}</td></tr>`;
 }
 
@@ -145,7 +157,11 @@ function pager(el, st, total, reload){
     `<button class="ad-btn ghost sm" ${st.page<=1?'disabled':''} data-p="-1">${esc(T(TX.prev))}</button>
      <span>${st.page} / ${pages} ${esc(T(TX.page))}</span>
      <button class="ad-btn ghost sm" ${st.page>=pages?'disabled':''} data-p="1">${esc(T(TX.next))}</button>`;
-  el.querySelectorAll('button').forEach(b => b.onclick = () => { st.page += +b.dataset.p; reload().catch(fail); });
+  // Yuklanayotganda tugmalar o'chiriladi — tez ikki marta bosish mavjud bo'lmagan sahifaga o'tkazib yubormaydi
+  el.querySelectorAll('button').forEach(b => b.onclick = () => {
+    el.querySelectorAll('button').forEach(x => x.disabled = true);
+    st.page += +b.dataset.p; reload().catch(fail);
+  });
 }
 
 async function loadUsers(){
@@ -156,6 +172,8 @@ async function loadUsers(){
   const r = await api('GET', '/api/admin/users?'+qs);
   $('uCount').textContent = `${num(r.total)} ${T(TX.shown)}`;
   const tb = $('uTable');
+  // Oxirgi sahifadagi oxirgi qator o'chirilsa/bloklansa — bo'sh sahifada qotib qolmasdan oxirgi mavjud sahifaga o'tamiz
+  if(!r.items.length && r.total && U.page>1){ U.page=Math.max(1, Math.ceil(r.total/U.pageSize)); return loadUsers(); }
   if(!r.items.length){ tb.innerHTML = `<tr><td class="ad-empty">${esc(T(TX.empty))}</td></tr>`; pager($('uPager'), U, 0, loadUsers); return; }
   tb.innerHTML = `<tr><th>${esc(T(TX.name))}</th><th>${esc(T(TX.role))}</th><th>${esc(T(TX.status))}</th>
     <th class="num">${esc(T(TX.read))}</th><th class="num">${esc(T(TX.tests))}</th><th>${esc(T(TX.joined))}</th><th>${esc(T(TX.seen))}</th><th></th></tr>` +
@@ -189,11 +207,11 @@ async function loadUsers(){
       if(act==='results'){ Q.userId=u.id; Q.userLabel=`${u.name} · ${u.email}`; Q.page=1; show('quiz'); return; }
       if(act==='block'){
         if(!u.blocked && !confirm(fmt(T(TX.confirmBlock), { n:u.name }))) return;
-        try{ await api('PATCH', '/api/admin/users/'+u.id, { blocked:!u.blocked }); toast(T(TX.saved)); loadUsers().catch(fail); }catch(e){ fail(e); }
+        try{ await api('PATCH', '/api/admin/users/'+u.id, { blocked:!u.blocked }); toast(T(TX.saved)); loadUsers().catch(fail); }catch(e){ fail(e); loadUsers().catch(()=>{}); }
       }
       if(act==='del'){
         if(!confirm(fmt(T(TX.confirmDel), { n:u.name, e:u.email }))) return;
-        try{ await api('DELETE', '/api/admin/users/'+u.id); toast(T(TX.deleted)); loadUsers().catch(fail); }catch(e){ fail(e); }
+        try{ await api('DELETE', '/api/admin/users/'+u.id); toast(T(TX.deleted)); loadUsers().catch(fail); }catch(e){ fail(e); loadUsers().catch(()=>{}); }
       }
     };
   });

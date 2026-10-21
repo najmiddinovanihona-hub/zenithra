@@ -27,7 +27,8 @@ window.DZP={ all:pLoad, get:id=>pLoad()[id]||null,
   seen(id){ const p=pLoad(); if(p[id]&&p[id].v) return; p[id]=Object.assign(p[id]||{},{v:1}); pSave(p); },
   score(id,sc,tot){ if(!id) return; const p=pLoad(), o=p[id]||{}; o.v=1; o.s=sc; o.t=tot; o.b=Math.max(o.b||0,sc); o.d=Date.now(); p[id]=o; pSave(p);
     if(window.API) window.API.quiz('topic:'+id,sc,tot); },
-  reset(){ pSave({}); }, replace(p){ pSave(p||{}); }, on:f=>pCbs.push(f) };
+  reset(){ pSave({}); }, replace(p){ pSave(p||{}); },
+  on:f=>{ pCbs.push(f); return ()=>{ const i=pCbs.indexOf(f); if(i>=0) pCbs.splice(i,1); }; } };   // qaytgan funksiya — obunani bekor qilish
 const isMain=t=>/^t\d+$/.test(t.id);
 let fq='', ff='all';
 window.DARSLIK={ add(t){ const i=TOPICS.findIndex(x=>x.id===t.id); if(i>=0) TOPICS[i]=t; else TOPICS.push(t); if(lab&&lab.root&&lab.render) lab.render(); }, list:()=>TOPICS.slice() };
@@ -88,7 +89,7 @@ register('darslik',{ ico:'📖', bare:true, nomenu:true, name:TX.name, sub:TX.su
         return `<button class="dz-item${cur===t.id?' on':''}" data-id="${esc(t.id)}" style="${p.v&&cur!==t.id&&isMain(t)?'opacity:.82':''}"><span class="dz-n">${t.num?esc(T(t.num)):String(i+1).padStart(2,'0')}</span><span class="dz-i">${t.ico||'✦'}</span><span class="dz-l">${esc(T(t.title))}</span>${sc}</button>`; }).join('')
         :`<p class="lab-note">${esc(T(TOPICS.length?TX.noHit:TX.empty))}</p>`;
       L2.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{ click(720); body.classList.remove('dz-side-open'); open(b.dataset.id); }); }
-    window.DZP.on(list);
+    if(lab.offProg) lab.offProg(); lab.offProg=window.DZP.on(list);   // har qayta qurishda eski kuzatuvchi (va uning DOM'i) qolib ketmasin
     let pres=null;
     function stop(){ if(pres) pres.end(); if(off){ try{ off(); }catch(e){} off=null; } themeCbs=[]; }
     function open(id){ stop(); cur=id; shown=id; window.DZP.seen(id); side(); const m=$('dzMain'), i=TOPICS.findIndex(x=>x.id===id), t=TOPICS[i];

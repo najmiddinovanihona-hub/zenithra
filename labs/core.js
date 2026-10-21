@@ -16,7 +16,7 @@ const LABS={}, ORDER=[];
 function register(id, def){ LABS[id]=def; ORDER.push(id); }
 function build(id){
   const lab=LABS[id];
-  if(lab.root){ lab.close&&lab.close(); lab.root.remove(); }
+  if(lab.root){ lab.close&&lab.close(); try{ lab.destroy&&lab.destroy(); }catch(e){} lab.root.remove(); }   // destroy: WebGL konteksti, taymerlar — aks holda har qayta qurishda oqib, brauzer chegarasiga (≈16 kontekst) yetadi
   const root=document.createElement('div'); root.className='lab'+(lab.bare?' lab-bare':''); root.id='lab-'+id;
   root.innerHTML=lab.bare?'<div class="lab-body"></div>':`<div class="lab-card glass"><button class="panel-close lab-x" aria-label="close">✕</button>
     <div class="lab-head"><h3>${esc(T(lab.name))}</h3><span class="lab-sub">${esc(T(lab.sub))}</span></div><div class="lab-body"></div></div>`;
@@ -93,11 +93,17 @@ function locName(o){ o=o||loc(); const c=CITIES.find(c=>c.k===o.k); if(c) return
   if(p){ const a=[p.loc,p.city].filter((v,i,s)=>v&&s.indexOf(v)===i); if(a.length) return a.join(', '); }
   return T(GEO_T)+' ('+o.lat.toFixed(2)+'°, '+o.lon.toFixed(2)+'°)'; }
 // Koordinatadan joy nomi (3 tilda) — BigDataCloud; GPS bo'lsa ko'cha/mahalla — OpenStreetMap
-async function geocode(o){ const out={};
-  await Promise.all(['uz','ru','en'].map(async lg=>{ try{ const j=await (await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+o.lat+'&longitude='+o.lon+'&localityLanguage='+lg)).json();
+// Vaqt chegarali fetch — tashqi xizmat javob bermasa "aniqlanmoqda…" abadiy osilib qolmasin
+function fetchT(u,ms){ const c=new AbortController(), t=setTimeout(()=>c.abort(),ms||8000); return fetch(u,{signal:c.signal}).finally(()=>clearTimeout(t)); }
+// Joy nomi ~100 m aniqlikda keshlanadi (30 kun) — har GPS aniqlashda tashqi xizmatlarga qayta so'rov ketmaydi
+const GEO_KEY=o=>'geoc_'+(+o.lat).toFixed(3)+','+(+o.lon).toFixed(3)+(o.src==='gps'?'g':'');
+async function geocode(o){ try{ const c=JSON.parse(localStorage.getItem(GEO_KEY(o))||'null'); if(c&&Date.now()-c.t<30*864e5) return c.v; }catch(e){}
+  const v=await geocodeNow(o); if(v) try{ localStorage.setItem(GEO_KEY(o),JSON.stringify({t:Date.now(),v})); }catch(e){} return v; }
+async function geocodeNow(o){ const out={};
+  await Promise.all(['uz','ru','en'].map(async lg=>{ try{ const j=await (await fetchT('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+o.lat+'&longitude='+o.lon+'&localityLanguage='+lg)).json();
     const adm=(j.localityInfo&&j.localityInfo.administrative)||[]; const dist=adm.filter(a=>a.adminLevel>=6).map(a=>a.name).filter(n=>n!==j.locality&&n!==j.city);
     out[lg]={loc:j.locality||'', city:j.city||'', dist:dist.join(', '), region:j.principalSubdivision||'', country:j.countryName||'', cc:j.countryCode||''}; }catch(e){} }));
-  if(o.src==='gps') for(const lg of ['uz','ru','en']){ try{ const j=await (await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&lat='+o.lat+'&lon='+o.lon+'&accept-language='+lg)).json(), a=j.address||{};
+  if(o.src==='gps') for(const lg of ['uz','ru','en']){ try{ const j=await (await fetchT('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&lat='+o.lat+'&lon='+o.lon+'&accept-language='+lg)).json(), a=j.address||{};
       const st=[a.road,a.neighbourhood||a.quarter||a.suburb].filter(Boolean).join(', '); if(st){ (out[lg]=out[lg]||{}).street=st; } }catch(e){} await new Promise(r=>setTimeout(r,1100)); if(L()===lg) break; }
   return Object.keys(out).length?out:null; }
 const HERE_T={ title:{uz:'Siz turgan joy',ru:'Вы находитесь здесь',en:'You are here'}, street:{uz:'Ko‘cha / mahalla',ru:'Улица / квартал',en:'Street / area'}, dist:{uz:'Tuman',ru:'Район',en:'District'},

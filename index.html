@@ -2,12 +2,12 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Astro — Quyosh tizimi</title>
   <link rel="icon" type="image/svg+xml" href="logo.svg" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="style.css?v=88" />
+  <link rel="stylesheet" href="style.css?v=89" />
 </head>
 <body>
   <!-- 3D sahna shu canvasga chiziladi -->
@@ -490,31 +490,35 @@
   <!-- Three.js (r128) va OrbitControls CDN orqali yuklanadi -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- CDN ishlamasa (internet yo'q, bloklangan) — loyihadagi nusxa. Aks holda butun sayt to'xtardi -->
+  <script>window.THREE||document.write('<script src="labs/vendor/three.min.js"><\/script>')</script>
+  <script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="labs/vendor/OrbitControls.js"><\/script>')</script>
   <!-- Ko‘p tilli ma'lumotlar -->
-  <script src="realtex.js?v=2"></script>
-  <script src="api.js?v=4"></script>
+  <script src="realtex.js?v=3"></script>
+  <script src="api.js?v=5"></script>
   <script src="data.js?v=39"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
   <script src="quiz-extra.js?v=1"></script>
   <script src="quiz-extra-hard.js?v=1"></script>
-  <script src="labs/core.js?v=13"></script>
+  <script src="labs/core.js?v=14"></script>
   <script src="labs/moon.js?v=1"></script>
-  <script src="labs/star.js?v=5"></script>
+  <script src="labs/star.js?v=6"></script>
   <script src="labs/tonight.js?v=2"></script>
   <script src="labs/iss.js?v=3"></script>
   <script src="labs/weather.js?v=5"></script>
-  <script src="labs/space.js?v=3"></script>
+  <script src="labs/space.js?v=4"></script>
   <script src="labs/sky.js?v=3"></script>
-  <script src="labs/sim.js?v=3"></script>
+  <script src="labs/sim.js?v=4"></script>
   <script src="labs/impacts.js?v=4"></script>
   <script src="labs/edu.js?v=2"></script>
-  <script src="labs/darslik.js?v=11"></script>
+  <script src="labs/darslik.js?v=12"></script>
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=2"></script>
-  <script src="script.js?v=87"></script>
+  <script src="script.js?v=89"></script>
   <script src="guide.js?v=6"></script>
+  <script src="a11y.js?v=1"></script>
   <script src="labs/ilmiy-d1.js?v=1"></script>
   <script src="labs/ilmiy-d2.js?v=1"></script>
   <script src="labs/ilmiy-d3.js?v=1"></script>
@@ -526,13 +530,13 @@
   <script src="labs/ilmiy-x4.js?v=1"></script>
   <script src="labs/ilmiy-x5.js?v=1"></script>
   <script src="labs/ilmiy-waves-txt.js?v=1"></script>
-  <script src="labs/ilm3d-core.js?v=1"></script>
+  <script src="labs/ilm3d-core.js?v=2"></script>
   <script src="labs/ilmiy-waves.js?v=2"></script>
   <script src="labs/ilm3d-a.js?v=2"></script>
   <script src="labs/ilm3d-b.js?v=2"></script>
   <script src="labs/ilm3d-c.js?v=2"></script>
   <script src="labs/ilm3d-time.js?v=2"></script>
   <script src="labs/ilm3d-solar.js?v=4"></script>
-  <script src="labs/ilmiy.js?v=5"></script>
+  <script src="labs/ilmiy.js?v=6"></script>
 </body>
 </html>

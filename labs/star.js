@@ -270,6 +270,7 @@ function drawHR(x,w,h,track,i){
 register('star',{ ico:'⭐', name:TX.name, sub:TX.sub,
   build(body, lab){
     lab.m=1; lab.pos=0; lab.play=true;
+    lab.destroy=()=>{ const G=lab.gl; lab.gl=undefined; lab.tok=(lab.tok||0)+1; if(G&&G.R){ G.R.dispose(); try{ G.R.forceContextLoss(); }catch(e){} } };
     body.innerHTML=`<div class="lab-row" id="stM" style="margin-top:0">${MORDER.map(m=>`<button class="lab-chip${+m===1?' on':''}" data-m="${m}">${esc(T(MNAME[m]))}</button>`).join('')}</div>
       <div class="lab-grid"><div style="position:relative"><canvas class="lab-cv" id="stCv"></canvas><div class="st-lbl" id="stLbl"></div>
         <div class="lab-row"><button class="lab-chip" id="stPlay">${esc(T(TX.pause))}</button><input type="range" class="lab-range" id="stPos" min="0" max="1000" value="0" style="flex:1" /></div>

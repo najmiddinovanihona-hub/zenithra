@@ -1833,6 +1833,11 @@ a.lab-chip{ text-decoration:none; color:var(--text); }
 .dz-pres-n{ font-size:13px; font-variant-numeric:tabular-nums; color:var(--text-dim); padding:0 6px; white-space:nowrap; }
 
 /* Teksturalar muallifi (CC BY 4.0 talabi) — intro ekranida kichik qator */
-.tex-credit{ margin:18px 0 0; font-size:10.5px; letter-spacing:.02em; color:var(--text-dim); opacity:.7; }
+.tex-credit{ margin:18px 0 0; font-size:11.5px; letter-spacing:.02em; color:var(--text-dim); }   /* opacity yo'q — kichik matn o'qilishi uchun yetarli kontrast */
 .tex-credit a{ color:inherit; text-decoration:underline; text-underline-offset:2px; }
 .tex-credit a:hover{ color:var(--neon); }
+
+
+/* Klaviatura bilan ishlovchilar uchun aniq fokus halqasi (sichqoncha bosishida ko'rinmaydi) */
+:focus-visible{ outline:2px solid var(--neon); outline-offset:2px; }
+input[type=range]:focus-visible{ outline:2px solid var(--neon); outline-offset:3px; border-radius:4px; }

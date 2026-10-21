@@ -4944,11 +4944,22 @@ function cutInitScene(){
   cutScene.add(new THREE.Points(sg, new THREE.PointsMaterial({size:2.4, map:SPRITE, color:0x8899cc,
     transparent:true, opacity:0.5, depthWrite:false, blending:THREE.AdditiveBlending})));
 }
+// Umumiy teksturalar (protsedural kesh, haqiqiy NASA xaritalari, SPRITE) asosiy sahnada ham ishlatiladi —
+// rejim yopilganda ularni dispose() qilish asosiy sahnani 2K teksturalarni qayta yuklashga majburlab, qotirardi.
+function isSharedTex(t){
+  if(!t) return true;
+  if(typeof ImageBitmap!=='undefined' && t.image instanceof ImageBitmap) return true;   // realtex.js
+  if(t===SPRITE) return true;
+  for(const k in _texCache){ const v=_texCache[k];
+    if(v===t || (v && v.userData && (v.userData.normalMap===t || v.userData.roughnessMap===t))) return true; }
+  return false;
+}
+function disposeOwnedTex(t){ if(t && t.dispose && !isSharedTex(t)) t.dispose(); }
 function cutDisposeModel(){
   if(!cutModel) return;
   cutModel.traverse(o=>{
     if(o.geometry) o.geometry.dispose();
-    if(o.material){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    if(o.material){ disposeOwnedTex(o.material.map); disposeOwnedTex(o.material.alphaMap); o.material.dispose(); }
   });
   cutScene.remove(cutModel); cutModel=null; cutLayers=[]; cutCoreGlow=null;
 }
@@ -5499,8 +5510,8 @@ function snBuild(){
   if(window.REALTEX && window.REALTEX.ok){
     const RT=window.REALTEX, em=snEarthMesh.material;
     RT.texture('sun').then(t=>{ sunM.material.map=t; sunM.material.color.setScalar(1.15); sunM.material.needsUpdate=true; }).catch(()=>{});
-    RT.texture('earth').then(t=>{ em.uniforms.dayTex.value=t; }).catch(()=>{});
-    RT.texture('earthNight').then(t=>{ em.uniforms.nightTex.value=t; }).catch(()=>{});
+    RT.texture('earth').then(t=>{ em.uniforms.dayTex.value=t; }).catch(()=>{ em.uniforms.dayTex.value=earthDayTexture(); });   // zaxira: protsedural
+    RT.texture('earthNight').then(t=>{ em.uniforms.nightTex.value=t; }).catch(()=>{ em.uniforms.nightTex.value=earthNightTexture(); });
     RT.clouds(snCloudsM, { opacity:0.5 });
   }
   // O'q tayoqchasi — doim bir tomonga (Qutb yulduziga) parallel qolishi ko'rinadi
@@ -5707,8 +5718,8 @@ function closeSeasons(){
   document.getElementById('seasonsBtn').classList.remove('active');
   // barcha resurslarni tozalash (geometriya, material, teksturalar, shader uniformlari)
   if(snScene){ snScene.traverse(o=>{ if(o.geometry)o.geometry.dispose();
-    if(o.material){ if(o.material.map)o.material.map.dispose();
-      if(o.material.uniforms){ Object.values(o.material.uniforms).forEach(u2=>{ if(u2.value&&u2.value.dispose)u2.value.dispose(); }); }
+    if(o.material){ disposeOwnedTex(o.material.map); disposeOwnedTex(o.material.alphaMap);
+      if(o.material.uniforms){ Object.values(o.material.uniforms).forEach(u2=>{ if(u2.value&&u2.value.isTexture) disposeOwnedTex(u2.value); }); }
       o.material.dispose(); } });
     snScene=null; }
   snLatLine=null; snMarkerObjs=[]; snMarkersEl.innerHTML='';
@@ -5737,7 +5748,7 @@ const ubT=()=>window.LOC[LANG].ulugbek||window.LOC.uz.ulugbek;
 function ubZ(N){ return Math.abs(UB_LAT-snDecl(N)); }   // z = 90−h = |φ−δ|
 // Nazorat: 21-iyun z≈16.2°, tengkunlik z≈39.7°, 21-dekabr z≈63.1°
 console.assert(ubZ(171)>15.5&&ubZ(171)<17,'ulugbek: iyun z',ubZ(171));
-console.assert(ubZ(79)>39.2&&ubZ(79)<40.2,'ulugbek: tengkunlik z',ubZ(79));
+console.assert(ubZ(81)>39.2&&ubZ(81)<40.2,'ulugbek: tengkunlik z',ubZ(81));   // snDecl formulasida tengkunlik ~81-kun (20-mart)
 console.assert(ubZ(354)>62.5&&ubZ(354)<63.7,'ulugbek: dekabr z',ubZ(354));
 function ubFmtDate(N){ const t=window.LOC[LANG].seasons; let n=Math.floor(N)%365,m=0;
   while(n>=SN_MDAYS[m]){n-=SN_MDAYS[m];m++;}
@@ -6027,6 +6038,7 @@ function authSetMode(m){
   authMode=m;
   authEl('authTabIn').classList.toggle('active',m==='in');
   authEl('authTabUp').classList.toggle('active',m==='up');
+  authEl('authTabIn').setAttribute('aria-selected',m==='in'); authEl('authTabUp').setAttribute('aria-selected',m==='up');
   authEl('authTabs').classList.toggle('up',m==='up');
   authEl('authName').style.display=m==='up'?'block':'none';
   authEl('authPass2Wrap').style.display=m==='up'?'':'none';
@@ -6036,15 +6048,18 @@ function authSetMode(m){
 }
 // Oyna ochiq paytda 3D sahna pauza qilinadi (__authCover → animate()): blur qotgan kadr ustida bir marta
 // hisoblanadi, GPU bo'shaydi — kiritish va animatsiyalar qotmaydi.
+let authPrevFocus=null;   // oyna yopilganda fokus shu elementga qaytadi (klaviatura bilan ishlovchilar uchun)
 function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(authMode);
+  authPrevFocus=document.activeElement;
   window.__authCover=true; authEl('authView').classList.remove('off');
   if(window.API.user) pfLoad();
-  if(!window.API.user) setTimeout(()=>authEl(authMode==='up'?'authName':'authEmail').focus({preventScroll:true}),240); }
-function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false; }
+  setTimeout(()=>{ const f=window.API.user?authEl('authClose'):authEl(authMode==='up'?'authName':'authEmail'); if(f) f.focus({preventScroll:true}); },240); }
+function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false;
+  if(authPrevFocus && authPrevFocus.focus && document.contains(authPrevFocus)) authPrevFocus.focus({preventScroll:true}); authPrevFocus=null; }
 // Server xato kodlari → 3 tilli matn
 function authErrText(e){
   const t=authT();
-  return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
+  return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, CONFLICT:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
     VALIDATION:t.errFill })[e&&e.code] || t.errServer;
 }
 /* ---------- Profil: statistika, so'nggi natijalar, ism va parolni o'zgartirish ---------- */
@@ -6108,7 +6123,7 @@ function pfBusy(btn,on){ btn.disabled=on; btn.classList.toggle('busy',on); }
 authEl('pfNameSave').addEventListener('click',async()=>{
   const t=authT(), name=authEl('pfName').value.trim(), btn=authEl('pfNameSave');
   if(!name) return pfMsg(t.errFill,false);
-  if(name===window.API.user.name) return;
+  if(!window.API.user || name===window.API.user.name) return;
   pfBusy(btn,true);
   try{ await window.API.updateName(name); pfMsg(t.pfSaved,true); authEl('pfEditDet').open=false; playClick(880); }
   catch(e){ pfMsg(authErrText(e),false); }
@@ -6168,11 +6183,27 @@ document.querySelectorAll('#authView .auth-eye').forEach(b=>b.addEventListener('
 }));
 authEl('authClose').addEventListener('click',()=>{ playClick(440); authClose(); });
 authEl('authView').addEventListener('click',e=>{ if(e.target.id==='authView') authClose(); });
-document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !authEl('authView').classList.contains('off')) authClose(); });
+// Escape faqat kirish oynasini yopadi (orqadagi panel/laboratoriyalarning Escape'i ishga tushmaydi);
+// Tab fokusni oyna ichida aylantiradi (fokus tuzog'i).
+document.addEventListener('keydown',e=>{
+  if(authEl('authView').classList.contains('off')) return;
+  if(e.key==='Escape'){ e.stopImmediatePropagation(); e.preventDefault(); authClose(); return; }
+  if(e.key==='Tab'){
+    const f=[...authEl('authCard').querySelectorAll('button,input,summary,a[href]')].filter(x=>x.offsetParent!==null && !x.disabled);
+    if(!f.length) return;
+    const first=f[0], last=f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+    else if(!authEl('authCard').contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+  }
+}, true);
 authEl('authAdmin').addEventListener('click',()=>{ playClick(760); location.href='/admin'; });
 authEl('authLogout').addEventListener('click',async()=>{ playClick(440); authEl('authLogout').disabled=true;
-  await window.API.logout(); authEl('authLogout').disabled=false; pfData=null;
-  authEl('pfEditDet').open=false; authEl('pfPassDet').open=false; authSetMode('in'); });
+  try{
+    await window.API.logout(); pfData=null;
+    authEl('pfEditDet').open=false; authEl('pfPassDet').open=false; authSetMode('in');
+  }catch(e){ pfMsg(authErrText(e),false); }   // server bilan aloqa yo'q — saqlanmagan progress yo'qolmasin, kirgan holicha qoladi
+  finally{ authEl('authLogout').disabled=false; } });
 authEl('userBtn').addEventListener('click',()=>{ playClick(620); authOpen(); });
 // Server holati o'zgarganda (kirish/chiqish/sessiya tugashi) UI yangilanadi.
 function authRefresh(){

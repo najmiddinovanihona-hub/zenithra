@@ -22,16 +22,21 @@ function init(){
  new ResizeObserver(fit).observe(R.domElement);
 }
 function fit(){if(!box)return;const w=box.clientWidth,h=box.clientHeight;if(w&&h){R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}}
-function dispose(o){o.traverse(m=>{m.geometry&&m.geometry.dispose();if(m.material)(Array.isArray(m.material)?m.material:[m.material]).forEach(x=>x.dispose());});}
+// Tab almashganda o'z teksturalari ham (yorliqlar, chiziqlar) bo'shatiladi; umumiy NASA teksturalari va nur saqlanadi
+const ownTex=t=>t&&t.isTexture&&!(window.REALTEX&&window.REALTEX.isShared&&window.REALTEX.isShared(t));
+function dispose(o){o.traverse(m=>{m.geometry&&m.geometry.dispose();if(m.material)(Array.isArray(m.material)?m.material:[m.material]).forEach(x=>{[x.map,x.alphaMap].forEach(t=>{if(ownTex(t))t.dispose();});x.dispose();});});}
 function pick(cfg,i){if(obj){scene.remove(obj.G);dispose(obj.G);}obj=cfg.items[i].build(H);scene.add(obj.G);cam.position.set(...obj.cam);if(ctl){ctl.target.set(...obj.tg);ctl.update();}else cam.lookAt(...obj.tg);t0=performance.now();}
-function loop(){raf=0;if(!box||!box.isConnected)return;const t=(performance.now()-t0)/1000;obj&&obj.u(t);ctl&&ctl.update();R.render(scene,cam);raf=requestAnimationFrame(loop);}
+// Faqat ilmiy oyna ochiq bo'lganda chiziladi (avval yopiq oynada ham har kadrda yashirin canvas chizilardi)
+function loop(){raf=0;if(!box||!box.isConnected||!box.closest('.open'))return;const t=(performance.now()-t0)/1000;obj&&obj.u(t);ctl&&ctl.update();R.render(scene,cam);raf=requestAnimationFrame(loop);}
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const HINT={uz:"Sichqoncha bilan aylantiring, g'ildirakcha bilan yaqinlashtiring",ru:"Вращайте мышью, приближайте колёсиком",en:"Drag to rotate, scroll to zoom"};
 const DEF={uz:"3D ko'rgazma",ru:"3D-демонстрация",en:"3D demonstration"};
 window.ILM3D={H,reg:{},add(ico,cfg){this.reg[ico]=cfg;}};
 const tx=(o,l)=>o==null?'':(typeof o==='string'?o:(o[l]||o.uz));
 window.ILMIY_HOOK=function(T,l,art){
- const cfg=window.ILM3D.reg[T.ico];if(!cfg)return;if(!R)init();
+ const cfg=window.ILM3D.reg[T.ico];if(!cfg)return;
+ if(!art.closest('.open'))return;   // yopiq oynada 3D qurilmaydi — WebGL konteksti birinchi ochilishda yaratiladi
+ if(!R)init();
  const ci=curBy[T.ico]||0;
  const sec=document.createElement('section');
  sec.innerHTML=`<h4>${esc(tx(cfg.title,l)||DEF[l])}</h4><div class="i3-tabs" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">${cfg.items.map((x,i)=>`<button class="ilm-btn${i===ci?' on':''}" data-i3="${i}">${esc(tx(x.n,l))}</button>`).join('')}</div>

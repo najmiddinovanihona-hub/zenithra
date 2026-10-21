@@ -97,7 +97,8 @@ function glowTex(){
   g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(0.32,'rgba(255,255,255,0.45)');
   g.addColorStop(0.6,'rgba(255,255,255,0.1)'); g.addColorStop(1,'rgba(255,255,255,0)');
   x.fillStyle=g; x.fillRect(0,0,128,128);
-  return _glow=new THREE.CanvasTexture(c);
+  _glow=new THREE.CanvasTexture(c); _glow.userData.shared=true;   // ko'p sahnada umumiy — dispose qilinmasin
+  return _glow;
 }
 function star(mesh, tint, opts){
   opts=opts||{};
@@ -135,5 +136,8 @@ function star(mesh, tint, opts){
   }).catch(()=>null);
 }
 
-window.REALTEX={ ok, FILES, bitmap, texture, apply, clouds, star };
+// Sahna yopilganda shu tekstura dispose qilinishi mumkinmi (umumiy keshdagilar — yo'q)
+const isShared=t=>!!t && ((typeof ImageBitmap!=='undefined' && t.image instanceof ImageBitmap) || !!(t.userData && t.userData.shared));
+
+window.REALTEX={ ok, FILES, bitmap, texture, apply, clouds, star, isShared };
 })();

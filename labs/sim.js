@@ -35,6 +35,7 @@ register('trappist',{ ico:'🔴', name:TR.name, sub:TR.sub,
     const R=new THREE.WebGLRenderer({canvas:cv, antialias:true}); R.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); R.outputEncoding=THREE.sRGBEncoding;
     const sc=new THREE.Scene(), cam=new THREE.PerspectiveCamera(45,1.6,0.1,5000); cam.position.set(0,34,56);
     const ctl=new THREE.OrbitControls(cam,cv); ctl.enableDamping=true; ctl.minDistance=8; ctl.maxDistance=700;
+    lab.destroy=()=>{ cancelAnimationFrame(lab._raf); lab._raf=0; ctl.dispose(); R.dispose(); try{ R.forceContextLoss(); }catch(e){} };
     sc.add(new THREE.AmbientLight(0x331a14,0.6)); const pl=new THREE.PointLight(0xff8a5a,2.4,0,1.2); sc.add(pl);
     const sgc=document.createElement('canvas'); sgc.width=sgc.height=256; const sx=sgc.getContext('2d'), gg=sx.createRadialGradient(128,128,0,128,128,128);
     gg.addColorStop(0,'rgba(255,200,150,1)'); gg.addColorStop(0.2,'rgba(255,110,60,0.8)'); gg.addColorStop(0.5,'rgba(220,60,30,0.25)'); gg.addColorStop(1,'rgba(160,30,20,0)'); sx.fillStyle=gg; sx.fillRect(0,0,256,256);
@@ -78,9 +79,9 @@ register('trappist',{ ico:'🔴', name:TR.name, sub:TR.sub,
       P.forEach(p=>{ p.ang+=dt*(2*Math.PI/p.d[3])*1.0; p.m.position.set(Math.cos(p.ang)*p.a,0,Math.sin(p.ang)*p.a); p.m.rotation.y=-p.ang;   // qulflangan aylanish
         const v=p.m.position.clone(); v.y+=p.d[1]*0.55+0.8; v.project(cam);
         p.el.style.transform=`translate(${(v.x*0.5+0.5)*r.width}px,${(-v.y*0.5+0.5)*r.height}px) translate(-50%,-100%)`; p.el.style.opacity=v.z<1?1:0; p.el.classList.toggle('on',p.m.userData.i===sel); });
-      ctl.update(); R.render(sc,cam); requestAnimationFrame(lab.loop); };
+      ctl.update(); R.render(sc,cam); lab._raf=requestAnimationFrame(lab.loop); };
   },
-  open(){ requestAnimationFrame(this.loop); }
+  open(){ cancelAnimationFrame(this._raf); this._raf=requestAnimationFrame(this.loop); }   // yopib-ochishda ikkita sikl bo'lmasin
 });
 
 })();

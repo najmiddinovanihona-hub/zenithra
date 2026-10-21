@@ -33,7 +33,8 @@ async function req(method, url, body){
   try{ data = await r.json(); }catch(e){}
   if(!r.ok || !data){
     const err = { status:r.status, code:(data&&data.error)||'SERVER_ERROR' };
-    if(r.status===401 && API.user && !/\/auth\/(login|register)$/.test(url)){ API.user=null; emit(); }
+    // Sessiya kutilmaganda tugadi (muddati, bloklash, boshqa qurilmada parol almashtirildi) — chiqish kabi
+    if(r.status===401 && API.user && !/\/auth\/(login|register)$/.test(url)){ API.user=null; forgetLocalUser(); emit(); }
     throw err;
   }
   return data;
@@ -62,28 +63,50 @@ function localProgress(){ try{ return JSON.parse(LS.getItem(PROG)) || {}; }catch
 function applyProgress(p){
   quiet(()=>{ if(window.DZP && window.DZP.replace) window.DZP.replace(p); else LS.setItem(PROG, JSON.stringify(p)); });
 }
+// Qurilmadagi progress kimniki: umumiy (maktab) kompyuterida oldingi foydalanuvchi progressi keyingisiga o'tib ketmasin.
+const OWNER = 'dz_prog_uid';
+function forgetLocalUser(){
+  clearTimeout(timers.prog); clearTimeout(timers.set); timers.prog = timers.set = null; pendingSettings = {};
+  applyProgress({}); try{ rawRemove.call(LS, OWNER); }catch(e){}
+}
 // mode: 'auto' — bo'sh progress = foydalanuvchi o'zi tozalagan (DZP.reset) → serverda ham tozalanadi;
 //       'merge' — kirish paytidagi sinxron: qurilma bo'sh bo'lsa ham serverdagi progress hech qachon o'chmaydi.
 async function pushProgress(mode = 'auto'){
-  const p = localProgress();
+  const p = localProgress(), sent = JSON.stringify(p);
   const empty = !Object.keys(p).length;
   const r = await req('PUT', '/api/me/progress', { progress:p, mode: mode==='auto' && empty ? 'replace' : 'merge' });
-  if(JSON.stringify(r.progress)!==JSON.stringify(p)) applyProgress(r.progress);
+  // So'rov ketayotganda darslikda yangi belgi qo'yilgan bo'lsa — uni server javobi bilan bosib ketmaymiz,
+  // keyingi yuborishda u ham birlashadi.
+  if(JSON.stringify(localProgress())!==sent){ schedule('prog'); return; }
+  if(JSON.stringify(r.progress)!==sent) applyProgress(r.progress);
 }
 async function pushSettings(){
   const patch = pendingSettings; pendingSettings = {};
-  if(Object.keys(patch).length) await req('PUT', '/api/me/settings', patch);
+  if(!Object.keys(patch).length) return;
+  try{ await req('PUT', '/api/me/settings', patch); }
+  catch(e){ pendingSettings = { ...patch, ...pendingSettings }; throw e; }   // yo'qolmasin — keyingi safar qayta
 }
 
 /* ---------- kirgandan keyin: server ↔ qurilma ---------- */
 async function syncAll(){
-  // Progress: qurilmadagisi serverdagisi bilan birlashtiriladi (birinchi kirishda mehmon progressi yo'qolmaydi).
-  await pushProgress('merge').catch(()=>{});
+  const uid = API.user && String(API.user.id); if(!uid) return;
+  const owner = LS.getItem(OWNER);
+  try{
+    if(owner && owner!==uid){
+      // Qurilmada BOSHQA foydalanuvchining qoldiq progressi — birlashtirilmaydi, serverdagisi olinadi.
+      const r = await req('GET', '/api/me/progress'); applyProgress(r.progress);
+    } else {
+      // Mehmon progressi yoki shu foydalanuvchiniki — serverdagisi bilan birlashtiriladi (yo'qolmaydi).
+      await pushProgress('merge');
+    }
+    rawSet.call(LS, OWNER, uid);
+  }catch(e){}
   // Sozlamalar: serverda borlari qurilmaga yoziladi, serverda yo'qlari qurilmadan serverga yuboriladi.
   try{
     const { settings:s } = await req('GET', '/api/me/settings');
     const missing = {};
     for(const [lsKey, m] of Object.entries(SET)){
+      if(m.k in pendingSettings) continue;   // foydalanuvchi shu orada o'zgartirgan — eski server qiymati bosmasin
       if(s[m.k]!==undefined && s[m.k]!==null){
         const nv = m.put(s[m.k]);
         if(LS.getItem(lsKey)===nv) continue;
@@ -108,14 +131,17 @@ API.login = async (email, password) => {
   const r = await req('POST', '/api/auth/login', { email, password });
   API.user = r.user; emit(); syncAll(); return r.user;
 };
+// Chiqish: avval yuborilmagan o'zgarishlar saqlanadi. Server bilan aloqa bo'lmasa — xato qaytariladi va foydalanuvchi
+// kirgan holicha qoladi (aks holda saqlanmagan progress o'chib ketardi yoki cookie tirik qolib, "chiqdim" deb aldardi).
 API.logout = async () => {
-  // Yuborilmagan o'zgarishlarni chiqishdan oldin saqlab qolamiz.
   const pending = timers.prog; clearTimeout(timers.prog); clearTimeout(timers.set); timers.prog = timers.set = null;
-  await Promise.all([pending ? pushProgress() : null, pushSettings()]).catch(()=>{});
-  try{ await req('POST', '/api/auth/logout'); }catch(e){}
+  try{ await Promise.all([pending ? pushProgress() : null, pushSettings()]); }
+  catch(e){ if(e && e.status===401) return; if(pending) schedule('prog'); throw e; }
+  try{ await req('POST', '/api/auth/logout'); }
+  catch(e){ if(!(e && e.status===401)) throw e; }
   API.user = null;
   // Umumiy kompyuterda keyingi odam oldingi foydalanuvchi progressini ko'rmasligi uchun.
-  applyProgress({});
+  forgetLocalUser();
   emit();
 };
 // Profil: avval yuborilmay turgan progress saqlanadi, so'ng yangi statistika olinadi.
@@ -131,7 +157,11 @@ API.changePassword = (currentPassword, newPassword) => req('POST', '/api/me/pass
 // Test natijasi: faqat kirgan foydalanuvchida serverga yoziladi (mehmonda jim o'tkazib yuboriladi).
 API.quiz = (quizId, score, total) => {
   if(!API.user || !(total>0)) return;
-  req('POST', '/api/me/quiz', { quizId:String(quizId).slice(0,64), score, total }).catch(()=>{});
+  const body = { quizId:String(quizId).slice(0,64), score, total };
+  // Tarmoq uzilishi yoki server band bo'lsa — bir marta qayta urinish (natija jimgina yo'qolmasin)
+  req('POST', '/api/me/quiz', body).catch(e=>{
+    if(e && (e.status===0 || e.status>=500 || e.status===429)) setTimeout(()=>{ if(API.user) req('POST','/api/me/quiz',body).catch(()=>{}); }, 15000);
+  });
 };
 
 /* ---------- ishga tushish ---------- */
@@ -148,12 +178,19 @@ try{
   }
 }catch(e){}
 
+async function probe(){
+  const r = await req('GET', '/api/auth/me');   // mehmonda {user:null}
+  API.online = 'user' in r; API.user = r.user || null;
+  // Sessiya yo'q, lekin qurilmada kimningdir progressi qolgan (sessiya muddati tugagan/bloklangan) — tozalanadi
+  if(!API.user && LS.getItem(OWNER)) forgetLocalUser();
+}
 API.ready = (async ()=>{
   if(!/^https?:$/.test(location.protocol)) return;
-  try{
-    const r = await req('GET', '/api/auth/me');   // mehmonda {user:null}
-    API.online = 'user' in r; API.user = r.user || null;
-  }catch(e){}
+  try{ await probe(); }
+  catch(e){
+    // Server vaqtincha javob bermadi — bir necha marta qayta urinamiz (👤 tugma sessiya oxirigacha yashirin qolmasin)
+    if(e && e.status===0){ [5000,15000,45000].forEach(ms=>setTimeout(()=>{ if(!API.online) probe().then(()=>{ emit(); if(API.user) syncAll(); }).catch(()=>{}); }, ms)); }
+  }
   emit();
   if(API.user) syncAll();
 })();

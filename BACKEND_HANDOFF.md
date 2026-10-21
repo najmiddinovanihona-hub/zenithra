@@ -1,3 +1,5 @@
+> **Tarixiy hujjat.** Bu backend yozilishidan oldingi topshiriq. Amalda qilingan ish, ishga tushirish va API uchun [README.md](README.md) ga qarang. Farqlar: admin `ADMIN_EMAIL` orqali emas, `npm run make-admin` bilan tayinlanadi; joylashuv xavfsizlik uchun serverga sinxronlanmaydi; `SESSION_SECRET` kerak emas (sessiya tokeni tasodifiy, bazada faqat xeshi).
+
 # ASTRO · Quyosh tizimi — Backend qo'shish uchun topshiriq (Claude Code)
 
 ## Hozirgi holat

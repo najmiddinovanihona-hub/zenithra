@@ -95,10 +95,11 @@ function render(){
  if(window.ILMIY_HOOK)try{window.ILMIY_HOOK(T,l,$('ilmArt'));}catch(err){console.warn(err);}
 }
 ov.addEventListener('click',ev=>{const g=ev.target.closest('[data-go]');if(g)go(+g.dataset.go);const lb=ev.target.closest('[data-l]');if(lb&&window.applyLanguage){window.applyLanguage(lb.dataset.l);render();}});
-const close=()=>ov.classList.remove('open');
+const close=()=>{ov.classList.remove('open');window.__labCover=false;};   // asosiy 3D sahna yana chiziladi
 $('ilmBack').onclick=close;
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&ov.classList.contains('open'))close();});
-btn.onclick=()=>{render();ov.classList.add('open');};
+// Avval ochiladi, keyin chiziladi — 3D ko'rgazma faqat ochiq oynada quriladi; orqadagi asosiy sahna pauza
+btn.onclick=()=>{ov.classList.add('open');window.__labCover=true;render();};
 const ub=document.getElementById('ubBtn');
 if(ub)ub.after(btn);else document.querySelector('#topbar .controls')?.prepend(btn);
 render();
