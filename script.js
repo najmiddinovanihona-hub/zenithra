@@ -1557,7 +1557,7 @@ function poleCrossTex(col){
 function poleLabelTex(title, sub, col){
   const c=makeCanvas(1024,200), x=c.getContext('2d');
   x.textAlign='center'; x.textBaseline='middle';
-  x.shadowColor=col; x.shadowBlur=22; x.fillStyle=col;
+  x.shadowColor='rgba(0,0,0,0.85)'; x.shadowBlur=6; x.fillStyle=col;   // nursiz — faqat o'qilishi uchun qorong'i soya
   x.font='600 52px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='6px';
   x.fillText(title.toUpperCase(),512,66);
   x.shadowBlur=0; x.globalAlpha=0.55;
@@ -1647,7 +1647,7 @@ function gridTagTex(title, sub, col){
   const sw=sub?x.measureText(sub).width:0, bw=Math.min(W-12, Math.max(tw, sw)+110), bx=(W-bw)/2;
   x.beginPath(); x.moveTo(bx+r,6); x.arcTo(bx+bw,6,bx+bw,H-6,r); x.arcTo(bx+bw,H-6,bx,H-6,r); x.arcTo(bx,H-6,bx,6,r); x.arcTo(bx,6,bx+bw,6,r); x.closePath();
   x.fillStyle='rgba(6,12,28,0.72)'; x.fill(); x.globalAlpha=0.7; x.strokeStyle=col; x.lineWidth=2.5; x.stroke(); x.globalAlpha=1;
-  x.fillStyle=col; x.shadowColor=col; x.shadowBlur=14; x.beginPath(); x.arc(bx+36, sub?58:H/2, 9, 0, TAU); x.fill();
+  x.fillStyle=col; x.shadowBlur=0; x.beginPath(); x.arc(bx+36, sub?58:H/2, 9, 0, TAU); x.fill();
   x.textAlign='center'; x.textBaseline='middle'; x.fillStyle=col;
   x.font='600 40px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='3px';
   x.fillText(title.toUpperCase(), W/2+18, sub?60:H/2);
@@ -2050,7 +2050,6 @@ const CON_ALL = (function(){
     const w=Math.min(500, x.measureText(txt).width+24);
     const col=zod?'#ffd98a':'#b4cbff';
     x.textAlign='center'; x.textBaseline='middle';
-    x.shadowColor=zod?'rgba(255,190,90,0.9)':'rgba(110,160,255,0.9)'; x.shadowBlur=18; x.fillStyle=col; x.globalAlpha=0.55; x.fillText(txt,256,50);   // rangli nur
     x.globalAlpha=1; x.shadowColor='rgba(0,0,0,0.9)'; x.shadowBlur=6; x.fillStyle=col; x.fillText(txt,256,50);
     return { map:asTexture(c,false), w:w/512 };
   }
