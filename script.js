@@ -711,13 +711,14 @@ float snoise(vec3 v){
 float fbm(vec3 p){ float v=0.0,a=0.5; for(int i=0;i<5;i++){ v+=a*snoise(p); p*=2.0; a*=0.5;} return v;}
 `;
 const sunMat = new THREE.ShaderMaterial({
-  uniforms:{ time:{value:0} },
+  uniforms:{ time:{value:0}, sunTex:{value:null}, realMap:{value:0} },
   vertexShader:`
-    varying vec3 vPos; varying vec3 vSN; varying vec3 vSW;
-    void main(){ vPos=position; vSN=normalize(mat3(modelMatrix)*normal); vSW=(modelMatrix*vec4(position,1.0)).xyz;
+    varying vec3 vPos; varying vec3 vSN; varying vec3 vSW; varying vec2 vUv;
+    void main(){ vPos=position; vUv=uv; vSN=normalize(mat3(modelMatrix)*normal); vSW=(modelMatrix*vec4(position,1.0)).xyz;
       gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: NOISE_GLSL + `
-    uniform float time; varying vec3 vPos; varying vec3 vSN; varying vec3 vSW;
+    uniform float time; uniform sampler2D sunTex; uniform float realMap;
+    varying vec3 vPos; varying vec3 vSN; varying vec3 vSW; varying vec2 vUv;
     void main(){
       vec3 p=normalize(vPos)*2.2;
       float n=fbm(p+vec3(0.0,0.0,time*0.12));
@@ -729,6 +730,13 @@ const sunMat = new THREE.ShaderMaterial({
       vec3 col=mix(dark,mid,smoothstep(-0.3,0.3,v));
       col=mix(col,hot,smoothstep(0.25,0.7,v));
       col+=pow(max(v,0.0),3.0)*vec3(1.0,0.7,0.3);  // alanga porlashi
+      // Haqiqiy fotosfera surati: granulalar rasmdan, "qaynash" esa shovqin bilan jonlantiriladi
+      if(realMap>0.5){
+        vec3 tc=texture2D(sunTex, vUv+vec2(time*0.0015,0.0)).rgb;
+        // yorqin, oq-sariqqa moyil fotosfera; shovqin faqat yengil "qaynash" beradi (yirik dog'lar yo'q)
+        vec3 real=pow(tc,vec3(0.85))*vec3(1.45,1.3,1.1)*(1.0+0.16*v) + pow(max(v,0.0),3.0)*vec3(0.35,0.2,0.06);
+        col=mix(col, real, 0.92);
+      }
       // chekka qorayishi (limb darkening) — disk chetida xiraroq va qizg'ishroq
       float mu=max(dot(normalize(vSN),normalize(cameraPosition-vSW)),0.0);
       col*=0.38+0.62*pow(mu,0.5);
@@ -761,6 +769,11 @@ const corona = new THREE.Sprite(new THREE.SpriteMaterial({
   map:glowTexture(), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
 corona.scale.set(SUN_RADIUS*7, SUN_RADIUS*7, 1);
 sun.add(corona);
+// Keng va xira tashqi nur — Quyosh atrofidagi "yorug'lik havosi" (bitta sprite, arzon)
+const sunHalo = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:glowTexture(), color:0xffb35a, transparent:true, opacity:0.32, blending:THREE.AdditiveBlending, depthWrite:false }));
+sunHalo.scale.set(SUN_RADIUS*16, SUN_RADIUS*16, 1);
+sun.add(sunHalo);
 
 /* --------------------------------------------------------------------------
    4. SAYYORALAR MA'LUMOTLARI (o‘zbek tilida)
@@ -926,6 +939,7 @@ PLANETS.forEach(p=>{
         nightTex:{value:earthNightTexture()},
         normTex:{value:earthDayTexture().userData.normalMap},
         roughTex:{value:earthDayTexture().userData.roughnessMap},
+        realMap:{value:0},
         sunDir:sunU
       },
       vertexShader:`
@@ -936,7 +950,7 @@ PLANETS.forEach(p=>{
       fragmentShader:`
         uniform sampler2D dayTex; uniform sampler2D nightTex;
         uniform sampler2D normTex; uniform sampler2D roughTex;
-        uniform vec3 sunDir;
+        uniform vec3 sunDir; uniform float realMap;
         varying vec2 vUv; varying vec3 vN; varying vec3 vWP;
         void main(){
           vec3 N=normalize(vN), L=normalize(sunDir);
@@ -944,9 +958,13 @@ PLANETS.forEach(p=>{
           vec3 T=normalize(cross(vec3(0.0,1.0,0.0), N));
           vec3 B=cross(N,T);
           vec3 nm=texture2D(normTex,vUv).rgb*2.0-1.0;
-          vec3 Np=normalize(N + (T*nm.x + B*nm.y)*0.85);
+          vec3 Np=normalize(N + (T*nm.x + B*nm.y)*0.85*(1.0-realMap));
           float rough=texture2D(roughTex,vUv).r;
           float ocean=1.0-smoothstep(0.3,0.6,rough);
+          // haqiqiy xaritada okean — ko'k ustun va qorong'i piksellar (muzliklar yaltiramaydi)
+          vec3 dc=texture2D(dayTex,vUv).rgb;
+          float oceanR=smoothstep(0.015,0.07,dc.b-max(dc.r,dc.g)*0.9)*(1.0-smoothstep(0.35,0.55,dot(dc,vec3(0.3,0.59,0.11))));
+          ocean=mix(ocean, oceanR, realMap);
           float ndl=max(dot(Np,L),0.0);
           float term=smoothstep(-0.06,0.22,dot(N,L));   // yumshoq terminator
           vec3 day=texture2D(dayTex,vUv).rgb;
@@ -4879,6 +4897,7 @@ function crossSectionTexture(cHot, cCold, innerFrac){
 }
 // Tashqi qatlam uchun HAQIQIY sirt teksturasi (asosiy sahna generatorlari qayta ishlatiladi)
 function cutSurfaceTexture(key){
+  if(window.__REALTEX && window.__REALTEX[key]) return window.__REALTEX[key];
   if(key==='earth') return earthDayTexture();   // okean, o'simlik, cho'l, qutb muzliklari
   if(key==='sun') return rockyTexture('#ff9e1b',['#ffd54f','#ff6d00','#ffcf6a'],0);   // fotosfera granulalari
   if(key==='mercury') return rockyTexture('#8a7a68',['#6f6052','#a89683'],90);
@@ -5870,6 +5889,81 @@ document.getElementById('ubDaySl').addEventListener('input',e=>{ ubDay=+e.target
 document.getElementById('ubTryBtn').addEventListener('click',()=>{ playClick(700); ubStartTry(); });
 window.addEventListener('resize',()=>{ if(ubActive&&ubTab===1) ubDraw(); });
 
+
+/* --------------------------------------------------------------------------
+   26b. HAQIQIY TEKSTURALAR (NASA ma'lumotlari asosida — Solar System Scope, CC BY 4.0)
+   Sahna avval protsedural teksturalar bilan darhol ochiladi; so'ng textures/ dagi 2K
+   xaritalar fonda NAVBAT bilan yuklanib almashtiriladi:
+   - rasm createImageBitmap orqali asosiy oqimdan tashqarida dekodlanadi (qotish yo'q);
+   - har bir almashtirish orasida tanaffus — GPU'ga yuklash bir kadrda to'planmaydi;
+   - file:// rejimida (serversiz) yoki xato bo'lsa protsedural teksturalar qoladi.
+   -------------------------------------------------------------------------- */
+window.__REALTEX = {};
+(function(){
+  if(!/^https?:$/.test(location.protocol) || typeof createImageBitmap!=='function') return;
+  if(/[?&]notex\b/.test(location.search)) return;   // solishtirish/diagnostika: ?notex — faqat protsedural
+  const DIR='textures/', V='?v=1';
+  const ANISO=renderer.capabilities.getMaxAnisotropy();
+  async function load(file, srgb){
+    const r=await fetch(DIR+file+V); if(!r.ok) throw new Error(file);
+    const bmp=await createImageBitmap(await r.blob(), { imageOrientation:'flipY' });
+    const t=new THREE.Texture(bmp);
+    t.flipY=false;                       // bitmap allaqachon aylantirilgan
+    t.anisotropy=ANISO; t.wrapS=THREE.RepeatWrapping;
+    t.minFilter=THREE.LinearMipmapLinearFilter; t.magFilter=THREE.LinearFilter;
+    if(srgb!==false) t.encoding=THREE.sRGBEncoding;
+    t.needsUpdate=true;
+    return t;
+  }
+  const rec=k=>orbitObjects.find(o=>o.key===k);
+  const disposeOld=(...ts)=>ts.forEach(t=>{ if(t && t.dispose) t.dispose(); });
+  // Standart material (sayyora/oy): real rang xaritasi; toshli jismlarda relyef shu rasmdan (bumpMap)
+  // Sahna yorug'ligi (PointLight 3.2) eski, to'qroq protsedural teksturalarga moslangan — haqiqiy suratlar
+  // yorqinroq, shuning uchun rang koeffitsienti bilan pasaytiriladi (aks holda gaz gigantlari oqarib "kuyadi").
+  const GAIN={ gas:0.4, rock:0.55 };
+  function applyStd(mesh, tex, bump){
+    if(!mesh) return;
+    const m=mesh.material;
+    disposeOld(m.map!==tex?m.map:null, m.normalMap);
+    m.map=tex; m.normalMap=null; m.roughnessMap=null;
+    m.bumpMap=bump?tex:null; m.bumpScale=bump||0;
+    m.color.setScalar(bump?GAIN.rock:GAIN.gas); m.needsUpdate=true;
+  }
+  const JOBS=[
+    ['2k_earth_daymap.jpg', t=>{ const m=rec('earth').mesh.material; m.uniforms.dayTex.value=t; m.uniforms.realMap.value=1; __REALTEX.earth=t; }],
+    ['2k_sun.jpg',          t=>{ sunMat.uniforms.sunTex.value=t; sunMat.uniforms.realMap.value=1; __REALTEX.sun=t; }],
+    ['2k_earth_nightmap.jpg', t=>{ rec('earth').mesh.material.uniforms.nightTex.value=t; }],
+    ['2k_earth_clouds.jpg', t=>{ const c=rec('earth').extras.clouds; if(!c) return; const m=c.material;
+        t.encoding=THREE.LinearEncoding; disposeOld(m.map); m.map=null; m.alphaMap=t; m.color.set(0xffffff); m.opacity=0.9; m.needsUpdate=true; }, false],
+    ['2k_moon.jpg',    t=>{ const p=rec('earth').extras.moonPivot; applyStd(p&&p.children[0], t, 0.012); }],
+    ['2k_mars.jpg',    t=>{ applyStd(rec('mars').mesh, t, 0.02); __REALTEX.mars=t; }],
+    ['2k_jupiter.jpg', t=>{ applyStd(rec('jupiter').mesh, t); __REALTEX.jupiter=t; }],
+    ['2k_saturn.jpg',  t=>{ applyStd(rec('saturn').mesh, t); __REALTEX.saturn=t; }],
+    ['2k_saturn_ring_alpha.png', t=>{ const r=rec('saturn').extras.ring; if(!r) return; const m=r.material;
+        t.wrapS=THREE.ClampToEdgeWrapping; disposeOld(m.map); m.map=t; m.opacity=1; m.needsUpdate=true; }],
+    ['2k_venus_atmosphere.jpg', t=>{ applyStd(rec('venus').mesh, t); __REALTEX.venus=t; }],
+    ['2k_mercury.jpg', t=>{ applyStd(rec('mercury').mesh, t, 0.02); __REALTEX.mercury=t; }],
+    ['2k_uranus.jpg',  t=>{ applyStd(rec('uranus').mesh, t); __REALTEX.uranus=t; }],
+    ['2k_neptune.jpg', t=>{ applyStd(rec('neptune').mesh, t); __REALTEX.neptune=t; }],
+    ['2k_ceres_fictional.jpg', t=>{ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); applyStd(b&&b.mesh, t, 0.02); }],
+  ];
+  const pause=ms=>new Promise(r=>setTimeout(r,ms));
+  async function run(){
+    for(const [file, apply, srgb] of JOBS){
+      try{
+        const t=await load(file, srgb);
+        renderer.initTexture(t);          // GPU'ga hozir yuklanadi — sayyora ko'rinishga kirganda emas
+        apply(t);
+        await pause(16);
+        renderer.compile(scene, camera);  // o'zgargan materiallar shaderi oldindan tayyorlanadi
+      }catch(e){ console.warn('[tekstura]', file, e.message||e); }
+      await pause(120);
+    }
+  }
+  // Yuklanish ekrani yopilgandan keyin boshlanadi — birinchi kadrlar bilan raqobat qilmaydi.
+  const start=()=>setTimeout(run, 400);
+  if(document.readyState==='complete') start(); else window.addEventListener('load', start, { once:true });
+})();
 
 /* --------------------------------------------------------------------------
    27. KIRISH / RO'YXATDAN O'TISH — server orqali (api.js → window.API).

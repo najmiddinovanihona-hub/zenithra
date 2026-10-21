@@ -1831,3 +1831,8 @@ a.lab-chip{ text-decoration:none; color:var(--text); }
 .dz-pres-bar{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:9001; display:flex; gap:8px; align-items:center; padding:8px 10px; border-radius:14px; background:rgba(10,14,34,.86); border:1px solid var(--glass-brd); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
 .dz-day .dz-pres-bar{ background:rgba(245,240,229,.94); }
 .dz-pres-n{ font-size:13px; font-variant-numeric:tabular-nums; color:var(--text-dim); padding:0 6px; white-space:nowrap; }
+
+/* Teksturalar muallifi (CC BY 4.0 talabi) — intro ekranida kichik qator */
+.tex-credit{ margin:18px 0 0; font-size:10.5px; letter-spacing:.02em; color:var(--text-dim); opacity:.7; }
+.tex-credit a{ color:inherit; text-decoration:underline; text-underline-offset:2px; }
+.tex-credit a:hover{ color:var(--neon); }

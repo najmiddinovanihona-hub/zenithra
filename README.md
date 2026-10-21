@@ -35,6 +35,13 @@ hostingga qo'ysangiz, 👤 tugma ko'rinmaydi va hamma narsa avvalgidek localStor
 | `prisma/schema.prisma` | Ma'lumotlar bazasi sxemasi |
 | `test/` | Avtomatik testlar (`npm test`) |
 
+## Sayyora teksturalari
+
+`textures/` — NASA ma'lumotlari asosidagi 2K xaritalar ([Solar System Scope](https://www.solarsystemscope.com/textures/),
+**CC BY 4.0**; muallif yozuvi intro ekranida). Sahna avval kod orqali chizilgan teksturalar bilan darhol ochiladi,
+so'ng haqiqiy xaritalar fonda navbat bilan yuklanib almashtiriladi (`script.js` → 26b-bo'lim). Server bo'lmasa
+(`index.html` to'g'ridan-to'g'ri ochilsa) protsedural teksturalar qoladi. Solishtirish uchun: `http://localhost:3000/?notex`.
+
 ## API
 
 Barcha javoblar JSON. Xatolarda `{ "error": "KOD" }` qaytadi (`VALIDATION`, `UNAUTHORIZED`, `FORBIDDEN`,

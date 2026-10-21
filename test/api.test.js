@@ -247,6 +247,10 @@ test('statik fayllar: sayt beriladi, maxfiy fayllar yopiq', async () => {
   assert.equal((await c('GET', '/')).status, 200);
   assert.equal((await c('GET', '/script.js')).status, 200);
   assert.equal((await c('GET', '/labs/core.js')).status, 200);
+  const tex = await c('GET', '/textures/2k_mars.jpg');
+  assert.equal(tex.status, 200);
+  assert.match(tex.headers.get('cache-control'), /immutable/);
+  assert.equal((await c('GET', '/textures/nope.jpg')).status, 404);
   for (const p of ['/.env', '/package.json', '/server/app.js', '/prisma/schema.prisma', '/prisma/test.db', '/uploads/_crop.png', '/node_modules/express/package.json', '/.git/config']) {
     assert.equal((await c('GET', p)).status, 404, p);
   }

@@ -10,7 +10,7 @@ import meRoutes from './routes/me.js';
 import adminRoutes from './routes/admin.js';
 
 // Brauzerga beriladigan fayllar: faqat shular (server/, prisma/, .env, uploads/ va h.k. hech qachon berilmaydi).
-const PUBLIC_DIRS = /^\/(labs|photos)\//;
+const PUBLIC_DIRS = /^\/(labs|photos|textures)\//;
 const PUBLIC_ROOT_FILE = /^\/[\w.-]+\.(js|css|svg|png|jpg|ico|webp)$/;
 const PRIVATE_ROOT_FILE = /^\/(package(-lock)?\.json)$/;
 
@@ -72,6 +72,8 @@ export function createApp() {
 
   /* ---------- Statik sayt ---------- */
   const files = express.static(ROOT, { index: false, dotfiles: 'deny', fallthrough: false });
+  // Sayyora teksturalari katta va o'zgarmaydi (?v=N bilan versiyalanadi) — brauzer 30 kun keshlaydi.
+  app.use('/textures', express.static(path.join(ROOT, 'textures'), { index: false, dotfiles: 'deny', maxAge: '30d', immutable: true, fallthrough: false }));
   app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
   app.get('/index.html', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
   app.use((req, res, next) => {
