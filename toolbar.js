@@ -50,6 +50,20 @@
     groupsEl.appendChild(el);
     return { g, el, trig, panel };
   });
+  // Ichki menyu (Osmon, Barcha laboratoriyalar) pastki panel ostiga kirib ketmasin: sig'masa yuqoriga suriladi
+  // (guruh paneli tepasigacha), baribir sig'masa — ichida aylantiriladi. Telefonda menyu panel ichida (static) — tegilmaydi.
+  function fitSub(m){
+    m.style.top=''; m.style.maxHeight='';
+    if(!m.classList.contains('open') || getComputedStyle(m).position==='static') return;
+    const bb=document.getElementById('bottomBar'), bbTop=bb && !bb.classList.contains('hidden') ? bb.getBoundingClientRect().top : innerHeight;
+    const limit=Math.min(innerHeight, bbTop)-12, top0=m.closest('.tb-panel').getBoundingClientRect().top;
+    const r=m.getBoundingClientRect(), shift=Math.max(0, Math.min(r.bottom-limit, r.top-top0));
+    if(shift) m.style.top=(parseFloat(getComputedStyle(m).top)-shift)+'px';
+    m.style.maxHeight=Math.max(160, limit-(r.top-shift))+'px';
+  }
+  const subObs=new MutationObserver(ms=>ms.forEach(x=>fitSub(x.target)));
+  groups.forEach(x=>x.panel.querySelectorAll('.tours-menu').forEach(m=>subObs.observe(m,{ attributes:true, attributeFilter:['class'] })));
+  addEventListener('resize',()=>document.querySelectorAll('.tb-panel .tours-menu.open').forEach(fitSub));
   function closeSubs(except){ document.querySelectorAll('.tb-panel .tours-menu.open').forEach(m=>{ if(m!==except) m.classList.remove('open'); }); }
   function closeAll(){ groups.forEach(x=>{ x.el.classList.remove('open'); x.trig.setAttribute('aria-expanded','false'); }); closeSubs(); document.body.classList.remove('tb-open'); }
   document.addEventListener('click',e=>{ if(!e.target.closest('.tb-group')) closeAll(); });
