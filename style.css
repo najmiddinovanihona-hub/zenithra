@@ -962,39 +962,81 @@ body.ubmode #topbar, body.ubmode #dock, body.ubmode #panel, body.ubmode #credit{
 #gridBtn.active{ background:rgba(78,168,255,.25); }
 
 
-/* ================= KIRISH / RO'YXATDAN O'TISH ================= */
-#authView{ position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
-  background:radial-gradient(ellipse at 50% 35%, rgba(20,30,70,.55), rgba(4,6,16,.92)),
-    rgba(4,6,16,.85); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  transition:opacity .5s; }
-#authView.off{ opacity:0; pointer-events:none; }
-#authCard{ width:min(360px, calc(100% - 28px)); padding:26px 26px 22px; border-radius:20px; text-align:center; }
-#authStars{ font-size:15px; color:var(--neon); letter-spacing:.6em; margin-bottom:8px; opacity:.8; }
-#authCard h2{ font-size:19px; letter-spacing:.03em; margin:0 0 5px; }
-#authCard p{ font-size:11.5px; color:var(--text-dim); margin:0 0 15px; }
-#authTabs{ display:flex; gap:7px; margin-bottom:13px; }
-.auth-tab{ flex:1; font-size:12px; padding:8px 0; border-radius:999px; cursor:pointer;
-  border:1px solid rgba(140,170,255,.25); background:rgba(20,26,50,.6); color:var(--text); }
-.auth-tab.active{ border-color:var(--neon); color:var(--neon); box-shadow:0 0 7px rgba(78,168,255,.16); }
-#authFields{ display:flex; flex-direction:column; gap:9px; }
-#authFields input{ font-size:13px; padding:10px 13px; border-radius:11px; color:var(--text);
-  background:rgba(10,14,30,.7); border:1px solid rgba(140,170,255,.22); outline:none; }
-#authFields input:focus{ border-color:var(--neon); box-shadow:0 0 10px rgba(78,168,255,.25); }
-#authFields input::placeholder{ color:var(--text-dim); }
-#authErr{ min-height:16px; font-size:11px; color:#ff8f7a; margin:7px 0 3px; opacity:0; transition:opacity .3s; }
+/* ================= KIRISH / RO'YXATDAN O'TISH =================
+   Tezlik: yopiq oyna visibility:hidden — umuman chizilmaydi (aks holda butun ekranli blur qatlami
+   3D sahnaning har kadrida qayta hisoblanadi). Ochiq paytda 3D sahna pauza qilinadi (script.js:
+   __authCover), blur faqat qotgan kadr ustida bir marta hisoblanadi. Kartochkaning o'zida blur yo'q —
+   fon yaxlit gradient, shuning uchun perf-lite rejimida ham ko'rinishi o'zgarmaydi. */
+#authView{ position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; padding:16px;
+  background:radial-gradient(ellipse at 50% 30%, rgba(30,44,100,.45), rgba(4,6,16,.9) 70%), rgba(4,6,16,.6);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  opacity:1; visibility:visible; transition:opacity .22s ease; }
+#authView.off{ opacity:0; visibility:hidden; pointer-events:none; transition:opacity .22s ease, visibility 0s linear .22s; }
+body.perf-lite #authView{ backdrop-filter:blur(6px) !important; -webkit-backdrop-filter:blur(6px) !important; }
+
+#authCard{ position:relative; width:min(380px, 100%); padding:30px 28px 24px; border-radius:22px; text-align:center;
+  background:linear-gradient(165deg, rgba(26,33,68,.97) 0%, rgba(12,16,36,.98) 55%, rgba(9,11,26,.98) 100%);
+  border:1px solid rgba(140,170,255,.2);
+  box-shadow:0 24px 70px rgba(0,0,0,.6), 0 0 50px rgba(78,168,255,.08), inset 0 1px 0 rgba(255,255,255,.06);
+  transform:none; transition:transform .26s cubic-bezier(.2,.8,.2,1); }
+#authView.off #authCard{ transform:translateY(12px) scale(.98); }
+/* yuqori chetdagi neon chiziq */
+#authCard::before{ content:""; position:absolute; left:22%; right:22%; top:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, var(--neon), var(--neon-2), transparent); opacity:.9; }
+#authClose{ top:14px; right:14px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; padding:0; }
+
+#authAvatar{ width:54px; height:54px; margin:0 auto 12px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:21px; font-weight:700; color:#fff; letter-spacing:0;
+  background:radial-gradient(circle at 32% 28%, #8fd0ff 0%, var(--neon) 35%, var(--neon-2) 100%);
+  box-shadow:0 0 0 4px rgba(78,168,255,.12), 0 0 26px rgba(120,140,255,.45); }
+#authAvatar.guest{ font-size:20px; color:rgba(255,255,255,.95); }
+#authCard h2{ font-size:20px; letter-spacing:.02em; margin:0 0 6px; line-height:1.25; }
+#authCard p{ font-size:12px; line-height:1.45; color:var(--text-dim); margin:0 0 18px; }
+
+#authTabs{ position:relative; display:flex; padding:4px; margin-bottom:16px; border-radius:999px;
+  background:rgba(8,11,26,.8); border:1px solid rgba(140,170,255,.16); }
+#authTabs::before{ content:""; position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:999px;
+  background:linear-gradient(90deg, rgba(78,168,255,.22), rgba(160,107,255,.22)); border:1px solid rgba(78,168,255,.55);
+  box-shadow:0 0 12px rgba(78,168,255,.18); transition:transform .25s cubic-bezier(.2,.8,.2,1); }
+#authTabs.up::before{ transform:translateX(100%); }
+.auth-tab{ position:relative; flex:1; font-size:12.5px; padding:8px 0; border-radius:999px; cursor:pointer;
+  border:0; background:none; color:var(--text-dim); transition:color .2s; }
+.auth-tab.active{ color:#fff; }
+
+#authFields{ display:flex; flex-direction:column; gap:10px; }
+#authFields input{ width:100%; box-sizing:border-box; font-size:13.5px; padding:12px 14px; border-radius:12px; color:var(--text);
+  background:rgba(6,9,22,.85); border:1px solid rgba(140,170,255,.2); outline:none; transition:border-color .15s, box-shadow .15s; }
+#authFields input:hover{ border-color:rgba(140,170,255,.34); }
+#authFields input:focus{ border-color:var(--neon); box-shadow:0 0 0 3px rgba(78,168,255,.16); }
+#authFields input::placeholder{ color:#7d89b0; }
+.auth-pw{ position:relative; }
+.auth-pw input{ padding-right:44px !important; }
+.auth-eye{ position:absolute; right:6px; top:50%; transform:translateY(-50%); width:32px; height:32px; padding:0; border:0; border-radius:9px;
+  background:none; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.auth-eye:hover{ color:var(--neon); background:rgba(78,168,255,.1); }
+.auth-eye svg{ width:18px; height:18px; }
+.auth-eye .eye-off{ display:none; } .auth-eye.on .eye-on{ display:none; } .auth-eye.on .eye-off{ display:block; }
+
+#authErr{ min-height:18px; font-size:11.5px; line-height:1.4; color:#ff9a86; margin:9px 2px 6px; opacity:0; transition:opacity .2s; }
 #authErr.on{ opacity:1; }
-.auth-btn{ width:100%; font-size:13.5px; font-weight:700; padding:11px 0; border-radius:12px; cursor:pointer;
+
+.auth-btn{ position:relative; width:100%; font-size:14px; font-weight:700; padding:12px 0; border-radius:12px; cursor:pointer;
   border:none; color:#04060f; background:linear-gradient(90deg, var(--neon), var(--neon-2));
-  box-shadow:0 0 18px rgba(78,168,255,.35); }
-.auth-btn:hover{ filter:brightness(1.12); }
-.auth-btn:disabled{ opacity:.6; cursor:wait; }
-#authCard{ position:relative; }
-#authClose{ top:12px; right:12px; width:28px; height:28px; }
-#authAccount{ display:flex; flex-direction:column; gap:9px; }
-#authWho{ font-size:12.5px; color:var(--neon); margin:-4px 0 6px; word-break:break-all; }
-.auth-btn-2{ color:var(--text); background:rgba(20,26,50,.6); border:1px solid rgba(140,170,255,.25); box-shadow:none; }
+  box-shadow:0 6px 22px rgba(78,168,255,.3); transition:filter .15s, transform .1s; }
+.auth-btn:hover{ filter:brightness(1.1); }
+.auth-btn:active{ transform:translateY(1px); }
+.auth-btn:disabled{ cursor:wait; filter:saturate(.7) brightness(.9); }
+.auth-btn.busy .auth-btn-tx{ visibility:hidden; }
+.auth-btn.busy::after{ content:""; position:absolute; left:50%; top:50%; width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:50%;
+  border:2px solid rgba(4,6,15,.25); border-top-color:#04060f; animation:authSpin .7s linear infinite; }
+@keyframes authSpin{ to{ transform:rotate(360deg); } }
+
+#authAccount{ display:flex; flex-direction:column; gap:10px; }
+#authWho{ font-size:12.5px; color:var(--neon); margin:-8px 0 8px; word-break:break-all; }
+.auth-btn-2{ color:var(--text); background:rgba(14,19,42,.9); border:1px solid rgba(140,170,255,.24); box-shadow:none; font-weight:600; }
 .auth-btn-2:hover{ border-color:var(--neon); color:var(--neon); filter:none; }
-@media (max-width:680px){ #authCard{ padding:20px 16px 17px; } }
+@media (max-width:680px){ #authCard{ padding:26px 18px 20px; } }
+@media (prefers-reduced-motion:reduce){ #authCard, #authTabs::before, #authView{ transition:none; } }
 
 
 /* ---------- Haqiqiy suratlar (panel galereyasi) ---------- */

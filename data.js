@@ -197,7 +197,7 @@ uz: {
     hello:'Salom', logout:'Chiqish',
     errCreds:"Email yoki parol noto'g'ri", errRate:"Urinishlar juda ko'p — 15 daqiqadan so'ng qayta urinib ko'ring",
     errBlocked:"Hisobingiz bloklangan — administratorga murojaat qiling", errServer:"Server bilan bog'lanib bo'lmadi — keyinroq urinib ko'ring",
-    accSub:"Darslik progressi, test natijalari va sozlamalaringiz serverda saqlanadi", admin:"Admin panel", close:"Yopish"
+    accSub:"Darslik progressi, test natijalari va sozlamalaringiz serverda saqlanadi", admin:"Admin panel", close:"Yopish", showPass:"Parolni ko'rsatish", hidePass:"Parolni yashirish"
   },
   sky:{
     btn:"Osmon to'ri", conLbl:'Turkum', magLbl:'Magnituda', coordLbl:'Koordinatalar',
@@ -626,7 +626,7 @@ ru: {
     hello:'Привет', logout:'Выйти',
     errCreds:'Неверный email или пароль', errRate:'Слишком много попыток — попробуйте через 15 минут',
     errBlocked:'Ваш аккаунт заблокирован — обратитесь к администратору', errServer:'Не удалось связаться с сервером — попробуйте позже',
-    accSub:'Прогресс учебника, результаты тестов и настройки сохраняются на сервере', admin:'Админ-панель', close:'Закрыть'
+    accSub:'Прогресс учебника, результаты тестов и настройки сохраняются на сервере', admin:'Админ-панель', close:'Закрыть', showPass:'Показать пароль', hidePass:'Скрыть пароль'
   },
   sky:{
     btn:'Небесная сетка', conLbl:'Созвездие', magLbl:'Звёздная величина', coordLbl:'Координаты',
@@ -1055,7 +1055,7 @@ en: {
     hello:'Hi', logout:'Log out',
     errCreds:'Wrong email or password', errRate:'Too many attempts — try again in 15 minutes',
     errBlocked:'Your account is blocked — contact the administrator', errServer:'Could not reach the server — please try again later',
-    accSub:'Your textbook progress, quiz results and settings are saved on the server', admin:'Admin panel', close:'Close'
+    accSub:'Your textbook progress, quiz results and settings are saved on the server', admin:'Admin panel', close:'Close', showPass:'Show password', hidePass:'Hide password'
   },
   sky:{
     btn:'Sky grid', conLbl:'Constellation', magLbl:'Magnitude', coordLbl:'Coordinates',

@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="logo.svg" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="style.css?v=85" />
+  <link rel="stylesheet" href="style.css?v=86" />
 </head>
 <body>
   <!-- 3D sahna shu canvasga chiziladi -->
@@ -260,30 +260,36 @@
   </div>
 
   <!-- Kirish / Ro'yxatdan o'tish -->
-  <div id="authView" class="off" style="display:none">
-    <div id="authCard" class="glass">
+  <div id="authView" class="off" style="display:none" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div id="authCard">
       <button id="authClose" class="panel-close" type="button">✕</button>
-      <div id="authStars">✦ ✧ ✦</div>
+      <div id="authAvatar" class="guest" aria-hidden="true">✦</div>
       <h2 id="authTitle"></h2>
       <p id="authSub"></p>
       <div id="authForm">
-        <div id="authTabs">
-          <button id="authTabIn" class="auth-tab active"></button>
-          <button id="authTabUp" class="auth-tab"></button>
+        <div id="authTabs" role="tablist">
+          <button id="authTabIn" class="auth-tab active" type="button" role="tab"></button>
+          <button id="authTabUp" class="auth-tab" type="button" role="tab"></button>
         </div>
         <div id="authFields">
           <input id="authName" type="text" autocomplete="name" maxlength="60" style="display:none" />
-          <input id="authEmail" type="email" autocomplete="email" maxlength="254" />
-          <input id="authPass" type="password" autocomplete="current-password" maxlength="128" />
-          <input id="authPass2" type="password" autocomplete="new-password" maxlength="128" style="display:none" />
+          <input id="authEmail" type="email" autocomplete="email" inputmode="email" maxlength="254" />
+          <div class="auth-pw">
+            <input id="authPass" type="password" autocomplete="current-password" maxlength="128" />
+            <button class="auth-eye" type="button" data-for="authPass"><svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.8 17.8 0 0 1-2.9 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg></button>
+          </div>
+          <div class="auth-pw" id="authPass2Wrap" style="display:none">
+            <input id="authPass2" type="password" autocomplete="new-password" maxlength="128" />
+            <button class="auth-eye" type="button" data-for="authPass2"><svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.8 17.8 0 0 1-2.9 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg></button>
+          </div>
         </div>
-        <div id="authErr"></div>
-        <button id="authSubmit" class="auth-btn"></button>
+        <div id="authErr" role="alert"></div>
+        <button id="authSubmit" class="auth-btn" type="button"><span class="auth-btn-tx" id="authSubmitTx"></span></button>
       </div>
       <div id="authAccount" style="display:none">
         <div id="authWho"></div>
-        <button id="authAdmin" class="auth-btn auth-btn-2" style="display:none"></button>
-        <button id="authLogout" class="auth-btn auth-btn-2"></button>
+        <button id="authAdmin" class="auth-btn" type="button" style="display:none"></button>
+        <button id="authLogout" class="auth-btn auth-btn-2" type="button"></button>
       </div>
     </div>
   </div>
@@ -427,7 +433,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <!-- Ko‘p tilli ma'lumotlar -->
   <script src="api.js?v=1"></script>
-  <script src="data.js?v=36"></script>
+  <script src="data.js?v=37"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
@@ -447,7 +453,7 @@
   <script src="labs/darslik.js?v=11"></script>
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=1"></script>
-  <script src="script.js?v=79"></script>
+  <script src="script.js?v=80"></script>
   <script src="guide.js?v=6"></script>
   <script src="labs/ilmiy-d1.js?v=1"></script>
   <script src="labs/ilmiy-d2.js?v=1"></script>

@@ -5131,7 +5131,7 @@ function perfStep(raw){
 }
 function animate(){
   requestAnimationFrame(animate);
-  if(document.hidden || window.__labCover){ clock.getDelta(); return; }        // yashirin varaqda GPU ishlamaydi
+  if(document.hidden || window.__labCover || window.__authCover){ clock.getDelta(); return; }        // yashirin varaqda GPU ishlamaydi
   // Yuklanish ekrani to'liq yopib turganda 3D sahna chizilmaydi (shaderlar uchun dastlabki 3 kadrdan keyin)
   if(loader && !loader.classList.contains('hidden') && !loader.classList.contains('sp-out') && (animate._lf=(animate._lf||0)+1)>3){ clock.getDelta(); return; }
   const rawDt = clock.getDelta();
@@ -5892,7 +5892,9 @@ function authBuildUI(){
   authEl('authEmail').placeholder=t.email;
   authEl('authPass').placeholder=t.pass;
   authEl('authPass2').placeholder=t.pass2;
-  authEl('authSubmit').textContent=authMode==='in'?t.btnIn:t.btnUp;
+  authEl('authSubmitTx').textContent=authMode==='in'?t.btnIn:t.btnUp;
+  document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.title=b.classList.contains('on')?t.hidePass:t.showPass; b.setAttribute('aria-label',b.title); });
+  const av=authEl('authAvatar'); av.classList.toggle('guest',!u); av.textContent=u?(u.name.trim()[0]||'✦').toUpperCase():'✦';
   authEl('authClose').title=t.close;
   authEl('authWho').textContent=u?u.email:'';
   authEl('authAdmin').textContent=t.admin;
@@ -5907,15 +5909,19 @@ function authSetMode(m){
   authMode=m;
   authEl('authTabIn').classList.toggle('active',m==='in');
   authEl('authTabUp').classList.toggle('active',m==='up');
+  authEl('authTabs').classList.toggle('up',m==='up');
   authEl('authName').style.display=m==='up'?'block':'none';
-  authEl('authPass2').style.display=m==='up'?'block':'none';
+  authEl('authPass2Wrap').style.display=m==='up'?'':'none';
   authEl('authPass').autocomplete=m==='up'?'new-password':'current-password';
   authEl('authErr').classList.remove('on');
   authBuildUI();
 }
-function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(authMode); authEl('authView').classList.remove('off');
-  if(!window.API.user) setTimeout(()=>authEl(authMode==='up'?'authName':'authEmail').focus(),60); }
-function authClose(){ authEl('authView').classList.add('off'); }
+// Oyna ochiq paytda 3D sahna pauza qilinadi (__authCover → animate()): blur qotgan kadr ustida bir marta
+// hisoblanadi, GPU bo'shaydi — kiritish va animatsiyalar qotmaydi.
+function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(authMode);
+  window.__authCover=true; authEl('authView').classList.remove('off');
+  if(!window.API.user) setTimeout(()=>authEl(authMode==='up'?'authName':'authEmail').focus({preventScroll:true}),240); }
+function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false; }
 // Server xato kodlari → 3 tilli matn
 function authErrText(e){
   const t=authT();
@@ -5936,19 +5942,26 @@ async function authSubmit(){
     if(pass.length<8) return authShowErr(t.errPassLen);
     if(pass!==pass2) return authShowErr(t.errPass2);
   } else if(!email||!pass) return authShowErr(t.errFill);
-  authBusy=true; authEl('authSubmit').disabled=true;
+  authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');
   try{
     if(authMode==='up') await window.API.register(name,email,pass);
     else await window.API.login(email,pass);
     authEl('authPass').value=''; authEl('authPass2').value='';
+    document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
     authClose(); playClick(880);
   }catch(e){ authShowErr(authErrText(e)); }
-  finally{ authBusy=false; authEl('authSubmit').disabled=false; }
+  finally{ authBusy=false; authEl('authSubmit').disabled=false; authEl('authSubmit').classList.remove('busy'); }
 }
 authEl('authTabIn').addEventListener('click',()=>{ playClick(620); authSetMode('in'); });
 authEl('authTabUp').addEventListener('click',()=>{ playClick(620); authSetMode('up'); });
 authEl('authSubmit').addEventListener('click',()=>authSubmit());
 authEl('authFields').addEventListener('keydown',e=>{ if(e.key==='Enter') authSubmit(); });
+// Parolni ko'rsatish / yashirish
+document.querySelectorAll('#authView .auth-eye').forEach(b=>b.addEventListener('click',()=>{
+  const inp=authEl(b.dataset.for), show=inp.type==='password';
+  inp.type=show?'text':'password'; b.classList.toggle('on',show); authBuildUI();
+  inp.focus({preventScroll:true}); const n=inp.value.length; try{ inp.setSelectionRange(n,n); }catch(e){}
+}));
 authEl('authClose').addEventListener('click',()=>{ playClick(440); authClose(); });
 authEl('authView').addEventListener('click',e=>{ if(e.target.id==='authView') authClose(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !authEl('authView').classList.contains('off')) authClose(); });
