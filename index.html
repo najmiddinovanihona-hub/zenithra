@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Astro — Quyosh tizimi</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" href="style.css?v=84" />
+</head>
+<body>
+  <!-- 3D sahna shu canvasga chiziladi -->
+  <canvas id="scene"></canvas>
+
+  <!-- Yuklanish ekrani -->
+  <div id="loader">
+    <canvas id="spWarp" style="position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none"></canvas>
+    <div class="sp-stars"></div>
+    <div class="sp-logo" aria-hidden="true">
+      <div class="sp-glow"></div>
+      <div class="sp-l sp-ringb"><svg viewBox="0 0 64 64"><defs><linearGradient id="spRg1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a8641c"/><stop offset=".5" stop-color="#ffc463"/><stop offset="1" stop-color="#b8701f"/></linearGradient></defs><g transform="rotate(-18 32 34)"><ellipse cx="32" cy="34" rx="29" ry="8.5" fill="none" stroke="url(#spRg1)" stroke-width="3.6" opacity=".55"/></g></svg></div>
+      <div class="sp-l sp-planet"><svg viewBox="0 0 64 64"><defs><radialGradient id="spPl" cx="38%" cy="30%" r="75%"><stop offset="0" stop-color="#9cc8ff"/><stop offset=".45" stop-color="#3f7fe6"/><stop offset="1" stop-color="#14306f"/></radialGradient></defs><circle cx="31" cy="34" r="19" fill="url(#spPl)"/><g fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="2.2"><path d="M13.5 30 Q31 26 48.5 30"/><path d="M12.5 38 Q31 34 49.5 38"/></g><ellipse cx="24" cy="25" rx="6" ry="3.6" fill="#fff" opacity=".45" transform="rotate(-20 24 25)"/></svg></div>
+      <div class="sp-l sp-ringf"><svg viewBox="0 0 64 64"><defs><linearGradient id="spRg2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a8641c"/><stop offset=".5" stop-color="#ffc463"/><stop offset="1" stop-color="#b8701f"/></linearGradient><clipPath id="spFront"><rect x="0" y="33" width="64" height="31"/></clipPath></defs><g transform="rotate(-18 32 34)" clip-path="url(#spFront)"><ellipse cx="32" cy="34" rx="29" ry="8.5" fill="none" stroke="url(#spRg2)" stroke-width="3.6"/></g></svg></div>
+      <div class="sp-l sp-orbit"><div class="sp-l sp-moon"><svg viewBox="0 0 64 64"><defs><radialGradient id="spMn" cx="35%" cy="35%" r="70%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#aab4c8"/></radialGradient></defs><circle cx="53" cy="11" r="4.2" fill="url(#spMn)"/></svg></div></div>
+    </div>
+    <h1 class="sp-name" aria-label="ASTRO"><span>A</span><span>S</span><span>T</span><span>R</span><span>O</span></h1>
+    <p class="sp-tag" id="spTag">Koinot yuklanmoqda…</p>
+    <div class="sp-bar"><i></i></div>
+  </div>
+  <script>
+  (function(){
+    var cv=document.getElementById('spWarp'),ld=document.getElementById('loader');if(!cv)return;
+    var cx=cv.getContext('2d'),W,H,dpr=Math.min(window.devicePixelRatio||1,2),N=420,S=[];
+    function size(){W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;cx.setTransform(dpr,0,0,dpr,0,0);}
+    function mk(s,far){s.x=(Math.random()-.5)*2;s.y=(Math.random()-.5)*2;s.z=far?1:Math.random();s.pz=s.z;s.c=Math.random()<.15?'#9fc4ff':(Math.random()<.1?'#ffd9a0':'#ffffff');return s;}
+    size();for(var i=0;i<N;i++)S.push(mk({},false));
+    window.addEventListener('resize',size);
+    var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches,sp=reduce?.0015:.009,last=performance.now();
+    // Chiziqlar chuqurlik (8 qatlam) va rang bo'yicha guruhlab bir martada chiziladi — 420 o'rniga ~24 chizish chaqiruvi
+    var COLS=['#ffffff','#9fc4ff','#ffd9a0'],NB=8,B=[];for(var b=0;b<NB*3;b++)B.push([]);
+    function ci(c){return c==='#ffffff'?0:(c==='#9fc4ff'?1:2);}
+    function fr(t){
+      var dt=Math.min(50,t-last)/16.7;last=t;
+      if(!ld.isConnected||ld.classList.contains('hidden'))return;
+      cx.globalAlpha=1;cx.fillStyle='rgba(3,5,14,.35)';cx.fillRect(0,0,W,H);
+      var k=Math.max(W,H)*.5,ox=W/2,oy=H/2,i,j;
+      for(i=0;i<B.length;i++)B[i].length=0;
+      for(i=0;i<N;i++){var s=S[i];s.pz=s.z;s.z-=sp*dt;if(s.z<=.02){mk(s,true);continue;}
+        var x=ox+s.x/s.z*k,y=oy+s.y/s.z*k;
+        if(x<-50||x>W+50||y<-50||y>H+50){mk(s,true);continue;}
+        var lv=Math.min(NB-1,((1-s.z)*NB)|0);B[lv*3+ci(s.c)].push(s);}
+      for(var l=0;l<NB;l++){var d=(l+.5)/NB;cx.globalAlpha=Math.min(1,d*1.4);cx.lineWidth=Math.max(.5,d*2.4);
+        for(j=0;j<3;j++){var g=B[l*3+j];if(!g.length)continue;cx.strokeStyle=COLS[j];cx.beginPath();
+          for(i=0;i<g.length;i++){var q=g[i];cx.moveTo(ox+q.x/q.pz*k,oy+q.y/q.pz*k);cx.lineTo(ox+q.x/q.z*k,oy+q.y/q.z*k);}
+          cx.stroke();}}
+      cx.globalAlpha=1;requestAnimationFrame(fr);
+    }
+    requestAnimationFrame(fr);
+  })();
+  </script>
+
+  <!-- Kirish (Intro) ekrani -->
+  <div id="intro" class="hidden">
+    <div class="lang-switch" id="introLang"></div>
+    <div class="intro-inner">
+      <p class="eyebrow" data-i18n="eyebrow">INTERAKTIV 3D TAJRIBA</p>
+      <h1><i class="intro-meteor" aria-hidden="true"></i><span data-i18n="title1">QUYOSH</span><span data-i18n="title2">TIZIMI</span></h1>
+      <a id="introAuthor" class="author-link" href="https://najmiddinovanihona-hub.github.io/portfolio.html/">Nihona Najmiddinova Irshodovna</a>
+      <p class="lead" data-i18n="lead"></p>
+      <button id="startBtn" data-i18n="startBtn">🚀 Kosmik sayohatni boshlash</button>
+      <div class="hint-row">
+        <span data-i18n="hintRotate"></span>
+        <span data-i18n="hintZoom"></span>
+        <span data-i18n="hintClick"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var el=document.getElementById('intro');if(!el)return;
+    if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    var was=el.classList.contains('hidden');
+    function play(){el.classList.remove('intro-play');void el.offsetWidth;el.classList.add('intro-play');}
+    if(!was)play();
+    new MutationObserver(function(){var h=el.classList.contains('hidden');if(was&&!h)play();was=h;}).observe(el,{attributes:true,attributeFilter:['class']});
+  })();
+  </script>
+
+  <!-- Yuqori boshqaruv paneli -->
+  <header id="topbar" class="glass hidden">
+    <div class="brand">
+      <img class="brand-logo" src="logo.svg" alt="" width="26" height="26" />
+      <span data-i18n="brand">ASTRO · QUYOSH TIZIMI</span>
+    </div>
+    <div class="controls">
+      <div class="tours-wrap">
+        <button id="toursBtn" class="icon-btn" title="Sayohatlar">🚀</button>
+        <div id="toursMenu" class="glass tours-menu">
+          <button class="tour-item" data-tour="planets"><span class="ti-ico">✈</span><span class="ti-label" id="tmPlanets">Sayyoralar sayohati</span></button>
+          <button class="tour-item" data-tour="stars"><span class="ti-ico">✨</span><span class="ti-label" id="tmStars">Yulduz turkumlari sayohati</span></button>
+          <button class="tour-item" data-tour="objects"><span class="ti-ico">☄</span><span class="ti-label" id="tmObjects">Astronomik obyektlar sayohati</span></button>
+          <button class="tour-item" data-tour="blackholes"><span class="ti-ico">🕳</span><span class="ti-label">Qora tuynuklar sayohati</span></button>
+          <button class="tour-item" data-tour="eclipse"><span class="ti-ico">🌘</span><span class="ti-label">Quyosh tutilishi sayohati</span></button>
+          <button class="tour-item" data-tour="visual"><span class="ti-ico">🌌</span><span class="ti-label" id="tmVisual">Kosmik manzaralar sayohati</span></button>
+        </div>
+      </div>
+      <button id="darsBtn" class="icon-btn" title="Darslik">📖</button>
+      <button id="quizBtn2" class="icon-btn" title="Kosmik test">🎓</button>
+      <button id="rtBtn" class="icon-btn" title="Real vaqt">📅</button>
+      <button id="lsBtn" class="icon-btn" title="Yorug'lik tezligi">⚡</button>
+      <button id="seasonsBtn" class="icon-btn" title="Fasllar">🍂</button>
+      <button id="ubBtn" class="icon-btn" title="Ulug'bek rasadxonasi">🔭</button>
+      <div class="tours-wrap" id="skyWrap">
+        <button id="skyBtn" class="icon-btn" title="Osmon">🌃</button>
+        <div id="skyMenu" class="glass tours-menu"></div>
+      </div>
+      <button id="weatherBtn" class="icon-btn" title="Ob-havo">⛅</button>
+      <button id="gridBtn" class="icon-btn" title="Osmon to'ri">🌐</button>
+      <button id="userBtn" class="icon-btn" title="" style="display:none">👤</button>
+      <div class="speed-ctl">
+        <button id="pauseBtn" class="icon-btn" title="To‘xtatish / davom ettirish">⏸</button>
+        <input id="speed" type="range" min="0" max="3" step="0.1" value="1" />
+        <span id="speedVal">1.0×</span>
+      </div>
+      <button id="resetBtn" class="icon-btn" title="Overview">⤢</button>
+      <div class="lang-drop" id="langDrop">
+        <button class="icon-btn lang-trig" id="langTrig" aria-haspopup="true" aria-expanded="false"><span>🌐</span><b id="langCur">UZ</b></button>
+        <div class="lang-switch lang-menu glass" id="topLang"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Muallif yozuvi -->
+  <a id="credit" href="https://najmiddinovanihona-hub.github.io/portfolio.html/"><span class="credit-star">✦</span> <span id="creditLabel">Muallif</span>: Nihona Najmiddinova Irshodovna</a>
+
+  <!-- Portfolio ichki oynasi (ilovadan chiqmasdan ko'rish) -->
+  <div id="portfolioView" class="hidden">
+    <div id="portfolioBar" class="glass">
+      <button id="portfolioBack" class="pf-back">← <span id="pfBackLabel">Orqaga</span></button>
+      <span class="pf-title">Nihona Najmiddinova Irshodovna — Portfolio</span>
+      <a id="pfExternal" class="pf-ext" href="https://najmiddinovanihona-hub.github.io/portfolio.html/" target="_blank" rel="noopener" title="Yangi oynada ochish">↗</a>
+    </div>
+    <iframe id="portfolioFrame" title="Portfolio"></iframe>
+  </div>
+
+  <!-- Yorug'lik tezligi demosi: HUD -->
+  <div id="lsHud" class="glass">
+    <button id="lsClose" class="panel-close">✕</button>
+    <div class="ls-stats">
+      <div class="ls-stat"><span class="k" id="lsTimeK">Foton vaqti</span><span class="v" id="lsTimeV">0 s</span></div>
+      <div class="ls-stat"><span class="k" id="lsDistK">Masofa</span><span class="v" id="lsDistV">0</span></div>
+      <div class="ls-stat"><span class="k" id="lsNextK">Keyingi</span><span class="v" id="lsNextV">—</span></div>
+    </div>
+    <div id="lsProgress"><div id="lsProgFill"></div><div id="lsProgMarks"></div></div>
+    <div class="ls-ctl">
+      <div id="lsSpeeds"></div>
+      <div id="lsCams"></div>
+    </div>
+  </div>
+  <div id="lsLabel" class="glass"></div>
+
+  <!-- Yorug'lik tezligi: yakuniy karta -->
+  <div id="lsFinal" class="cosmos-overlay">
+    <div class="cosmos-card glass ls-final-card">
+      <h3 id="lsFinalTitle" class="struct-title">Sayohat yakunlandi</h3>
+      <div id="lsFinalList" class="ls-final-list"></div>
+      <p id="lsFinalFact" class="ls-final-fact"></p>
+      <div class="ls-final-btns">
+        <button id="lsReplayBtn" class="quiz-opt">🔄 Qayta uchirish</button>
+        <button id="lsExitBtn" class="quiz-opt">Chiqish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real vaqt: sana paneli -->
+  <div id="rtPanel" class="glass">
+    <button id="rtPrev" class="rt-step">◀</button>
+    <button id="rtToday" class="rt-today">Bugun</button>
+    <button id="rtNext" class="rt-step">▶</button>
+    <input id="rtDate" type="date" min="1800-01-01" max="2050-12-31" />
+    <span id="rtLive" class="rt-live"></span>
+  </div>
+
+  <!-- Sayyora nomlari uchun pastki tezkor menyu -->
+  <nav id="dock" class="glass hidden"></nav>
+
+  <!-- Interfeysni yashirish/ko‘rsatish (kinematik ko‘rinish uchun) -->
+  <button id="uiToggle" class="ui-toggle hidden" title="Interfeysni yashirish">👁</button>
+
+  <!-- O‘ng tomondagi ma'lumot paneli -->
+  <aside id="panel" class="glass">
+    <button id="panelClose" class="panel-close">✕</button>
+    <div class="panel-head">
+      <span id="panelType">SAYYORA</span>
+      <h2 id="panelName">—</h2>
+    </div>
+    <p id="panelDesc" class="panel-desc"></p>
+    <div id="panelPhotos" class="photos"></div>
+    <div class="panel-actions" id="panelActions"></div>
+    <div id="panelStats" class="stats"></div>
+    <div class="fact">
+      <span class="fact-label" id="factLabel">★ Qiziqarli fakt</span>
+      <p id="panelFact"></p>
+    </div>
+  </aside>
+
+  <!-- Haqiqiy suratlar — to'liq ekranda ko'rish -->
+  <div id="phBox" aria-hidden="true">
+    <button id="phClose" class="ph-nav" aria-label="Yopish">✕</button>
+    <button id="phPrev" class="ph-nav" aria-label="Oldingi">‹</button>
+    <button id="phNext" class="ph-nav" aria-label="Keyingi">›</button>
+    <img id="phBoxImg" alt="" />
+    <div id="phBoxCount"></div>
+    <p id="phBoxCap"></p>
+    <p id="phBoxBy"></p>
+  </div>
+
+  <!-- Sayohat paytidagi hikoya matni -->
+  <div id="tourCaption">
+    <div class="tc-card glass">
+      <span id="tcName" class="tc-name"></span>
+      <p id="tcText" class="tc-text"></p>
+    </div>
+  </div>
+
+  <!-- Koinot faktlari modali (sayohat oxirida) -->
+  <div id="cosmos" class="cosmos-overlay">
+    <div class="cosmos-card glass">
+      <button id="cosmosClose" class="panel-close">✕</button>
+      <div class="cosmos-eyebrow">✦ ✦ ✦</div>
+      <h2 id="cosmosTitle">Koinot haqida qiziqarli faktlar</h2>
+      <ul id="cosmosList"></ul>
+    </div>
+  </div>
+
+  <!-- "Sayyorani top" o'yin kartasi -->
+  <div id="huntCard" class="glass">
+    <button id="huntClose" class="panel-close">✕</button>
+    <div class="hunt-head">
+      <span id="huntProg">1/10</span>
+      <span id="huntScore">0 ✦</span>
+    </div>
+    <h3 id="huntQ" class="hunt-q"></h3>
+    <div id="huntOpts" class="hunt-opts"></div>
+    <p id="huntMsg" class="hunt-msg"></p>
+  </div>
+
+  <!-- O'yin tanlash modali -->
+  <div id="gamePick" class="cosmos-overlay">
+    <div class="cosmos-card glass game-pick-card">
+      <button id="gamePickClose" class="panel-close">✕</button>
+      <h3 id="gamePickTitle" class="quiz-q">O‘yinni tanlang</h3>
+      <div class="quiz-opts">
+        <button id="pickClassic" class="quiz-opt">📋 Klassik test</button>
+        <button id="pickHunt" class="quiz-opt">🎯 Sayyorani top</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kirish / Ro'yxatdan o'tish -->
+  <div id="authView" class="off" style="display:none">
+    <div id="authCard" class="glass">
+      <div id="authStars">✦ ✧ ✦</div>
+      <h2 id="authTitle"></h2>
+      <p id="authSub"></p>
+      <div id="authTabs">
+        <button id="authTabIn" class="auth-tab active"></button>
+        <button id="authTabUp" class="auth-tab"></button>
+      </div>
+      <div id="authFields">
+        <input id="authName" type="text" autocomplete="name" style="display:none" />
+        <input id="authEmail" type="email" autocomplete="email" />
+        <input id="authPass" type="password" autocomplete="current-password" />
+        <input id="authPass2" type="password" autocomplete="new-password" style="display:none" />
+      </div>
+      <div id="authErr"></div>
+      <button id="authSubmit" class="auth-btn"></button>
+    </div>
+  </div>
+
+  <!-- Yulduz kartasi (haqiqiy osmon) -->
+  <div id="starCard" class="glass"></div>
+
+  <!-- Ulug'bek rasadxonasi -->
+  <div id="ubView">
+    <div id="ubCard" class="glass">
+      <div id="ubHead">
+        <h3 id="ubTitle">Ulug'bek rasadxonasi</h3>
+        <button id="ubClose" class="panel-close">✕</button>
+      </div>
+      <div id="ubTabs"></div>
+      <div id="ubBody">
+        <div id="ubHist" class="ub-pane">
+          <svg id="ubSil" viewBox="0 0 120 78" aria-hidden="true">
+            <line x1="4" y1="30" x2="116" y2="30" stroke="rgba(140,170,255,.5)" stroke-width="1.2"/>
+            <path d="M 30 10 A 62 62 0 0 1 78 66" fill="none" stroke="#ffd54f" stroke-width="2.2"/>
+            <path d="M 30 10 A 62 62 0 0 1 78 66" fill="none" stroke="rgba(255,213,79,.25)" stroke-width="7"/>
+            <circle cx="30" cy="10" r="2.6" fill="#fff3c4"/>
+            <line x1="30" y1="10" x2="66" y2="52" stroke="rgba(255,224,138,.7)" stroke-width="1" stroke-dasharray="3 2"/>
+            <circle cx="66" cy="52" r="2.2" fill="#ff9e1b"/>
+          </svg>
+          <div id="ubHistText"></div>
+        </div>
+        <div id="ubSext" class="ub-pane">
+          <canvas id="ubCanvas"></canvas>
+          <div id="ubHud">
+            <div class="ub-stats">
+              <div class="ub-stat"><span class="k" id="ubDateK"></span><span class="v" id="ubDateV">—</span></div>
+              <div class="ub-stat"><span class="k" id="ubHK"></span><span class="v" id="ubHV">—</span></div>
+              <div class="ub-stat"><span class="k" id="ubZK"></span><span class="v ub-z" id="ubZV">—</span></div>
+            </div>
+            <div id="ubRead"></div>
+            <input id="ubDaySl" type="range" min="0" max="364" step="1" value="171" />
+            <div id="ubDateBtns"></div>
+            <div id="ubAha"></div>
+            <div id="ubYearNote"></div>
+            <div id="ubTryWrap">
+              <button id="ubTryBtn" class="sn-chip"></button>
+              <div id="ubTryQ"></div>
+              <div id="ubTryOpts"></div>
+              <div id="ubTryMsg"></div>
+            </div>
+          </div>
+        </div>
+        <div id="ubMeas" class="ub-pane">
+          <table id="ubTable"></table>
+          <div id="ubFoot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fasllar simulyatsiyasi -->
+  <div id="seasonsView">
+    <div id="snMarkers"></div>
+    <div id="snAxisLabel"></div>
+    <div id="snPolarLabel" class="glass"></div>
+    <div id="snTop" class="glass">
+      <h3 id="snTitle">Fasllar</h3>
+    </div>
+    <button id="snClose" class="panel-close">✕</button>
+    <div id="snInset" class="glass">
+      <div id="snInsetTitle">Nur tushish burchagi</div>
+      <canvas id="snInsetCanvas" width="200" height="120"></canvas>
+    </div>
+    <div id="snHud" class="glass">
+      <div class="sn-row1">
+        <div class="sn-stat"><span class="k" id="snDateK"></span><span class="v big" id="snDateV">—</span></div>
+        <div class="sn-stat"><span class="k" id="snSeasonK"></span><span class="v big" id="snSeasonV">—</span></div>
+      </div>
+      <div class="sn-row2">
+        <div class="sn-stat"><span class="k" id="snDayLenK"></span><span class="v" id="snDayLenV">—</span></div>
+        <div class="sn-stat"><span class="k" id="snAltK"></span><span class="v" id="snAltV">—</span></div>
+        <div class="sn-stat"><span class="k" id="snDistK"></span><span class="v sn-dist" id="snDistV">—</span></div>
+      </div>
+      <div class="sn-note">
+        <span class="sn-south" id="snSouth"></span>
+        <span class="sn-why" id="snWhy"></span>
+      </div>
+      <div class="sn-slider-row">
+        <button id="snPlay" class="icon-btn">▶</button>
+        <input id="snDay" type="range" min="0" max="364" step="0.25" value="171" />
+      </div>
+      <div class="sn-selects">
+        <select id="snDates" class="sn-select"></select>
+        <select id="snLats" class="sn-select"></select>
+      </div>
+    </div>
+    <div id="snToast" class="glass"></div>
+  </div>
+
+  <!-- 3D portlagan kesim rejimi -->
+  <div id="cutView">
+    <svg id="cutSvg"></svg>
+    <div id="cutLabels"></div>
+    <div id="cutTop" class="glass">
+      <button id="cutPrev" class="rt-step">◀</button>
+      <h3 id="cutTitle"></h3>
+      <button id="cutNext" class="rt-step">▶</button>
+      <button id="cutClose" class="panel-close">✕</button>
+    </div>
+    <div id="cutHud" class="glass">
+      <span id="cutSliderLbl">Yig‘ilgan ⟷ Ochilgan</span>
+      <input id="cutExplode" type="range" min="0" max="100" value="100" />
+    </div>
+    <div id="cutDetail" class="glass"></div>
+  </div>
+
+  <!-- Ichki tuzilish oynasi -->
+  <div id="structView" class="cosmos-overlay">
+    <div class="cosmos-card glass struct-card">
+      <button id="structClose" class="panel-close">✕</button>
+      <h3 id="structTitle" class="struct-title"></h3>
+      <canvas id="structCanvas" width="340" height="300"></canvas>
+      <div id="structLegend" class="struct-legend"></div>
+    </div>
+  </div>
+
+  <!-- Kosmik test (viktorina) modali -->
+  <div id="quiz" class="cosmos-overlay">
+    <div class="cosmos-card glass quiz-card">
+      <button id="quizClose" class="panel-close">✕</button>
+      <div class="quiz-head">
+        <span id="quizProgress">1/10</span>
+        <div class="quiz-bar"><span id="quizBarFill"></span></div>
+        <span id="quizScore">0 ✦</span>
+      </div>
+      <h3 id="quizQ" class="quiz-q"></h3>
+      <div id="quizOpts" class="quiz-opts"></div>
+      <p id="quizExpl" class="quiz-expl"></p>
+      <button id="quizNext" class="quiz-next">Keyingisi →</button>
+    </div>
+  </div>
+
+  <!-- Three.js (r128) va OrbitControls CDN orqali yuklanadi -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Ko‘p tilli ma'lumotlar -->
+  <script src="data.js?v=35"></script>
+  <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
+  <script src="photos.js?v=3"></script>
+  <script src="extras.js?v=1"></script>
+  <script src="quiz-extra.js?v=1"></script>
+  <script src="quiz-extra-hard.js?v=1"></script>
+  <script src="labs/core.js?v=13"></script>
+  <script src="labs/moon.js?v=1"></script>
+  <script src="labs/star.js?v=5"></script>
+  <script src="labs/tonight.js?v=2"></script>
+  <script src="labs/iss.js?v=3"></script>
+  <script src="labs/weather.js?v=5"></script>
+  <script src="labs/space.js?v=3"></script>
+  <script src="labs/sky.js?v=3"></script>
+  <script src="labs/sim.js?v=2"></script>
+  <script src="labs/impacts.js?v=4"></script>
+  <script src="labs/edu.js?v=2"></script>
+  <script src="labs/darslik.js?v=10"></script>
+  <script src="labs/dz-kit.js?v=2"></script>
+  <script src="labs/dz-load.js?v=1"></script>
+  <script src="script.js?v=78"></script>
+  <script src="guide.js?v=6"></script>
+  <script src="labs/ilmiy-d1.js?v=1"></script>
+  <script src="labs/ilmiy-d2.js?v=1"></script>
+  <script src="labs/ilmiy-d3.js?v=1"></script>
+  <script src="labs/ilmiy-d4.js?v=1"></script>
+  <script src="labs/ilmiy-d5.js?v=1"></script>
+  <script src="labs/ilmiy-x1.js?v=1"></script>
+  <script src="labs/ilmiy-x2.js?v=1"></script>
+  <script src="labs/ilmiy-x3.js?v=1"></script>
+  <script src="labs/ilmiy-x4.js?v=1"></script>
+  <script src="labs/ilmiy-x5.js?v=1"></script>
+  <script src="labs/ilmiy-waves-txt.js?v=1"></script>
+  <script src="labs/ilm3d-core.js?v=1"></script>
+  <script src="labs/ilmiy-waves.js?v=2"></script>
+  <script src="labs/ilm3d-a.js?v=1"></script>
+  <script src="labs/ilm3d-b.js?v=1"></script>
+  <script src="labs/ilm3d-c.js?v=1"></script>
+  <script src="labs/ilm3d-time.js?v=1"></script>
+  <script src="labs/ilm3d-solar.js?v=3"></script>
+  <script src="labs/ilmiy.js?v=5"></script>
+</body>
+</html>
