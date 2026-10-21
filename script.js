@@ -75,6 +75,16 @@ function asTexture(canvas, srgb = true){
   return t;
 }
 
+/* Haqiqiy teksturalar (realtex.js) mavjud bo'lsa, ular bilan almashtiriladigan jismlar uchun og'ir protsedural
+   generatsiya qilinmaydi (sahifa ochilishida ~0.7 s asosiy oqim bo'shaydi) — o'rniga bir rangli kichik tekstura.
+   Yuklanish ekrani kamida 6 s turadi, haqiqiy xaritalar esa odatda undan oldin yetib keladi; biror fayl
+   yuklanmasa, 26b-bo'lim o'sha jism uchun protsedural teksturani yaratadi (zaxira). */
+const RT_ON = !!(window.REALTEX && window.REALTEX.ok);
+function flatTexture(hex){
+  const c=makeCanvas(4,2), x=c.getContext('2d'); x.fillStyle=hex; x.fillRect(0,0,4,2);
+  return asTexture(c);
+}
+
 /* ---- 3D qiymatli shovqin (value noise) + fBm ------------------------------
    Sferada TIKISH CHIZIG'I va qutb siqilishi bo'lmasligi uchun tekstura
    2D emas, 3D shovqindan — har piksel shar yuzidagi nuqta sifatida olinadi. */
@@ -935,10 +945,11 @@ PLANETS.forEach(p=>{
     const sunU = {value:new THREE.Vector3(1,0,0)};
     material = new THREE.ShaderMaterial({
       uniforms:{
-        dayTex:{value:earthDayTexture()},
-        nightTex:{value:earthNightTexture()},
-        normTex:{value:earthDayTexture().userData.normalMap},
-        roughTex:{value:earthDayTexture().userData.roughnessMap},
+        // RT_ON: haqiqiy xaritalar keladi — vaqtinchalik bir rangli teksturalar (tekis normal, quruqlik "g'adir-budurligi")
+        dayTex:{value:RT_ON?flatTexture('#24507a'):earthDayTexture()},
+        nightTex:{value:RT_ON?flatTexture('#000000'):earthNightTexture()},
+        normTex:{value:RT_ON?flatTexture('#8080ff'):earthDayTexture().userData.normalMap},
+        roughTex:{value:RT_ON?flatTexture('#b3b3b3'):earthDayTexture().userData.roughnessMap},
         realMap:{value:0},
         sunDir:sunU
       },
@@ -983,7 +994,8 @@ PLANETS.forEach(p=>{
     });
   } else {
     let tex;
-    if (p.key==='mercury') tex=rockyTexture('#8a7a68',['#6f6052','#a89683'],90);
+    if (RT_ON) tex=flatTexture('#'+p.color.toString(16).padStart(6,'0'));
+    else if (p.key==='mercury') tex=rockyTexture('#8a7a68',['#6f6052','#a89683'],90);
     else if (p.key==='venus') tex=gasGiantTexture([
         {c1:'#e8c98a',c2:'#d8a96b'},{c1:'#d6b074',c2:'#c89a5c'},
         {c1:'#e3c184',c2:'#cfa566'},{c1:'#d2a45e',c2:'#e0bb7c'}]);
@@ -1044,7 +1056,7 @@ PLANETS.forEach(p=>{
     // Bulutlar
     const clouds = new THREE.Mesh(
       new THREE.SphereGeometry(p.radius*1.02, 96, 64),
-      new THREE.MeshStandardMaterial({ map:cloudTexture(), transparent:true, opacity:0.55, depthWrite:false }));
+      new THREE.MeshStandardMaterial({ map:RT_ON?null:cloudTexture(), transparent:true, opacity:RT_ON?0:0.55, depthWrite:false }));
     mesh.add(clouds); rec.extras.clouds = clouds;
     // Atmosfera — haqiqiy ko'rish yo'nalishiga bog'langan fresnel, quyosh tomonida yorqinroq
     const atmo = new THREE.Mesh(
@@ -1069,7 +1081,7 @@ PLANETS.forEach(p=>{
     // Oy
     const moonPivot = new THREE.Object3D(); mesh.add(moonPivot);
     const moon = new THREE.Mesh(new THREE.SphereGeometry(p.radius*0.27,96,64),
-      stdFromTex(rockyTexture('#9a9a9a',['#6e6e6e','#b9b9b9','#8a8a8a'],130,768), { roughness:1.0, metalness:0.0 }));
+      stdFromTex(RT_ON?flatTexture('#8a8a8a'):rockyTexture('#9a9a9a',['#6e6e6e','#b9b9b9','#8a8a8a'],130,768), { roughness:1.0, metalness:0.0 }));
     moon.position.x = p.radius*3.2; moonPivot.add(moon);
     rec.extras.moonPivot = moonPivot;
     rec.extras.moons = [{ pivot: moonPivot, speed: 0.7 }];   // toggle uchun umumiy ro‘yxat
@@ -1202,7 +1214,7 @@ let meteorTimer = 0.5;   // birinchi meteor tez orada
 const EXTRA_BODIES = [];
 [
   { key:'ceres', radius:0.9, orbit:104, speed:0.018, spin:0.012,
-    tex:()=>rockyTexture('#8f8578',['#7a7060','#a39885'],55) },
+    tex:()=>RT_ON?flatTexture('#8f8578'):rockyTexture('#8f8578',['#7a7060','#a39885'],55) },
   { key:'pluto', radius:1.0, orbit:285, speed:0.0038, spin:0.008,
     tex:()=>rockyTexture('#c2b09a',['#8a7a68','#e0d2bd','#a08d76'],45) },
 ].forEach(d=>{
@@ -4997,7 +5009,7 @@ function cutBuildModel(key){
       grp.add(outer,inner,w1,w2);
       if(isSurf && key==='earth'){   // Yer ustida yupqa bulut qatlami
         const cl=new THREE.Mesh(new THREE.SphereGeometry(r*1.02,seg,seg,0,Math.PI*1.5),
-          new THREE.MeshBasicMaterial({map:cloudTexture(), transparent:true, opacity:0.8, depthWrite:false}));
+          new THREE.MeshBasicMaterial({map:RT_ON?null:cloudTexture(), alphaMap:RT_ON?flatTexture('#000000'):null, transparent:true, opacity:0.8, depthWrite:false}));
         cl.userData.layerIndex=i; cl.userData.baseOp=0.8; grp.add(cl);
         if(window.REALTEX) window.REALTEX.clouds(cl, { opacity:0.8 });   // haqiqiy bulut xaritasi
       }
@@ -5418,7 +5430,8 @@ console.assert(snDayLen(66.56,snDecl(171))>23.5,'fasllar: qutb kuni',snDayLen(66
 // Kun/tun shaderi — asosiy sahnadagi Yer shaderining AYNAN o'zi (sunDir har kadr yangilanadi)
 function snEarthMaterial(){
   return new THREE.ShaderMaterial({
-    uniforms:{ dayTex:{value:earthDayTexture()}, nightTex:{value:earthNightTexture()},
+    uniforms:{ dayTex:{value:RT_ON?(window.__REALTEX.earth||flatTexture('#24507a')):earthDayTexture()},
+      nightTex:{value:RT_ON?(window.__REALTEX.earthNight||flatTexture('#000000')):earthNightTexture()},
       sunDir:{value:new THREE.Vector3(1,0,0)} },
     vertexShader:'varying vec2 vUv; varying vec3 vN;\n'+
       'void main(){ vUv=uv; vN=normalize(mat3(modelMatrix)*normal);\n'+
@@ -5481,7 +5494,7 @@ function snBuild(){
   snEarthGrp.rotation.z=SN_TILT;               // ← o'q fazoda qotib turadi
   snEarthMesh=new THREE.Mesh(new THREE.SphereGeometry(SN_ER,48,48),snEarthMaterial());
   snCloudsM=new THREE.Mesh(new THREE.SphereGeometry(SN_ER*1.02,48,48),
-    new THREE.MeshBasicMaterial({map:cloudTexture(),transparent:true,opacity:0.4,depthWrite:false}));
+    new THREE.MeshBasicMaterial({map:RT_ON?null:cloudTexture(),transparent:true,opacity:RT_ON?0:0.4,depthWrite:false}));
   // Haqiqiy teksturalar (NASA asosida): Quyosh fotosferasi, Yer kunduz/tun xaritasi va bulutlar
   if(window.REALTEX && window.REALTEX.ok){
     const RT=window.REALTEX, em=snEarthMesh.material;
@@ -5942,6 +5955,20 @@ window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini
     ['neptune',    t=>{ applyStd(rec('neptune').mesh, t); __REALTEX.neptune=t; }],
     ['ceres',      t=>{ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); applyStd(b&&b.mesh, t, 0.02); }],
   ];
+  // Zaxira: fayl yuklanmasa — o'sha jism uchun avvalgi protsedural tekstura (RT_ON da oldindan yaratilmagan)
+  const proc=(mesh,key,gas)=>{ if(mesh){ mesh.material=stdFromTex(cutSurfaceTexture(key), gas?{roughness:0.82,metalness:0}:{roughness:0.94,metalness:0.04}); } };
+  const FALLBACK={
+    earth(){ const u=rec('earth').mesh.material.uniforms, d=earthDayTexture();
+      u.dayTex.value=d; u.normTex.value=d.userData.normalMap; u.roughTex.value=d.userData.roughnessMap; },
+    earthNight(){ rec('earth').mesh.material.uniforms.nightTex.value=earthNightTexture(); },
+    clouds(){ const c=rec('earth').extras.clouds; if(c){ c.material.map=cloudTexture(); c.material.opacity=0.55; c.material.needsUpdate=true; } },
+    moon(){ const p=rec('earth').extras.moonPivot; if(p&&p.children[0]) p.children[0].material=stdFromTex(rockyTexture('#9a9a9a',['#6e6e6e','#b9b9b9','#8a8a8a'],130,768),{roughness:1,metalness:0}); },
+    mercury(){ proc(rec('mercury').mesh,'mercury'); }, mars(){ proc(rec('mars').mesh,'mars'); },
+    venus(){ proc(rec('venus').mesh,'venus',1); }, jupiter(){ proc(rec('jupiter').mesh,'jupiter',1); },
+    saturn(){ proc(rec('saturn').mesh,'saturn',1); }, uranus(){ proc(rec('uranus').mesh,'uranus',1); },
+    neptune(){ proc(rec('neptune').mesh,'neptune',1); },
+    ceres(){ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); if(b) b.mesh.material=stdFromTex(rockyTexture('#8f8578',['#7a7060','#a39885'],55),{roughness:0.96,metalness:0.03}); },
+  };
   const pause=ms=>new Promise(r=>setTimeout(r,ms));
   async function run(){
     for(const [key, apply] of JOBS){
@@ -5951,7 +5978,7 @@ window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini
         apply(t);
         await pause(16);
         renderer.compile(scene, camera);  // o'zgargan materiallar shaderi oldindan tayyorlanadi
-      }catch(e){}
+      }catch(e){ if(FALLBACK[key]) try{ FALLBACK[key](); }catch(_){} }
       await pause(120);
     }
   }
