@@ -4021,7 +4021,7 @@ function voyagerTrailStep(dt){
     menu.innerHTML=GROUPS.map(([g,ico,keys])=>`<div style="padding:8px 12px 4px;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--neon);font-weight:700">${xt(g)}</div>`+
       keys.map(k=>{ const d=xinfo(k); return d?`<button class="tour-item" data-x="${k}" data-g="${g}"><span class="ti-ico">${ico}</span><span class="ti-label">${phEsc(d.name)}</span></button>`:''; }).join('')).join('');
     if(LANG!=='uz') menu.prepend(vbtn); else if(vbtn.parentNode) vbtn.remove();
-    if(window.LABS_MENU) window.LABS_MENU(menu);
+    // Laboratoriyalar endi alohida "Laboratoriya → Barcha laboratoriyalar" menyusida (toolbar.js)
     menu.querySelectorAll('[data-x]').forEach(b=>b.addEventListener('click',()=>{
       playClick(820); menu.classList.remove('open'); const k=b.dataset.x;
       if(b.dataset.g==='showers') startShower(k);
