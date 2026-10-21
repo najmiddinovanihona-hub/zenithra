@@ -1,0 +1,81 @@
+// ASTRO · Quyosh tizimi — ma'lumotlar bazasi sxemasi.
+// Ishlab chiqishda SQLite (bitta fayl, hech narsa o'rnatish shart emas).
+// PostgreSQL'ga o'tish: provider = "postgresql" qiling va .env dagi DATABASE_URL ni
+// postgres://... ga almashtiring, so'ng `npm run db:push`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  name         String
+  email        String       @unique
+  passwordHash String       @map("password_hash")
+  role         String       @default("user") // "user" | "admin"
+  blocked      Boolean      @default(false)
+  lang         String       @default("uz")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  lastSeenAt   DateTime?    @map("last_seen_at")
+  sessions     Session[]
+  progress     Progress[]
+  quizResults  QuizResult[]
+  settings     Settings?
+
+  @@map("users")
+}
+
+// Sessiya: cookie'dagi tasodifiy tokenning SHA-256 xeshi saqlanadi (token o'zi emas).
+model Session {
+  id        String   @id
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Darslik progressi: window.DZP dagi bitta mavzu yozuvi ({v, s, t, b, d}).
+model Progress {
+  userId    Int      @map("user_id")
+  topicId   String   @map("topic_id")
+  data      Json
+  seen      Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, topicId])
+  @@index([topicId])
+  @@map("progress")
+}
+
+model QuizResult {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  quizId    String   @map("quiz_id")
+  score     Int
+  total     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
+  @@index([createdAt])
+  @@map("quiz_results")
+}
+
+model Settings {
+  userId    Int      @id @map("user_id")
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}

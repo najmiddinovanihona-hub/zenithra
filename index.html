@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="logo.svg" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="style.css?v=84" />
+  <link rel="stylesheet" href="style.css?v=85" />
 </head>
 <body>
   <!-- 3D sahna shu canvasga chiziladi -->
@@ -262,21 +262,29 @@
   <!-- Kirish / Ro'yxatdan o'tish -->
   <div id="authView" class="off" style="display:none">
     <div id="authCard" class="glass">
+      <button id="authClose" class="panel-close" type="button">✕</button>
       <div id="authStars">✦ ✧ ✦</div>
       <h2 id="authTitle"></h2>
       <p id="authSub"></p>
-      <div id="authTabs">
-        <button id="authTabIn" class="auth-tab active"></button>
-        <button id="authTabUp" class="auth-tab"></button>
+      <div id="authForm">
+        <div id="authTabs">
+          <button id="authTabIn" class="auth-tab active"></button>
+          <button id="authTabUp" class="auth-tab"></button>
+        </div>
+        <div id="authFields">
+          <input id="authName" type="text" autocomplete="name" maxlength="60" style="display:none" />
+          <input id="authEmail" type="email" autocomplete="email" maxlength="254" />
+          <input id="authPass" type="password" autocomplete="current-password" maxlength="128" />
+          <input id="authPass2" type="password" autocomplete="new-password" maxlength="128" style="display:none" />
+        </div>
+        <div id="authErr"></div>
+        <button id="authSubmit" class="auth-btn"></button>
       </div>
-      <div id="authFields">
-        <input id="authName" type="text" autocomplete="name" style="display:none" />
-        <input id="authEmail" type="email" autocomplete="email" />
-        <input id="authPass" type="password" autocomplete="current-password" />
-        <input id="authPass2" type="password" autocomplete="new-password" style="display:none" />
+      <div id="authAccount" style="display:none">
+        <div id="authWho"></div>
+        <button id="authAdmin" class="auth-btn auth-btn-2" style="display:none"></button>
+        <button id="authLogout" class="auth-btn auth-btn-2"></button>
       </div>
-      <div id="authErr"></div>
-      <button id="authSubmit" class="auth-btn"></button>
     </div>
   </div>
 
@@ -418,7 +426,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <!-- Ko‘p tilli ma'lumotlar -->
-  <script src="data.js?v=35"></script>
+  <script src="api.js?v=1"></script>
+  <script src="data.js?v=36"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
@@ -435,10 +444,10 @@
   <script src="labs/sim.js?v=2"></script>
   <script src="labs/impacts.js?v=4"></script>
   <script src="labs/edu.js?v=2"></script>
-  <script src="labs/darslik.js?v=10"></script>
+  <script src="labs/darslik.js?v=11"></script>
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=1"></script>
-  <script src="script.js?v=78"></script>
+  <script src="script.js?v=79"></script>
   <script src="guide.js?v=6"></script>
   <script src="labs/ilmiy-d1.js?v=1"></script>
   <script src="labs/ilmiy-d2.js?v=1"></script>

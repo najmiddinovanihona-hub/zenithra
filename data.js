@@ -191,10 +191,13 @@ uz: {
     name:'Ismingiz', email:'Email', pass:'Parol', pass2:'Parolni tasdiqlang',
     btnIn:'Kirish', btnUp:"Ro'yxatdan o'tish",
     errFill:"Barcha maydonlarni to'ldiring", errEmail:"Email noto'g'ri ko'rinishda",
-    errPassLen:"Parol kamida 4 belgidan iborat bo'lsin", errPass2:'Parollar mos kelmadi',
+    errPassLen:"Parol kamida 8 belgidan iborat bo'lsin", errPass2:'Parollar mos kelmadi',
     errExists:"Bu email allaqachon ro'yxatdan o'tgan — Kirish bo'limidan foydalaning",
     errNoUser:'Bunday foydalanuvchi topilmadi', errWrongPass:"Parol noto'g'ri",
-    hello:'Salom', logout:'Chiqish'
+    hello:'Salom', logout:'Chiqish',
+    errCreds:"Email yoki parol noto'g'ri", errRate:"Urinishlar juda ko'p — 15 daqiqadan so'ng qayta urinib ko'ring",
+    errBlocked:"Hisobingiz bloklangan — administratorga murojaat qiling", errServer:"Server bilan bog'lanib bo'lmadi — keyinroq urinib ko'ring",
+    accSub:"Darslik progressi, test natijalari va sozlamalaringiz serverda saqlanadi", admin:"Admin panel", close:"Yopish"
   },
   sky:{
     btn:"Osmon to'ri", conLbl:'Turkum', magLbl:'Magnituda', coordLbl:'Koordinatalar',
@@ -617,10 +620,13 @@ ru: {
     name:'Ваше имя', email:'Email', pass:'Пароль', pass2:'Подтвердите пароль',
     btnIn:'Войти', btnUp:'Зарегистрироваться',
     errFill:'Заполните все поля', errEmail:'Email выглядит неверно',
-    errPassLen:'Пароль — минимум 4 символа', errPass2:'Пароли не совпадают',
+    errPassLen:'Пароль — минимум 8 символов', errPass2:'Пароли не совпадают',
     errExists:'Этот email уже зарегистрирован — войдите',
     errNoUser:'Пользователь не найден', errWrongPass:'Неверный пароль',
-    hello:'Привет', logout:'Выйти'
+    hello:'Привет', logout:'Выйти',
+    errCreds:'Неверный email или пароль', errRate:'Слишком много попыток — попробуйте через 15 минут',
+    errBlocked:'Ваш аккаунт заблокирован — обратитесь к администратору', errServer:'Не удалось связаться с сервером — попробуйте позже',
+    accSub:'Прогресс учебника, результаты тестов и настройки сохраняются на сервере', admin:'Админ-панель', close:'Закрыть'
   },
   sky:{
     btn:'Небесная сетка', conLbl:'Созвездие', magLbl:'Звёздная величина', coordLbl:'Координаты',
@@ -1043,10 +1049,13 @@ en: {
     name:'Your name', email:'Email', pass:'Password', pass2:'Confirm password',
     btnIn:'Sign in', btnUp:'Create account',
     errFill:'Please fill in all fields', errEmail:'That email does not look right',
-    errPassLen:'Password must be at least 4 characters', errPass2:'Passwords do not match',
+    errPassLen:'Password must be at least 8 characters', errPass2:'Passwords do not match',
     errExists:'This email is already registered — use Sign in',
     errNoUser:'No such user found', errWrongPass:'Wrong password',
-    hello:'Hi', logout:'Log out'
+    hello:'Hi', logout:'Log out',
+    errCreds:'Wrong email or password', errRate:'Too many attempts — try again in 15 minutes',
+    errBlocked:'Your account is blocked — contact the administrator', errServer:'Could not reach the server — please try again later',
+    accSub:'Your textbook progress, quiz results and settings are saved on the server', admin:'Admin panel', close:'Close'
   },
   sky:{
     btn:'Sky grid', conLbl:'Constellation', magLbl:'Magnitude', coordLbl:'Coordinates',

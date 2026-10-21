@@ -25,8 +25,9 @@ const PK='dz_prog', pLoad=()=>{ try{ return JSON.parse(localStorage.getItem(PK))
 const pSave=p=>{ try{ localStorage.setItem(PK,JSON.stringify(p)); }catch(e){} pCbs.forEach(f=>{ try{ f(); }catch(e){} }); };
 window.DZP={ all:pLoad, get:id=>pLoad()[id]||null,
   seen(id){ const p=pLoad(); if(p[id]&&p[id].v) return; p[id]=Object.assign(p[id]||{},{v:1}); pSave(p); },
-  score(id,sc,tot){ if(!id) return; const p=pLoad(), o=p[id]||{}; o.v=1; o.s=sc; o.t=tot; o.b=Math.max(o.b||0,sc); o.d=Date.now(); p[id]=o; pSave(p); },
-  reset(){ pSave({}); }, on:f=>pCbs.push(f) };
+  score(id,sc,tot){ if(!id) return; const p=pLoad(), o=p[id]||{}; o.v=1; o.s=sc; o.t=tot; o.b=Math.max(o.b||0,sc); o.d=Date.now(); p[id]=o; pSave(p);
+    if(window.API) window.API.quiz('topic:'+id,sc,tot); },
+  reset(){ pSave({}); }, replace(p){ pSave(p||{}); }, on:f=>pCbs.push(f) };
 const isMain=t=>/^t\d+$/.test(t.id);
 let fq='', ff='all';
 window.DARSLIK={ add(t){ const i=TOPICS.findIndex(x=>x.id===t.id); if(i>=0) TOPICS[i]=t; else TOPICS.push(t); if(lab&&lab.root&&lab.render) lab.render(); }, list:()=>TOPICS.slice() };

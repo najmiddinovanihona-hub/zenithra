@@ -4045,6 +4045,7 @@ function showQuizResult(){
   lb.textContent = tUI('quizLevelsBack');
   lb.addEventListener('click', ()=>{ playClick(600); renderLevelPicker(); });
   playClick(qScore>=7 ? 950 : 500);
+  if(window.API) window.API.quiz('quiz:'+qLevel, qScore, qList.length);
 }
 function closeQuiz(){ quizEl.classList.remove('open'); }
 document.getElementById('quizClose').addEventListener('click', ()=>{ playClick(440); closeQuiz(); });
@@ -5871,89 +5872,103 @@ window.addEventListener('resize',()=>{ if(ubActive&&ubTab===1) ubDraw(); });
 
 
 /* --------------------------------------------------------------------------
-   27. KIRISH / RO'YXATDAN O'TISH — lokal (localStorage), serversiz.
-   Eslatma: bu o'quv-demo autentifikatsiya — parol oddiy hash bilan saqlanadi,
-   haqiqiy xavfsizlik uchun server kerak bo'ladi.
+   27. KIRISH / RO'YXATDAN O'TISH — server orqali (api.js → window.API).
+   Server bo'lmasa (file:// yoki statik hosting) 👤 tugma ko'rinmaydi va sayt
+   mehmon rejimida ishlayveradi. Kirgan foydalanuvchida darslik progressi,
+   test natijalari va sozlamalar serverga sinxronlanadi.
    -------------------------------------------------------------------------- */
-var authMode='in';
+var authMode='in', authBusy=false;
 function authT(){ return window.LOC[LANG].auth||window.LOC.uz.auth; }
-function authHash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))>>>0; return h.toString(36); }
-function authUsers(){ try{ return JSON.parse(localStorage.getItem('st_users')||'[]'); }catch(e){ return []; } }
-function authSession(){ try{ return JSON.parse(localStorage.getItem('st_session')||'null'); }catch(e){ return null; } }
+const authEl=id=>document.getElementById(id);
 function authBuildUI(){
-  const t=authT();
-  document.getElementById('authTitle').textContent=t.welcome;
-  document.getElementById('authSub').textContent=t.sub;
-  document.getElementById('authTabIn').textContent=t.tabIn;
-  document.getElementById('authTabUp').textContent=t.tabUp;
-  document.getElementById('authName').placeholder=t.name;
-  document.getElementById('authEmail').placeholder=t.email;
-  document.getElementById('authPass').placeholder=t.pass;
-  document.getElementById('authPass2').placeholder=t.pass2;
-  document.getElementById('authSubmit').textContent=authMode==='in'?t.btnIn:t.btnUp;
-  const s=authSession(), ub=document.getElementById('userBtn');
-  if(ub&&s){ ub.title=t.hello+', '+s.name+' · '+t.logout; }
+  const t=authT(), u=window.API&&window.API.user;
+  authEl('authForm').style.display=u?'none':'';
+  authEl('authAccount').style.display=u?'':'none';
+  authEl('authTitle').textContent=u?t.hello+', '+u.name:t.welcome;
+  authEl('authSub').textContent=u?t.accSub:t.sub;
+  authEl('authTabIn').textContent=t.tabIn;
+  authEl('authTabUp').textContent=t.tabUp;
+  authEl('authName').placeholder=t.name;
+  authEl('authEmail').placeholder=t.email;
+  authEl('authPass').placeholder=t.pass;
+  authEl('authPass2').placeholder=t.pass2;
+  authEl('authSubmit').textContent=authMode==='in'?t.btnIn:t.btnUp;
+  authEl('authClose').title=t.close;
+  authEl('authWho').textContent=u?u.email:'';
+  authEl('authAdmin').textContent=t.admin;
+  authEl('authAdmin').style.display=u&&u.role==='admin'?'':'none';
+  authEl('authLogout').textContent=t.logout;
+  const ub=authEl('userBtn');
+  if(ub){ ub.title=u?t.hello+', '+u.name:t.tabIn; ub.classList.toggle('active',!!u); }
 }
-function authShowErr(msg){ const e=document.getElementById('authErr'); e.textContent=msg; e.classList.add('on');
-  setTimeout(()=>e.classList.remove('on'),2600); }
+function authShowErr(msg){ const e=authEl('authErr'); e.textContent=msg; e.classList.add('on');
+  clearTimeout(authShowErr.tm); authShowErr.tm=setTimeout(()=>e.classList.remove('on'),3200); }
 function authSetMode(m){
   authMode=m;
-  document.getElementById('authTabIn').classList.toggle('active',m==='in');
-  document.getElementById('authTabUp').classList.toggle('active',m==='up');
-  document.getElementById('authName').style.display=m==='up'?'block':'none';
-  document.getElementById('authPass2').style.display=m==='up'?'block':'none';
-  document.getElementById('authErr').classList.remove('on');
+  authEl('authTabIn').classList.toggle('active',m==='in');
+  authEl('authTabUp').classList.toggle('active',m==='up');
+  authEl('authName').style.display=m==='up'?'block':'none';
+  authEl('authPass2').style.display=m==='up'?'block':'none';
+  authEl('authPass').autocomplete=m==='up'?'new-password':'current-password';
+  authEl('authErr').classList.remove('on');
   authBuildUI();
 }
-function authEnter(sess){
-  localStorage.setItem('st_session', JSON.stringify(sess));
-  document.getElementById('authView').classList.add('off');
-  const ub=document.getElementById('userBtn');
-  ub.style.display=''; authBuildUI();
-  playClick(880);
-}
-function authSubmit(){
+function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(authMode); authEl('authView').classList.remove('off');
+  if(!window.API.user) setTimeout(()=>authEl(authMode==='up'?'authName':'authEmail').focus(),60); }
+function authClose(){ authEl('authView').classList.add('off'); }
+// Server xato kodlari → 3 tilli matn
+function authErrText(e){
   const t=authT();
-  const email=document.getElementById('authEmail').value.trim().toLowerCase();
-  const pass=document.getElementById('authPass').value;
+  return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
+    VALIDATION:t.errFill })[e&&e.code] || t.errServer;
+}
+async function authSubmit(){
+  if(authBusy) return;
+  const t=authT();
+  const email=authEl('authEmail').value.trim().toLowerCase();
+  const pass=authEl('authPass').value;
+  let name='';
   if(authMode==='up'){
-    const name=document.getElementById('authName').value.trim();
-    const pass2=document.getElementById('authPass2').value;
+    name=authEl('authName').value.trim();
+    const pass2=authEl('authPass2').value;
     if(!name||!email||!pass||!pass2) return authShowErr(t.errFill);
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail);
-    if(pass.length<4) return authShowErr(t.errPassLen);
+    if(pass.length<8) return authShowErr(t.errPassLen);
     if(pass!==pass2) return authShowErr(t.errPass2);
-    const users=authUsers();
-    if(users.some(u=>u.email===email)) return authShowErr(t.errExists);
-    users.push({name:name, email:email, hash:authHash(pass)});
-    localStorage.setItem('st_users', JSON.stringify(users));
-    authEnter({name:name, email:email});
-  } else {
-    if(!email||!pass) return authShowErr(t.errFill);
-    const u=authUsers().find(u2=>u2.email===email);
-    if(!u) return authShowErr(t.errNoUser);
-    if(u.hash!==authHash(pass)) return authShowErr(t.errWrongPass);
-    authEnter({name:u.name, email:u.email});
-  }
+  } else if(!email||!pass) return authShowErr(t.errFill);
+  authBusy=true; authEl('authSubmit').disabled=true;
+  try{
+    if(authMode==='up') await window.API.register(name,email,pass);
+    else await window.API.login(email,pass);
+    authEl('authPass').value=''; authEl('authPass2').value='';
+    authClose(); playClick(880);
+  }catch(e){ authShowErr(authErrText(e)); }
+  finally{ authBusy=false; authEl('authSubmit').disabled=false; }
 }
-document.getElementById('authTabIn').addEventListener('click',()=>{ playClick(620); authSetMode('in'); });
-document.getElementById('authTabUp').addEventListener('click',()=>{ playClick(620); authSetMode('up'); });
-document.getElementById('authSubmit').addEventListener('click',()=>authSubmit());
-document.getElementById('authFields').addEventListener('keydown',e=>{ if(e.key==='Enter') authSubmit(); });
-document.getElementById('userBtn').addEventListener('click',()=>{
-  // Chiqish: sessiya o'chadi, kirish oynasi qaytadi
-  localStorage.removeItem('st_session');
-  document.getElementById('userBtn').style.display='none';
-  document.getElementById('authView').classList.remove('off');
-  authSetMode('in'); playClick(440);
-});
-window.__authReady=false;
-/* Kirish/ro'yxatdan o'tish hozircha o'chirilgan — ilova to'g'ridan-to'g'ri ochiladi.
-   Qayta yoqish uchun: __authReady=true va pastdagi blokni tiklash. */
-(function(){
-  const av=document.getElementById('authView'); if(av) av.classList.add('off');
-  const ub=document.getElementById('userBtn'); if(ub) ub.style.display='none';
-})();
+authEl('authTabIn').addEventListener('click',()=>{ playClick(620); authSetMode('in'); });
+authEl('authTabUp').addEventListener('click',()=>{ playClick(620); authSetMode('up'); });
+authEl('authSubmit').addEventListener('click',()=>authSubmit());
+authEl('authFields').addEventListener('keydown',e=>{ if(e.key==='Enter') authSubmit(); });
+authEl('authClose').addEventListener('click',()=>{ playClick(440); authClose(); });
+authEl('authView').addEventListener('click',e=>{ if(e.target.id==='authView') authClose(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !authEl('authView').classList.contains('off')) authClose(); });
+authEl('authAdmin').addEventListener('click',()=>{ playClick(760); location.href='/admin'; });
+authEl('authLogout').addEventListener('click',async()=>{ playClick(440); authEl('authLogout').disabled=true;
+  await window.API.logout(); authEl('authLogout').disabled=false; authSetMode('in'); });
+authEl('userBtn').addEventListener('click',()=>{ playClick(620); authOpen(); });
+// Server holati o'zgarganda (kirish/chiqish/sessiya tugashi) UI yangilanadi.
+function authRefresh(){
+  const on=!!(window.API&&window.API.online);
+  authEl('userBtn').style.display=on?'':'none';
+  authEl('authView').style.display=on?'':'none';
+  authBuildUI();
+}
+window.__authReady=true;
+if(window.API){
+  window.API.on(authRefresh);
+  window.API.ready.then(()=>{ authRefresh(); if(location.hash==='#login'){ history.replaceState(null,'',location.pathname+location.search); authOpen(); } });
+}
+authRefresh();
 
 animate();
 

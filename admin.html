@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>ASTRO · Admin</title>
+  <link rel="icon" href="logo.svg" />
+  <link rel="stylesheet" href="admin.css?v=2" />
+</head>
+<body>
+  <header class="ad-top glass">
+    <a class="ad-brand" href="/"><img src="logo.svg" alt="" width="26" height="26" /><span>ASTRO</span><b data-t="admin"></b></a>
+    <nav class="ad-tabs" role="tablist">
+      <button class="ad-tab active" data-tab="stats" data-t="tabStats"></button>
+      <button class="ad-tab" data-tab="users" data-t="tabUsers"></button>
+      <button class="ad-tab" data-tab="quiz" data-t="tabQuiz"></button>
+    </nav>
+    <div class="ad-right">
+      <div class="ad-langs"><button data-lang="uz">UZ</button><button data-lang="ru">RU</button><button data-lang="en">EN</button></div>
+      <span id="adMe" class="ad-me"></span>
+      <a class="ad-btn ghost" href="/" data-t="toSite"></a>
+      <button id="adLogout" class="ad-btn ghost" data-t="logout"></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Statistika -->
+    <section id="tab-stats" class="ad-page">
+      <div class="ad-kpis" id="kpis"></div>
+      <div class="ad-grid">
+        <div class="glass ad-card">
+          <h3 data-t="regs14"></h3>
+          <div id="regChart" class="ad-bars"></div>
+        </div>
+        <div class="glass ad-card">
+          <h3 data-t="topTopics"></h3>
+          <div id="topTopics" class="ad-hbars"></div>
+        </div>
+        <div class="glass ad-card wide">
+          <h3 data-t="topQuizzes"></h3>
+          <div class="ad-table-wrap"><table class="ad-table" id="topQuizzes"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Foydalanuvchilar -->
+    <section id="tab-users" class="ad-page" hidden>
+      <div class="glass ad-card">
+        <div class="ad-tools">
+          <input id="uQ" type="search" data-tp="searchUser" maxlength="100" />
+          <select id="uRole"><option value="" data-t="allRoles"></option><option value="user" data-t="roleUser"></option><option value="admin" data-t="roleAdmin"></option></select>
+          <select id="uBlocked"><option value="" data-t="allStatus"></option><option value="0" data-t="active"></option><option value="1" data-t="blocked"></option></select>
+          <span class="ad-count" id="uCount"></span>
+        </div>
+        <div class="ad-table-wrap"><table class="ad-table" id="uTable"></table></div>
+        <div class="ad-pager" id="uPager"></div>
+      </div>
+    </section>
+
+    <!-- Test natijalari -->
+    <section id="tab-quiz" class="ad-page" hidden>
+      <div class="glass ad-card">
+        <div class="ad-tools">
+          <input id="qQ" type="search" data-tp="searchUser" maxlength="100" />
+          <input id="qQuiz" type="search" data-tp="quizIdPh" maxlength="64" />
+          <span id="qUserChip" class="ad-chip" hidden></span>
+          <span class="ad-count" id="qCount"></span>
+          <button id="qCsv" class="ad-btn" data-t="csv"></button>
+        </div>
+        <div class="ad-table-wrap"><table class="ad-table" id="qTable"></table></div>
+        <div class="ad-pager" id="qPager"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="adToast" class="ad-toast"></div>
+  <script src="admin.js?v=2" defer></script>
+</body>
+</html>
