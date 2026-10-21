@@ -5,7 +5,7 @@ darslik progressi va test natijalarini serverda saqlash, admin paneli.
 
 ## Ishga tushirish
 
-Talab: **Node.js 20.12+** (tavsiya: 22 yoki 24).
+Talab: **Node.js 22+** (tavsiya: 24).
 
 ```bash
 npm install
@@ -16,10 +16,10 @@ npm start                   # http://localhost:3000
 
 Ishlab chiqishda `npm run dev` — `server/` dagi o'zgarishda server o'zi qayta ishga tushadi.
 
-**Birinchi admin:** `.env` dagi `ADMIN_EMAIL` ga yozilgan email bilan saytda ro'yxatdan o'ting —
-hisob avtomatik `admin` bo'ladi. Yoki mavjud foydalanuvchini admin qilish:
+**Admin tayinlash:** avval saytda oddiy ro'yxatdan o'ting, so'ng server kompyuterida:
 `npm run make-admin -- email@example.com`. Admin paneli: `http://localhost:3000/admin`
-(yoki saytda 👤 → «Admin panel»).
+(yoki saytda 👤 → «Admin panel»). Ro'yxatdan o'tish orqali admin bo'lib bo'lmaydi — email tasdiqlanmagani
+uchun bu xavfsiz emas edi (oldingi `ADMIN_EMAIL` sozlamasi olib tashlandi).
 
 Backend o'chiq bo'lsa ham sayt ishlaydi: `index.html` ni to'g'ridan-to'g'ri ochsangiz yoki statik
 hostingga qo'ysangiz, 👤 tugma ko'rinmaydi va hamma narsa avvalgidek localStorage'da saqlanadi (mehmon rejimi).

@@ -14,12 +14,13 @@ router.use(requireAuth);
 
 const ID = /^[\w:.-]{1,64}$/;
 const MAX_ENTRY_BYTES = 2048;
+const MAX_TOPICS = 300;   // bitta foydalanuvchida jami mavzu yozuvlari (darslikda ~45 ta) — bazani cheksiz to'ldirishga qarshi
 
 /* ---------------- Progress ---------------- */
 
 const ProgressEntry = z.record(z.string().max(32), z.union([z.number(), z.string().max(200), z.boolean(), z.null()]));
 const ProgressBody = z.object({
-  progress: z.record(z.string().regex(ID), ProgressEntry).refine((p) => Object.keys(p).length <= 500, 'too many topics'),
+  progress: z.record(z.string().regex(ID), ProgressEntry).refine((p) => Object.keys(p).length <= MAX_TOPICS, 'too many topics'),
   mode: z.enum(['merge', 'replace']).default('merge'),
 });
 
@@ -46,6 +47,11 @@ router.put('/progress', async (req, res) => {
     );
     if (mode === 'replace') await tx.progress.deleteMany({ where: { userId } });
     const next = mergeProgress(current, progress);
+    if (mode !== 'replace') {
+      const fresh = Object.keys(next).filter((id) => !(id in current));
+      const have = await tx.progress.count({ where: { userId } });
+      if (have + fresh.length > MAX_TOPICS) throw new ApiError(400, 'TOO_MANY_TOPICS');
+    }
     for (const [topicId, data] of Object.entries(next)) {
       const seen = Boolean(data.v);
       await tx.progress.upsert({
@@ -177,7 +183,8 @@ const passwordLimiter = rateLimit({
 
 const PasswordBody = z.object({
   currentPassword: z.string().min(1).max(128),
-  newPassword: z.string().min(8).max(128),
+  // bcrypt faqat birinchi 72 baytni hisobga oladi
+  newPassword: z.string().min(8).refine((p) => Buffer.byteLength(p, 'utf8') <= 72, 'max 72 bytes'),
 }).strict();
 
 // Parol o'zgarsa, boshqa qurilmalardagi sessiyalar yopiladi (joriy sessiya qoladi).

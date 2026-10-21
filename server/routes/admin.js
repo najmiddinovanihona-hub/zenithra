@@ -141,14 +141,25 @@ const UserPatch = z.object({
 function notSelf(req, id) {
   if (req.user.id === id) throw new ApiError(400, 'SELF_ACTION');
 }
+// Ikki admin bir-birini bir vaqtda pasaytirsa ham tizimda kamida bitta faol admin qoladi
+async function keepLastAdmin(tx, id, patch) {
+  const target = await tx.user.findUnique({ where: { id }, select: { role: true, blocked: true } });
+  if (!target) throw new ApiError(404, 'NOT_FOUND');
+  const losesAdmin = target.role === 'admin' && !target.blocked && (patch === null || patch.role === 'user' || patch.blocked === true);
+  if (losesAdmin) {
+    const others = await tx.user.count({ where: { role: 'admin', blocked: false, id: { not: id } } });
+    if (others === 0) throw new ApiError(400, 'LAST_ADMIN');
+  }
+}
 
 router.patch('/users/:id', async (req, res) => {
   const { id } = parse(IdParam, req.params);
   const patch = parse(UserPatch, req.body);
   notSelf(req, id);
-  const exists = await prisma.user.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) throw notFound();
-  const u = await prisma.user.update({ where: { id }, data: patch });
+  const u = await prisma.$transaction(async (tx) => {
+    await keepLastAdmin(tx, id, patch);
+    return tx.user.update({ where: { id }, data: patch });
+  });
   if (patch.blocked) await prisma.session.deleteMany({ where: { userId: id } });
   res.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, blocked: u.blocked } });
 });
@@ -156,8 +167,10 @@ router.patch('/users/:id', async (req, res) => {
 router.delete('/users/:id', async (req, res) => {
   const { id } = parse(IdParam, req.params);
   notSelf(req, id);
-  const r = await prisma.user.deleteMany({ where: { id } });
-  if (!r.count) throw notFound();
+  await prisma.$transaction(async (tx) => {
+    await keepLastAdmin(tx, id, null);
+    await tx.user.delete({ where: { id } });
+  });
   res.json({ ok: true });
 });
 
@@ -203,12 +216,15 @@ function csvCell(v) {
 
 router.get('/quiz.csv', async (req, res) => {
   const query = parse(QuizQuery.omit({ page: true, pageSize: true }), req.query);
+  const LIMIT = 50000;
   const rows = await prisma.quizResult.findMany({
     where: quizWhere(query),
     orderBy: { createdAt: 'desc' },
-    take: 50000,
+    take: LIMIT + 1,
     include: { user: { select: { id: true, name: true, email: true } } },
   });
+  const truncated = rows.length > LIMIT;
+  if (truncated) { rows.length = LIMIT; res.setHeader('X-Truncated', String(LIMIT)); }   // eng yangi 50 000 tasi
   const lines = [['id', 'user_id', 'name', 'email', 'quiz_id', 'score', 'total', 'percent', 'created_at']];
   for (const r of rows) {
     lines.push([r.id, r.user.id, r.user.name, r.user.email, r.quizId, r.score, r.total,

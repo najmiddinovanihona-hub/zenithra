@@ -3,6 +3,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
+import http from 'node:http';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.env.DATABASE_URL = 'file:./test.db';
 process.env.ADMIN_EMAIL = 'boss@test.uz';
 process.env.BCRYPT_ROUNDS = '4';
+process.env.NODE_ENV = 'test';
 rmSync(path.join(ROOT, 'prisma', 'test.db'), { force: true });
 execSync('npx prisma db push --skip-generate', { cwd: ROOT, env: process.env, stdio: 'ignore' });
 
@@ -51,10 +53,12 @@ function client() {
 const admin = client();
 const alice = client();
 
-test('register: ADMIN_EMAIL egasi admin bo\'ladi, oddiy foydalanuvchi — user', async () => {
+test('register: hamma "user" bo\'lib ro\'yxatdan o\'tadi (ADMIN_EMAIL ham), admin faqat make-admin orqali', async () => {
   const a = await admin('POST', '/api/auth/register', { name: 'Boss', email: 'BOSS@test.uz', password: 'password-1' });
   assert.equal(a.status, 201);
-  assert.equal(a.json.user.role, 'admin');
+  assert.equal(a.json.user.role, 'user', 'ro\'yxatdan o\'tish orqali admin bo\'lib bo\'lmaydi');
+  await prisma.user.update({ where: { email: 'boss@test.uz' }, data: { role: 'admin' } });   // make-admin o'rniga
+  assert.equal((await admin('GET', '/api/auth/me')).json.user.role, 'admin');
   assert.equal(a.json.user.email, 'boss@test.uz');
   assert.match(a.headers.get('set-cookie'), /HttpOnly/i);
   assert.match(a.headers.get('set-cookie'), /SameSite=Lax/i);
@@ -183,6 +187,35 @@ test('parolni o\'zgartirish: joriy sessiya qoladi, boshqalari yopiladi', async (
   await alice('POST', '/api/me/password', { currentPassword: 'password-new', newPassword: 'password-2' });
 });
 
+// fetch URL'ni normallashtiradi — shuning uchun xom HTTP so'rov (kodlangan ".." aynan yuboriladi)
+function rawGet(p) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(base);
+    http.get({ host: u.hostname, port: u.port, path: p }, (r) => { r.resume(); r.on('end', () => resolve(r.statusCode)); }).on('error', reject);
+  });
+}
+
+test('statik fayllar: kodlangan yo\'l orqali papkadan chiqib bo\'lmaydi (path traversal)', async () => {
+  for (const p of ['/labs/%2e%2e/prisma/test.db', '/labs/..%2fprisma/test.db', '/photos/%2e%2e/package.json',
+    '/labs/../server/config.js', '/textures/%2e%2e/.env', '/%2e%2e/package.json', '/package.json', '/server/app.js']) {
+    const st = await rawGet(p);
+    assert.ok(st === 403 || st === 404 || st === 400, p + ' -> ' + st);
+  }
+  assert.equal(await rawGet('/labs/core.js'), 200);
+});
+
+test('CSRF: Origin\'siz, lekin boshqa saytdan (Sec-Fetch-Site: cross-site) kelgan so\'rov rad etiladi', async () => {
+  const r = await alice('POST', '/api/auth/logout', undefined, { 'Sec-Fetch-Site': 'cross-site' });
+  assert.equal(r.status, 403);
+  assert.equal((await alice('GET', '/api/auth/me')).json.user.name, 'Alice');
+});
+
+test('parol: 72 baytdan uzun parol qabul qilinmaydi (bcrypt chegarasi)', async () => {
+  const c = client();
+  const r = await c('POST', '/api/auth/register', { name: 'L', email: 'long@test.uz', password: 'я'.repeat(40) });   // 80 bayt
+  assert.equal(r.status, 400);
+});
+
 test('CSRF: boshqa domendan kelgan POST rad etiladi', async () => {
   const r = await alice('POST', '/api/auth/logout', undefined, { Origin: 'https://evil.example' });
   assert.equal(r.status, 403);
@@ -232,6 +265,24 @@ test('admin: o\'zini bloklay / o\'chira olmaydi', async () => {
   assert.equal((await admin('DELETE', `/api/admin/users/${me.id}`)).json.error, 'SELF_ACTION');
 });
 
+test('admin: ikki admin bir vaqtda bir-birini pasaytirsa ham bittasi qoladi', async () => {
+  const second = client();
+  await second('POST', '/api/auth/register', { name: 'Admin2', email: 'admin2@test.uz', password: 'password-7' });
+  const id2 = (await prisma.user.update({ where: { email: 'admin2@test.uz' }, data: { role: 'admin' } })).id;
+  const bossId = (await admin('GET', '/api/auth/me')).json.user.id;
+  const [r1, r2] = await Promise.all([
+    admin('PATCH', `/api/admin/users/${id2}`, { role: 'user' }),
+    second('PATCH', `/api/admin/users/${bossId}`, { role: 'user' }),
+  ]);
+  const bad = [r1, r2].filter((r) => r.status !== 200);
+  assert.equal(bad.length, 1, 'bittasi o\'tadi, ikkinchisi rad etiladi');
+  assert.ok(['LAST_ADMIN', 'FORBIDDEN'].includes(bad[0].json.error), bad[0].json.error);
+  assert.equal(await prisma.user.count({ where: { role: 'admin', blocked: false } }), 1);
+  // keyingi testlar uchun: boss yana admin, Admin2 o'chiriladi
+  await prisma.user.update({ where: { id: bossId }, data: { role: 'admin' } });
+  await prisma.user.delete({ where: { id: id2 } });
+});
+
 test('admin: CSV eksport (formula-injection himoyasi bilan)', async () => {
   const evil = client();
   await evil('POST', '/api/auth/register', { name: '=HYPERLINK("x")', email: 'evil@test.uz', password: 'password-9' });
@@ -255,7 +306,7 @@ test('statik fayllar: sayt beriladi, maxfiy fayllar yopiq', async () => {
   assert.equal((await c('GET', '/')).status, 200);
   assert.equal((await c('GET', '/script.js')).status, 200);
   assert.equal((await c('GET', '/labs/core.js')).status, 200);
-  const tex = await c('GET', '/textures/2k_mars.jpg');
+  const tex = await c('GET', '/textures/2k_mars.jpg?v=1');
   assert.equal(tex.status, 200);
   assert.match(tex.headers.get('cache-control'), /immutable/);
   assert.equal((await c('GET', '/textures/nope.jpg')).status, 404);

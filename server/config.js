@@ -9,6 +9,15 @@ const envFile = path.join(ROOT, '.env');
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const env = process.env;
+
+// TRUST_PROXY: raqam (proksi soni), "loopback"/"uniquelocal" kabi Express qiymatlari yoki bo'sh.
+// Avval Number("loopback") = 0 bo'lib, sozlama jimgina e'tiborsiz qolardi.
+function parseTrustProxy(v) {
+  if (v == null || v === '' || v === '0' || v === 'false') return 0;
+  if (/^[0-9]+$/.test(v)) return Number(v);
+  if (v === 'true') return 1;
+  return v;
+}
 const isProd = env.NODE_ENV === 'production';
 
 export const config = {
@@ -17,9 +26,10 @@ export const config = {
   databaseUrl: env.DATABASE_URL || 'file:./dev.db',
   adminEmail: (env.ADMIN_EMAIL || '').trim().toLowerCase(),
   cookieSecure: env.COOKIE_SECURE ? env.COOKIE_SECURE === '1' : isProd,
-  trustProxy: Number(env.TRUST_PROXY) || 0,
+  trustProxy: parseTrustProxy(env.TRUST_PROXY),
   sessionDays: 30,
-  bcryptRounds: Number(env.BCRYPT_ROUNDS) || 12,
+  // 10..14 oralig'ida (testlarda tezlik uchun 4 ham ruxsat) — juda kichigi xavfsiz emas, kattasi serverni sekinlashtiradi
+  bcryptRounds: Math.min(14, Math.max(env.NODE_ENV === 'test' ? 4 : 10, Number(env.BCRYPT_ROUNDS) || 12)),
 };
 
 // SQLite'da LIKE katta-kichik harfga sezgir emas; PostgreSQL'da `mode: 'insensitive'` kerak.

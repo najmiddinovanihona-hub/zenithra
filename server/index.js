@@ -2,12 +2,15 @@ import { config } from './config.js';
 import { prisma } from './db.js';
 import { createApp } from './app.js';
 
-// ADMIN_EMAIL egasi oldin oddiy foydalanuvchi sifatida ro'yxatdan o'tgan bo'lsa ham admin bo'ladi.
-if (config.adminEmail) {
-  const r = await prisma.user.updateMany({ where: { email: config.adminEmail, role: { not: 'admin' } }, data: { role: 'admin' } });
-  if (r.count) console.log(`[astro] ${config.adminEmail} admin qilindi`);
-}
-await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+// Admin faqat server egasi tomonidan tayinlanadi: npm run make-admin -- email@example.com
+// (avval ADMIN_EMAIL bilan ro'yxatdan o'tgan HAR QANDAY odam admin bo'lardi — email tasdiqlanmagani uchun xavfli edi).
+if (config.adminEmail) console.warn('[astro] ADMIN_EMAIL endi ishlatilmaydi — admin tayinlash: npm run make-admin -- email');
+if (config.isProd && !config.cookieSecure) console.warn("[astro] DIQQAT: COOKIE_SECURE=0 — sessiya cookie'si HTTPS'siz yuboriladi");
+if (!config.isProd) console.log("[astro] development rejimi (NODE_ENV=production bo'lmasa cookie Secure emas — faqat lokal sinov uchun)");
+
+const purgeSessions = () => prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
+await purgeSessions();
+setInterval(purgeSessions, 6 * 3600 * 1000).unref();
 
 // Oldingi versiya foydalanuvchi joylashuvini (aniq GPS, ko'cha) sozlamalarda saqlagan — endi saqlanmaydi, eskisi o'chiriladi.
 for (const s of await prisma.settings.findMany()) {

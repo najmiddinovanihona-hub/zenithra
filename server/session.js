@@ -27,6 +27,12 @@ export async function startSession(res, userId) {
   res.cookie(COOKIE, token, { ...cookieOpts(), expires: expiresAt });
 }
 
+// Faqat bazadagi sessiyani o'chiradi (cookie'ga tegmaydi) — qayta kirishdan oldin
+export async function dropSession(req) {
+  const token = req.cookies?.[COOKIE];
+  if (token) await prisma.session.deleteMany({ where: { id: sha256(token) } });
+}
+
 export async function endSession(req, res) {
   const token = req.cookies?.[COOKIE];
   if (token) await prisma.session.deleteMany({ where: { id: sha256(token) } });
