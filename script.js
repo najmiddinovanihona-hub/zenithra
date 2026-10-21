@@ -5884,8 +5884,9 @@ function authBuildUI(){
   const t=authT(), u=window.API&&window.API.user;
   authEl('authForm').style.display=u?'none':'';
   authEl('authAccount').style.display=u?'':'none';
-  authEl('authTitle').textContent=u?t.hello+', '+u.name:t.welcome;
-  authEl('authSub').textContent=u?t.accSub:t.sub;
+  authEl('authCard').classList.toggle('pf',!!u);
+  authEl('authTitle').textContent=u?u.name:t.welcome;
+  authEl('authSub').textContent=u?'':t.sub;
   authEl('authTabIn').textContent=t.tabIn;
   authEl('authTabUp').textContent=t.tabUp;
   authEl('authName').placeholder=t.name;
@@ -5900,6 +5901,7 @@ function authBuildUI(){
   authEl('authAdmin').textContent=t.admin;
   authEl('authAdmin').style.display=u&&u.role==='admin'?'':'none';
   authEl('authLogout').textContent=t.logout;
+  if(u) pfRender();
   const ub=authEl('userBtn');
   if(ub){ ub.title=u?t.hello+', '+u.name:t.tabIn; ub.classList.toggle('active',!!u); }
 }
@@ -5920,6 +5922,7 @@ function authSetMode(m){
 // hisoblanadi, GPU bo'shaydi — kiritish va animatsiyalar qotmaydi.
 function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(authMode);
   window.__authCover=true; authEl('authView').classList.remove('off');
+  if(window.API.user) pfLoad();
   if(!window.API.user) setTimeout(()=>authEl(authMode==='up'?'authName':'authEmail').focus({preventScroll:true}),240); }
 function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false; }
 // Server xato kodlari → 3 tilli matn
@@ -5928,6 +5931,91 @@ function authErrText(e){
   return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
     VALIDATION:t.errFill })[e&&e.code] || t.errServer;
 }
+/* ---------- Profil: statistika, so'nggi natijalar, ism va parolni o'zgartirish ---------- */
+const PF_LOCALE={ uz:'uz-UZ', ru:'ru-RU', en:'en-GB' };
+let pfData=null;
+// O'zbek tili uchun brauzerlar sanani noto'g'ri chiqaradi ("2026 M10 21") — oy nomlari qo'lda.
+const PF_UZ_MON=['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
+function pfDate(v,withTime){
+  const d=new Date(v); if(isNaN(d)) return '';
+  const hm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  if(LANG==='uz'||!PF_LOCALE[LANG]) return withTime ? d.getDate()+'-'+PF_UZ_MON[d.getMonth()]+', '+hm : d.getDate()+'-'+PF_UZ_MON[d.getMonth()]+', '+d.getFullYear();
+  return withTime ? d.toLocaleDateString(PF_LOCALE[LANG],{day:'numeric',month:'short'})+', '+hm
+                  : d.toLocaleDateString(PF_LOCALE[LANG],{day:'numeric',month:'long',year:'numeric'});
+}
+// Test ID → o'qiladigan nom: quiz:easy · quiz:dz:1-40 · topic:t07
+function pfQuizName(r){
+  const t=authT(); let m;
+  if((m=/^quiz:dz:(\d+)-(\d+)$/.exec(r.quizId))) return t.qDz+' · '+m[1]+'–'+m[2];
+  if((m=/^quiz:(\w+)$/.exec(r.quizId))){ const lv={easy:t.lvEasy,medium:t.lvMedium,hard:t.lvHard}[m[1]]; return t.qMain+' · '+(lv||m[1]); }
+  if(/^topic:/.test(r.quizId)) return r.title ? (r.title[LANG]||r.title.uz) : t.qTopic;
+  return r.quizId;
+}
+function pfMsg(text,ok){ const e=authEl('pfMsg'); e.textContent=text; e.className='pf-msg on '+(ok?'ok':'err');
+  clearTimeout(pfMsg.tm); pfMsg.tm=setTimeout(()=>e.classList.remove('on'),3500); }
+function pfRender(){
+  const t=authT(), d=pfData, u=window.API&&window.API.user;
+  if(!u) return;
+  const role=authEl('pfRole'); role.textContent=u.role==='admin'?t.roleAdmin:t.roleUser; role.classList.toggle('admin',u.role==='admin');
+  authEl('pfReadL').textContent=t.pfRead; authEl('pfTestsL').textContent=t.pfTests;
+  authEl('pfAvgL').textContent=t.pfAvg; authEl('pfBestL').textContent=t.pfBest; authEl('pfRecentL').textContent=t.pfRecent;
+  authEl('pfEditL').textContent=t.pfEdit; authEl('pfPassL').textContent=t.pfPass;
+  authEl('pfNameSaveTx').textContent=t.pfSave; authEl('pfPassSaveTx').textContent=t.pfPassBtn;
+  authEl('pfName').placeholder=t.name; authEl('pfCur').placeholder=t.pfCur; authEl('pfNew').placeholder=t.pfNew; authEl('pfNew2').placeholder=t.pfNew2;
+  if(!d){ authEl('pfSince').textContent=''; return; }
+  const s=d.stats;
+  authEl('pfSince').textContent=t.pfSince+' '+pfDate(d.user.createdAt);
+  authEl('pfRead').textContent=s.readCount+' / '+s.totalTopics;
+  authEl('pfReadBar').style.width=Math.min(100,s.totalTopics?s.readCount/s.totalTopics*100:0)+'%';
+  authEl('pfTests').textContent=s.quizCount;
+  authEl('pfAvg').textContent=s.avgPercent==null?'—':Math.round(s.avgPercent)+'%';
+  authEl('pfBest').textContent=s.bestPercent==null?'—':Math.round(s.bestPercent)+'%';
+  const ul=authEl('pfRecent'); ul.textContent='';
+  if(!d.recent.length){ const li=document.createElement('li'); li.className='empty'; li.textContent=t.pfNoTests; ul.appendChild(li); }
+  d.recent.forEach(r=>{
+    const p=Math.round(r.score/r.total*100), li=document.createElement('li');
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=pfQuizName(r); nm.title=nm.textContent;
+    const dt=document.createElement('small'); dt.textContent=pfDate(r.at,true); nm.appendChild(dt);
+    const sc=document.createElement('span'); sc.className='sc'; sc.textContent=r.score+'/'+r.total;
+    const pc=document.createElement('span'); pc.className='pc '+(p>=80?'hi':p>=50?'mid':'lo'); pc.textContent=p+'%';
+    li.append(nm,sc,pc); ul.appendChild(li);
+  });
+}
+async function pfLoad(){
+  if(!window.API||!window.API.user) return;
+  authEl('pfName').value=window.API.user.name;
+  pfRender();
+  try{ pfData=await window.API.profile(); pfRender(); }
+  catch(e){ if(window.API.user) pfMsg(authT().pfLoadErr,false); }
+}
+function pfBusy(btn,on){ btn.disabled=on; btn.classList.toggle('busy',on); }
+authEl('pfNameSave').addEventListener('click',async()=>{
+  const t=authT(), name=authEl('pfName').value.trim(), btn=authEl('pfNameSave');
+  if(!name) return pfMsg(t.errFill,false);
+  if(name===window.API.user.name) return;
+  pfBusy(btn,true);
+  try{ await window.API.updateName(name); pfMsg(t.pfSaved,true); authEl('pfEditDet').open=false; playClick(880); }
+  catch(e){ pfMsg(authErrText(e),false); }
+  finally{ pfBusy(btn,false); }
+});
+authEl('pfName').addEventListener('keydown',e=>{ if(e.key==='Enter') authEl('pfNameSave').click(); });
+authEl('pfPassSave').addEventListener('click',async()=>{
+  const t=authT(), cur=authEl('pfCur').value, nw=authEl('pfNew').value, nw2=authEl('pfNew2').value, btn=authEl('pfPassSave');
+  if(!cur||!nw||!nw2) return pfMsg(t.errFill,false);
+  if(nw.length<8) return pfMsg(t.errPassLen,false);
+  if(nw!==nw2) return pfMsg(t.errPass2,false);
+  pfBusy(btn,true);
+  try{
+    await window.API.changePassword(cur,nw);
+    ['pfCur','pfNew','pfNew2'].forEach(id=>{ authEl(id).value=''; authEl(id).type='password'; });
+    document.querySelectorAll('#pfPassDet .auth-eye').forEach(b=>b.classList.remove('on'));
+    authEl('pfPassDet').open=false; pfMsg(t.pfPassOk,true); playClick(880);
+  }catch(e){ pfMsg(e&&e.code==='WRONG_PASSWORD'?t.errCurPass:authErrText(e),false); }
+  finally{ pfBusy(btn,false); }
+});
+document.querySelectorAll('#pfPassDet input').forEach(i=>i.addEventListener('keydown',e=>{ if(e.key==='Enter') authEl('pfPassSave').click(); }));
+// Profildagi ko'z tugmalari kirish formasidagi bilan bir xil ikonka oladi
+(function(){ const src=document.querySelector('#authFields .auth-eye'); if(src) document.querySelectorAll('#authAccount .auth-eye').forEach(b=>{ b.innerHTML=src.innerHTML; }); })();
 async function authSubmit(){
   if(authBusy) return;
   const t=authT();
@@ -5967,7 +6055,8 @@ authEl('authView').addEventListener('click',e=>{ if(e.target.id==='authView') au
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !authEl('authView').classList.contains('off')) authClose(); });
 authEl('authAdmin').addEventListener('click',()=>{ playClick(760); location.href='/admin'; });
 authEl('authLogout').addEventListener('click',async()=>{ playClick(440); authEl('authLogout').disabled=true;
-  await window.API.logout(); authEl('authLogout').disabled=false; authSetMode('in'); });
+  await window.API.logout(); authEl('authLogout').disabled=false; pfData=null;
+  authEl('pfEditDet').open=false; authEl('pfPassDet').open=false; authSetMode('in'); });
 authEl('userBtn').addEventListener('click',()=>{ playClick(620); authOpen(); });
 // Server holati o'zgarganda (kirish/chiqish/sessiya tugashi) UI yangilanadi.
 function authRefresh(){

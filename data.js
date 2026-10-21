@@ -197,7 +197,8 @@ uz: {
     hello:'Salom', logout:'Chiqish',
     errCreds:"Email yoki parol noto'g'ri", errRate:"Urinishlar juda ko'p — 15 daqiqadan so'ng qayta urinib ko'ring",
     errBlocked:"Hisobingiz bloklangan — administratorga murojaat qiling", errServer:"Server bilan bog'lanib bo'lmadi — keyinroq urinib ko'ring",
-    accSub:"Darslik progressi, test natijalari va sozlamalaringiz serverda saqlanadi", admin:"Admin panel", close:"Yopish", showPass:"Parolni ko'rsatish", hidePass:"Parolni yashirish"
+    accSub:"Darslik progressi, test natijalari va sozlamalaringiz serverda saqlanadi", admin:"Admin panel", close:"Yopish", showPass:"Parolni ko'rsatish", hidePass:"Parolni yashirish",
+    pfRead:"O'qilgan mavzular", pfTests:"Testlar", pfAvg:"O'rtacha natija", pfBest:"Eng yaxshi", pfRecent:"So'nggi natijalar", pfNoTests:"Hali test topshirilmagan — 🎓 tugmasidan boshlang", pfSince:"A'zo bo'lgan sana:", pfEdit:"Ismni o'zgartirish", pfSave:"Saqlash", pfSaved:"Saqlandi", pfPass:"Parolni o'zgartirish", pfCur:"Joriy parol", pfNew:"Yangi parol (kamida 8 belgi)", pfNew2:"Yangi parolni tasdiqlang", pfPassBtn:"Parolni yangilash", pfPassOk:"Parol o'zgartirildi. Boshqa qurilmalardagi kirishlar yopildi.", errCurPass:"Joriy parol noto'g'ri", roleAdmin:"Admin", roleUser:"O'quvchi", qMain:"Kosmik test", qDz:"Darslik testi", qTopic:"Mavzu testi", lvEasy:"oson", lvMedium:"o'rta", lvHard:"qiyin", pfLoadErr:"Profilni yuklab bo'lmadi"
   },
   sky:{
     btn:"Osmon to'ri", conLbl:'Turkum', magLbl:'Magnituda', coordLbl:'Koordinatalar',
@@ -626,7 +627,8 @@ ru: {
     hello:'Привет', logout:'Выйти',
     errCreds:'Неверный email или пароль', errRate:'Слишком много попыток — попробуйте через 15 минут',
     errBlocked:'Ваш аккаунт заблокирован — обратитесь к администратору', errServer:'Не удалось связаться с сервером — попробуйте позже',
-    accSub:'Прогресс учебника, результаты тестов и настройки сохраняются на сервере', admin:'Админ-панель', close:'Закрыть', showPass:'Показать пароль', hidePass:'Скрыть пароль'
+    accSub:'Прогресс учебника, результаты тестов и настройки сохраняются на сервере', admin:'Админ-панель', close:'Закрыть', showPass:'Показать пароль', hidePass:'Скрыть пароль',
+    pfRead:"Прочитано тем", pfTests:"Тестов", pfAvg:"Средний результат", pfBest:"Лучший", pfRecent:"Последние результаты", pfNoTests:"Тестов пока нет — начните с кнопки 🎓", pfSince:"С нами с", pfEdit:"Изменить имя", pfSave:"Сохранить", pfSaved:"Сохранено", pfPass:"Сменить пароль", pfCur:"Текущий пароль", pfNew:"Новый пароль (минимум 8 символов)", pfNew2:"Повторите новый пароль", pfPassBtn:"Обновить пароль", pfPassOk:"Пароль изменён. Сеансы на других устройствах завершены.", errCurPass:"Неверный текущий пароль", roleAdmin:"Админ", roleUser:"Ученик", qMain:"Космический тест", qDz:"Тест учебника", qTopic:"Тест темы", lvEasy:"лёгкий", lvMedium:"средний", lvHard:"сложный", pfLoadErr:"Не удалось загрузить профиль"
   },
   sky:{
     btn:'Небесная сетка', conLbl:'Созвездие', magLbl:'Звёздная величина', coordLbl:'Координаты',
@@ -1055,7 +1057,8 @@ en: {
     hello:'Hi', logout:'Log out',
     errCreds:'Wrong email or password', errRate:'Too many attempts — try again in 15 minutes',
     errBlocked:'Your account is blocked — contact the administrator', errServer:'Could not reach the server — please try again later',
-    accSub:'Your textbook progress, quiz results and settings are saved on the server', admin:'Admin panel', close:'Close', showPass:'Show password', hidePass:'Hide password'
+    accSub:'Your textbook progress, quiz results and settings are saved on the server', admin:'Admin panel', close:'Close', showPass:'Show password', hidePass:'Hide password',
+    pfRead:"Topics read", pfTests:"Quizzes", pfAvg:"Average score", pfBest:"Best", pfRecent:"Recent results", pfNoTests:"No quizzes yet — start with the 🎓 button", pfSince:"Member since", pfEdit:"Change name", pfSave:"Save", pfSaved:"Saved", pfPass:"Change password", pfCur:"Current password", pfNew:"New password (at least 8 characters)", pfNew2:"Confirm new password", pfPassBtn:"Update password", pfPassOk:"Password changed. Other devices were signed out.", errCurPass:"Current password is wrong", roleAdmin:"Admin", roleUser:"Student", qMain:"Space quiz", qDz:"Textbook quiz", qTopic:"Topic quiz", lvEasy:"easy", lvMedium:"medium", lvHard:"hard", pfLoadErr:"Could not load the profile"
   },
   sky:{
     btn:'Sky grid', conLbl:'Constellation', magLbl:'Magnitude', coordLbl:'Coordinates',

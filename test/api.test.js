@@ -138,6 +138,43 @@ test('settings: qisman yangilash, noma\'lum kalit rad etiladi', async () => {
   assert.equal((await alice('PUT', '/api/me/settings', { loc: { lat: 200, lon: 0 } })).status, 400);
 });
 
+test('profil: statistika va so\'nggi natijalar', async () => {
+  await alice('PUT', '/api/me/progress', { progress: { t01: { v: 1 }, t02: { v: 1 }, tarix: { v: 1 } } });
+  await alice('POST', '/api/me/quiz', { quizId: 'topic:t02', score: 5, total: 5 });
+  const p = (await alice('GET', '/api/me/profile')).json;
+  assert.equal(p.user.email, 'alice@test.uz');
+  assert.ok(p.user.createdAt);
+  assert.equal(p.stats.totalTopics, 40);
+  assert.equal(p.stats.readCount, 3, 'faqat asosiy mavzular (t01..t40) sanaladi');
+  assert.equal(p.stats.quizCount, 2);
+  assert.equal(p.stats.bestPercent, 100);
+  assert.equal(p.stats.avgPercent, 80);
+  assert.equal(p.recent[0].quizId, 'topic:t02');
+  assert.ok(p.recent[0].title.uz);
+  assert.equal((await client()('GET', '/api/me/profile')).status, 401);
+});
+
+test('profil: ismni o\'zgartirish', async () => {
+  const r = await alice('PATCH', '/api/me/profile', { name: '  Alisa  ' });
+  assert.equal(r.json.user.name, 'Alisa');
+  assert.equal((await alice('PATCH', '/api/me/profile', { name: '' })).status, 400);
+  assert.equal((await alice('PATCH', '/api/me/profile', { name: 'X', role: 'admin' })).status, 400);
+  await alice('PATCH', '/api/me/profile', { name: 'Alice' });
+});
+
+test('parolni o\'zgartirish: joriy sessiya qoladi, boshqalari yopiladi', async () => {
+  const other = client();
+  await other('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  assert.equal((await alice('POST', '/api/me/password', { currentPassword: 'nope-nope', newPassword: 'password-new' })).json.error, 'WRONG_PASSWORD');
+  assert.equal((await alice('POST', '/api/me/password', { currentPassword: 'password-2', newPassword: 'short' })).status, 400);
+  assert.equal((await alice('POST', '/api/me/password', { currentPassword: 'password-2', newPassword: 'password-new' })).status, 200);
+  assert.equal((await alice('GET', '/api/auth/me')).json.user.email, 'alice@test.uz');
+  assert.equal((await other('GET', '/api/auth/me')).json.user, null);
+  const c = client();
+  assert.equal((await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-new' })).status, 200);
+  await alice('POST', '/api/me/password', { currentPassword: 'password-new', newPassword: 'password-2' });
+});
+
 test('CSRF: boshqa domendan kelgan POST rad etiladi', async () => {
   const r = await alice('POST', '/api/auth/logout', undefined, { Origin: 'https://evil.example' });
   assert.equal(r.status, 403);
@@ -157,8 +194,8 @@ test('admin: statistika', async () => {
   const s = (await admin('GET', '/api/admin/stats')).json;
   assert.equal(s.users.total, 2);
   assert.equal(s.users.admins, 1);
-  assert.equal(s.quiz.count, 1);
-  assert.equal(s.quiz.avgPercent, 70);
+  assert.equal(s.quiz.count, 2);
+  assert.equal(s.quiz.avgPercent, 85);
   assert.equal(s.registrations.length, 14);
   const t05 = s.topTopics.find((t) => t.topicId === 't05');
   assert.equal(t05.reads, 1);
@@ -169,7 +206,7 @@ test('admin: foydalanuvchilar ro\'yxati va qidiruv', async () => {
   const r = (await admin('GET', '/api/admin/users?q=ALI')).json;
   assert.equal(r.total, 1);
   assert.equal(r.items[0].email, 'alice@test.uz');
-  assert.equal(r.items[0].quizCount, 1);
+  assert.equal(r.items[0].quizCount, 2);
 });
 
 test('admin: bloklash sessiyani tugatadi va kirishga yo\'l qo\'ymaydi', async () => {

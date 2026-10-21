@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="logo.svg" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="style.css?v=86" />
+  <link rel="stylesheet" href="style.css?v=87" />
 </head>
 <body>
   <!-- 3D sahna shu canvasga chiziladi -->
@@ -287,9 +287,42 @@
         <button id="authSubmit" class="auth-btn" type="button"><span class="auth-btn-tx" id="authSubmitTx"></span></button>
       </div>
       <div id="authAccount" style="display:none">
-        <div id="authWho"></div>
-        <button id="authAdmin" class="auth-btn" type="button" style="display:none"></button>
-        <button id="authLogout" class="auth-btn auth-btn-2" type="button"></button>
+        <div class="pf-meta"><span id="authWho"></span><span id="pfRole" class="pf-role"></span></div>
+        <div id="pfSince" class="pf-since"></div>
+        <div class="pf-stats">
+          <div class="pf-stat wide">
+            <div class="pf-row"><span class="pf-l" id="pfReadL"></span><b id="pfRead">—</b></div>
+            <div class="pf-bar"><i id="pfReadBar"></i></div>
+          </div>
+          <div class="pf-stat"><b id="pfTests">—</b><span class="pf-l" id="pfTestsL"></span></div>
+          <div class="pf-stat"><b id="pfAvg">—</b><span class="pf-l" id="pfAvgL"></span></div>
+          <div class="pf-stat"><b id="pfBest">—</b><span class="pf-l" id="pfBestL"></span></div>
+        </div>
+        <div class="pf-sec">
+          <h4 id="pfRecentL"></h4>
+          <ul id="pfRecent" class="pf-recent"></ul>
+        </div>
+        <details class="pf-det" id="pfEditDet">
+          <summary id="pfEditL"></summary>
+          <div class="pf-form">
+            <input id="pfName" type="text" autocomplete="name" maxlength="60" />
+            <button id="pfNameSave" class="auth-btn auth-btn-2 pf-sm" type="button"><span class="auth-btn-tx" id="pfNameSaveTx"></span></button>
+          </div>
+        </details>
+        <details class="pf-det" id="pfPassDet">
+          <summary id="pfPassL"></summary>
+          <div class="pf-form col">
+            <div class="auth-pw"><input id="pfCur" type="password" autocomplete="current-password" maxlength="128" /><button class="auth-eye" type="button" data-for="pfCur"></button></div>
+            <div class="auth-pw"><input id="pfNew" type="password" autocomplete="new-password" maxlength="128" /><button class="auth-eye" type="button" data-for="pfNew"></button></div>
+            <input id="pfNew2" type="password" autocomplete="new-password" maxlength="128" />
+            <button id="pfPassSave" class="auth-btn pf-sm" type="button"><span class="auth-btn-tx" id="pfPassSaveTx"></span></button>
+          </div>
+        </details>
+        <div id="pfMsg" class="pf-msg" role="status"></div>
+        <div class="pf-actions">
+          <button id="authAdmin" class="auth-btn" type="button" style="display:none"></button>
+          <button id="authLogout" class="auth-btn auth-btn-2" type="button"></button>
+        </div>
       </div>
     </div>
   </div>
@@ -432,8 +465,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <!-- Ko‘p tilli ma'lumotlar -->
-  <script src="api.js?v=1"></script>
-  <script src="data.js?v=37"></script>
+  <script src="api.js?v=3"></script>
+  <script src="data.js?v=38"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
@@ -453,7 +486,7 @@
   <script src="labs/darslik.js?v=11"></script>
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=1"></script>
-  <script src="script.js?v=80"></script>
+  <script src="script.js?v=82"></script>
   <script src="guide.js?v=6"></script>
   <script src="labs/ilmiy-d1.js?v=1"></script>
   <script src="labs/ilmiy-d2.js?v=1"></script>

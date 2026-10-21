@@ -56,15 +56,18 @@ Storage.prototype.removeItem = function(k){ rawRemove.call(this, k); if(this===L
 const timers = {}; let pendingSettings = {};
 function schedule(what){
   clearTimeout(timers[what]);
-  timers[what] = setTimeout(()=> (what==='prog' ? pushProgress() : pushSettings()).catch(()=>{}), 1200);
+  timers[what] = setTimeout(()=>{ timers[what]=null; (what==='prog' ? pushProgress() : pushSettings()).catch(()=>{}); }, 1200);
 }
 function localProgress(){ try{ return JSON.parse(LS.getItem(PROG)) || {}; }catch(e){ return {}; } }
 function applyProgress(p){
   quiet(()=>{ if(window.DZP && window.DZP.replace) window.DZP.replace(p); else LS.setItem(PROG, JSON.stringify(p)); });
 }
-async function pushProgress(){
+// mode: 'auto' — bo'sh progress = foydalanuvchi o'zi tozalagan (DZP.reset) → serverda ham tozalanadi;
+//       'merge' — kirish paytidagi sinxron: qurilma bo'sh bo'lsa ham serverdagi progress hech qachon o'chmaydi.
+async function pushProgress(mode = 'auto'){
   const p = localProgress();
-  const r = await req('PUT', '/api/me/progress', { progress:p, mode: Object.keys(p).length ? 'merge' : 'replace' });
+  const empty = !Object.keys(p).length;
+  const r = await req('PUT', '/api/me/progress', { progress:p, mode: mode==='auto' && empty ? 'replace' : 'merge' });
   if(JSON.stringify(r.progress)!==JSON.stringify(p)) applyProgress(r.progress);
 }
 async function pushSettings(){
@@ -75,7 +78,7 @@ async function pushSettings(){
 /* ---------- kirgandan keyin: server ↔ qurilma ---------- */
 async function syncAll(){
   // Progress: qurilmadagisi serverdagisi bilan birlashtiriladi (birinchi kirishda mehmon progressi yo'qolmaydi).
-  await pushProgress().catch(()=>{});
+  await pushProgress('merge').catch(()=>{});
   // Sozlamalar: serverda borlari qurilmaga yoziladi, serverda yo'qlari qurilmadan serverga yuboriladi.
   try{
     const { settings:s } = await req('GET', '/api/me/settings');
@@ -108,14 +111,24 @@ API.login = async (email, password) => {
 };
 API.logout = async () => {
   // Yuborilmagan o'zgarishlarni chiqishdan oldin saqlab qolamiz.
-  clearTimeout(timers.prog); clearTimeout(timers.set);
-  await Promise.all([pushProgress(), pushSettings()]).catch(()=>{});
+  const pending = timers.prog; clearTimeout(timers.prog); clearTimeout(timers.set); timers.prog = timers.set = null;
+  await Promise.all([pending ? pushProgress() : null, pushSettings()]).catch(()=>{});
   try{ await req('POST', '/api/auth/logout'); }catch(e){}
   API.user = null;
   // Umumiy kompyuterda keyingi odam oldingi foydalanuvchi progressini ko'rmasligi uchun.
   applyProgress({});
   emit();
 };
+// Profil: avval yuborilmay turgan progress saqlanadi, so'ng yangi statistika olinadi.
+API.profile = async () => {
+  if(timers.prog){ clearTimeout(timers.prog); timers.prog=null; await pushProgress().catch(()=>{}); }
+  return req('GET', '/api/me/profile');
+};
+API.updateName = async (name) => {
+  const r = await req('PATCH', '/api/me/profile', { name });
+  API.user = r.user; emit(); return r.user;
+};
+API.changePassword = (currentPassword, newPassword) => req('POST', '/api/me/password', { currentPassword, newPassword });
 // Test natijasi: faqat kirgan foydalanuvchida serverga yoziladi (mehmonda jim o'tkazib yuboriladi).
 API.quiz = (quizId, score, total) => {
   if(!API.user || !(total>0)) return;

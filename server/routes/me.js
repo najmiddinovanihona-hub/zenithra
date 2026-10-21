@@ -1,10 +1,13 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { badRequest, parse } from '../http.js';
-import { requireAuth } from '../session.js';
+import { config } from '../config.js';
+import { ApiError, badRequest, parse } from '../http.js';
+import { publicUser, requireAuth } from '../session.js';
 import { mergeProgress } from '../progress.js';
+import { topicTitles } from '../topics.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -120,6 +123,73 @@ router.put('/settings', async (req, res) => {
     await prisma.user.update({ where: { id: userId }, data: { lang: patch.lang } });
   }
   res.json({ settings: { lang: patch.lang || req.user.lang, ...data } });
+});
+
+/* ---------------- Profil ---------------- */
+
+const MAIN_TOPIC = /^t\d+$/;   // darslikning asosiy 40 mavzusi (qo'shimcha bo'limlar hisobga kirmaydi)
+const pct = (s, t) => (t ? Math.round((s / t) * 1000) / 10 : null);
+
+router.get('/profile', async (req, res) => {
+  const userId = req.user.id;
+  const [seenRows, agg, results, recent] = await Promise.all([
+    prisma.progress.findMany({ where: { userId, seen: true }, select: { topicId: true } }),
+    prisma.quizResult.aggregate({ where: { userId }, _count: { _all: true }, _sum: { score: true, total: true } }),
+    prisma.quizResult.findMany({ where: { userId }, select: { score: true, total: true } }),
+    prisma.quizResult.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 6 }),
+  ]);
+  const titles = topicTitles();
+  const totalTopics = Object.keys(titles).filter((id) => MAIN_TOPIC.test(id)).length || 40;
+  const best = results.reduce((m, r) => Math.max(m, pct(r.score, r.total) ?? 0), 0);
+  res.json({
+    user: { ...publicUser(req.user), createdAt: req.user.createdAt },
+    stats: {
+      readCount: seenRows.filter((r) => MAIN_TOPIC.test(r.topicId)).length,
+      totalTopics,
+      quizCount: agg._count._all,
+      avgPercent: pct(agg._sum.score, agg._sum.total),
+      bestPercent: results.length ? best : null,
+    },
+    recent: recent.map((r) => {
+      const topic = /^topic:(.+)$/.exec(r.quizId)?.[1];
+      return { quizId: r.quizId, score: r.score, total: r.total, at: r.createdAt, title: topic ? titles[topic] || null : null };
+    }),
+  });
+});
+
+const ProfileBody = z.object({ name: z.string().trim().min(1).max(60) }).strict();
+
+router.patch('/profile', async (req, res) => {
+  const { name } = parse(ProfileBody, req.body);
+  const u = await prisma.user.update({ where: { id: req.user.id }, data: { name } });
+  res.json({ user: publicUser(u) });
+});
+
+const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `u${req.user.id}`,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ error: 'RATE_LIMIT' }),
+});
+
+const PasswordBody = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z.string().min(8).max(128),
+}).strict();
+
+// Parol o'zgarsa, boshqa qurilmalardagi sessiyalar yopiladi (joriy sessiya qoladi).
+router.post('/password', passwordLimiter, async (req, res) => {
+  const { currentPassword, newPassword } = parse(PasswordBody, req.body);
+  if (!(await bcrypt.compare(currentPassword, req.user.passwordHash))) throw new ApiError(400, 'WRONG_PASSWORD');
+  await prisma.user.update({
+    where: { id: req.user.id },
+    data: { passwordHash: await bcrypt.hash(newPassword, config.bcryptRounds) },
+  });
+  await prisma.session.deleteMany({ where: { userId: req.user.id, id: { not: req.sessionId } } });
+  res.json({ ok: true });
 });
 
 export default router;

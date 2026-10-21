@@ -45,6 +45,7 @@ export async function loadUser(req, res, next) {
     return next();
   }
   req.user = s.user;
+  req.sessionId = s.id;
   if (!s.user.lastSeenAt || Date.now() - s.user.lastSeenAt.getTime() > SEEN_EVERY_MS) {
     prisma.user.update({ where: { id: s.user.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
