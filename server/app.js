@@ -11,6 +11,7 @@ import { prisma } from './db.js';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import adminRoutes from './routes/admin.js';
+import pushRoutes from './push.js';
 
 // Brauzerga beriladigan fayllar: faqat shular (server/, prisma/, .env, uploads/ va h.k. hech qachon berilmaydi).
 // MUHIM: har bir ochiq papka O'ZINING ildizidan beriladi. Avval butun loyiha ildizi regex bilan cheklangan edi —
@@ -25,7 +26,7 @@ const ROOT_FILES = new Set(readdirSync(ROOT).filter((n) =>
 const LONG_CACHE = 'public, max-age=31536000, immutable';
 // ?v=N bilan versiyalangan fayl o'zgarmaydi — brauzer 1 yil keshlaydi; versiyasizlari har safar tekshiriladi (ETag).
 function cacheHeaders(res) {
-  if (res.req && res.req.query && res.req.query.v) res.setHeader('Cache-Control', LONG_CACHE);
+  res.setHeader('Cache-Control', res.req && res.req.query && res.req.query.v ? LONG_CACHE : 'no-cache');
 }
 
 // Saytdan boshqa domendan kelgan o'zgartiruvchi so'rovlarni rad etadi (CSRF himoyasi, SameSite=Lax ga qo'shimcha).
@@ -70,6 +71,7 @@ export function createApp() {
   api.use('/auth', authRoutes);
   api.use('/me', meRoutes);
   api.use('/admin', adminRoutes);
+  api.use('/push', pushRoutes);   // osmon hodisalari eslatmalari (Web Push)
   api.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
   api.use((err, req, res, next) => {
     if (err instanceof ApiError) {
@@ -99,10 +101,12 @@ export function createApp() {
   /* ---------- Statik sayt ---------- */
   const opts = { index: false, dotfiles: 'deny', fallthrough: false, setHeaders: cacheHeaders };
   for (const dir of PUBLIC_DIRS) app.use('/' + dir, express.static(path.join(ROOT, dir), opts));
-  app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+  // index.html va versiyasiz fayllar: har safar tekshiriladi (no-cache + ETag). Aks holda brauzer Last-Modified bo'yicha
+  // o'zicha keshlab, yangi versiya (yangi ?v=N havolalar) foydalanuvchiga kunlab yetib bormasdi.
+  app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(ROOT, 'index.html'), { headers: { 'Cache-Control': 'no-cache' } }));
   app.get('/:file', (req, res, next) => {
     if (!ROOT_FILES.has(req.params.file)) return next();
-    res.sendFile(path.join(ROOT, req.params.file), { headers: req.query.v ? { 'Cache-Control': LONG_CACHE } : {} });
+    res.sendFile(path.join(ROOT, req.params.file), { headers: { 'Cache-Control': req.query.v ? LONG_CACHE : 'no-cache' } });
   });
   app.use((req, res) => res.status(404).type('text/plain').send('404 — topilmadi'));
   app.use((err, req, res, next) => {

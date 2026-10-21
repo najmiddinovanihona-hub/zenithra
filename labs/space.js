@@ -111,19 +111,7 @@ const MT={ name:{uz:'Meteor yomg‘irlari',ru:'Метеорные потоки',
   tip:{uz:'Kuzatish uchun: shahar chirog‘laridan uzoqroq, qorong‘i joyga boring, 20 daqiqa ko‘zingizni qorong‘ilikka moslang va osmonning katta qismiga qarang — radiantga emas, undan 40–60° chetga.',ru:'Совет: уезжайте от городских огней, дайте глазам 20 минут привыкнуть к темноте и смотрите на большую часть неба — не прямо в радиант, а на 40–60° в сторону.',en:'Tip: get away from city lights, give your eyes 20 minutes to adapt, and watch a wide patch of sky 40–60° away from the radiant rather than right at it.'},
   note:{uz:'Sanalar va ZHR — Xalqaro meteor tashkiloti (IMO) taqvimi asosida. «Kutiladi» — radiant balandligi va Oy yorug‘ligi hisobga olingan taxminiy son.',ru:'Даты и ZHR — по календарю IMO. «Ожидается» — оценка с учётом высоты радианта и Луны.',en:'Dates and ZHR follow the IMO calendar. “Expected” is an estimate allowing for radiant height and moonlight.'} };
 // [kalit, nom uz/ru/en, faollik boshlanishi (oy,kun), tugashi, cho'qqi (oy,kun), ZHR, RA°, Dec°, v km/s, manba, yulduz turkumi]
-const SHW=[
- ['qua',['Kvadrantidlar','Квадрантиды','Quadrantids'],[12,28],[1,12],[1,4],110,230,49,41,'2003 EH1',['Ho‘kizboqar','Волопас','Boötes']],
- ['lyr',['Liridlar','Лириды','Lyrids'],[4,14],[4,30],[4,22],18,271,34,49,'C/1861 G1 (Thatcher)',['Lira','Лира','Lyra']],
- ['eta',['Eta-Akvaridlar','Эта-Аквариды','Eta Aquariids'],[4,19],[5,28],[5,6],50,338,-1,66,'1P/Halley',['Dalv (Qovg‘a)','Водолей','Aquarius']],
- ['sda',['Janubiy Delta-Akvaridlar','Южные дельта-Аквариды','Southern Delta Aquariids'],[7,12],[8,23],[7,30],25,340,-16,41,'96P/Machholz',['Dalv (Qovg‘a)','Водолей','Aquarius']],
- ['per',['Perseidlar','Персеиды','Perseids'],[7,17],[8,24],[8,12],100,48,58,59,'109P/Swift–Tuttle',['Persey','Персей','Perseus']],
- ['dra',['Drakonidlar','Дракониды','Draconids'],[10,6],[10,10],[10,8],10,262,54,20,'21P/Giacobini–Zinner',['Ajdaho','Дракон','Draco']],
- ['ori',['Orionidlar','Ориониды','Orionids'],[10,2],[11,7],[10,21],20,95,16,66,'1P/Halley',['Orion','Орион','Orion']],
- ['nta',['Shimoliy Tauridlar','Северные Тауриды','Northern Taurids'],[10,20],[12,10],[11,12],5,58,22,29,'2P/Encke',['Savr (Buzoq)','Телец','Taurus']],
- ['leo',['Leonidlar','Леониды','Leonids'],[11,6],[11,30],[11,17],15,152,22,71,'55P/Tempel–Tuttle',['Asad (Arslon)','Лев','Leo']],
- ['gem',['Geminidlar','Геминиды','Geminids'],[12,4],[12,20],[12,14],150,112,33,35,'3200 Phaethon',['Javzo (Egizaklar)','Близнецы','Gemini']],
- ['urs',['Ursidlar','Урсиды','Ursids'],[12,17],[12,26],[12,22],10,217,76,33,'8P/Tuttle',['Kichik Ayiq','Малая Медведица','Ursa Minor']]
-].map(a=>({k:a[0],n:{uz:a[1][0],ru:a[1][1],en:a[1][2]},s:a[2],e:a[3],p:a[4],zhr:a[5],ra:a[6],dec:a[7],v:a[8],par:a[9],con:{uz:a[10][0],ru:a[10][1],en:a[10][2]}}));
+const SHW=window.SKYCORE.SHOWERS;   // ma'lumot labs/sky-core.js da (server eslatmalari ham ishlatadi)
 const doy=(m,d)=>{ const n=[0,31,59,90,120,151,181,212,243,273,304,334]; return n[m-1]+d; };
 register('meteors',{ ico:'💫', group:GROUP, name:MT.name, sub:MT.sub,
   build(body, lab){

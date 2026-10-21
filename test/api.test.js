@@ -303,9 +303,13 @@ test('admin: foydalanuvchini o\'chirish — barcha ma\'lumotlari bilan', async (
 
 test('statik fayllar: sayt beriladi, maxfiy fayllar yopiq', async () => {
   const c = client();
-  assert.equal((await c('GET', '/')).status, 200);
-  assert.equal((await c('GET', '/script.js')).status, 200);
-  assert.equal((await c('GET', '/labs/core.js')).status, 200);
+  const home = await c('GET', '/');
+  assert.equal(home.status, 200);
+  assert.equal(home.headers.get('cache-control'), 'no-cache', 'index.html har safar tekshirilishi kerak (yangi versiya darhol yetib borsin)');
+  const js = await c('GET', '/script.js');
+  assert.equal(js.status, 200);
+  assert.equal(js.headers.get('cache-control'), 'no-cache');
+  assert.equal((await c('GET', '/labs/core.js')).headers.get('cache-control'), 'no-cache');
   const tex = await c('GET', '/textures/2k_mars.jpg?v=1');
   assert.equal(tex.status, 200);
   assert.match(tex.headers.get('cache-control'), /immutable/);

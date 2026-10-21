@@ -1,6 +1,7 @@
 import { config } from './config.js';
 import { prisma } from './db.js';
 import { createApp } from './app.js';
+import { initPush, startScheduler } from './push.js';
 
 // Admin faqat server egasi tomonidan tayinlanadi: npm run make-admin -- email@example.com
 // (avval ADMIN_EMAIL bilan ro'yxatdan o'tgan HAR QANDAY odam admin bo'lardi — email tasdiqlanmagani uchun xavfli edi).
@@ -19,6 +20,9 @@ for (const s of await prisma.settings.findMany()) {
     await prisma.settings.update({ where: { userId: s.userId }, data: { data: rest } });
   }
 }
+
+await initPush();
+startScheduler();
 
 const server = createApp().listen(config.port, () => {
   console.log(`[astro] http://localhost:${config.port}`);

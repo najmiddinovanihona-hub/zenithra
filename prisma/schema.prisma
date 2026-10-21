@@ -79,3 +79,31 @@ model Settings {
 
   @@map("settings")
 }
+
+// Osmon hodisalari eslatmalari (Web Push). Joylashuv FAQAT bildirishnoma yoqilganda va ~10 km aniqlikkacha
+// yaxlitlangan holda saqlanadi; obuna bekor qilinsa yozuv o'chiriladi.
+model PushSub {
+  id        Int      @id @default(autoincrement())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  lat       Float
+  lon       Float
+  tz        Float
+  lang      String   @default("uz")
+  prefs     Json
+  sent      Json     // yuborilgan eslatmalar kalitlari (takror yubormaslik uchun)
+  userId    Int?     @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("push_subs")
+}
+
+// Server sozlamalari (masalan, VAPID kalitlari) — bir martalik yaratiladi
+model AppKV {
+  key   String @id
+  value String
+
+  @@map("app_kv")
+}
