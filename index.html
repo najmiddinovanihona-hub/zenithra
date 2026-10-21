@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="logo.svg" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="style.css?v=97" />
+  <link rel="stylesheet" href="style.css?v=98" />
 </head>
 <body>
   <!-- 3D sahna shu canvasga chiziladi -->
@@ -313,6 +313,18 @@
         <div id="authErr" role="alert"></div>
         <button id="authSubmit" class="auth-btn" type="button"><span class="auth-btn-tx" id="authSubmitTx"></span></button>
       </div>
+      <!-- 2-bosqich: pochtaga yuborilgan 6 xonali kod -->
+      <div id="authCode" style="display:none">
+        <div class="ac-mail" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg></div>
+        <p id="authCodeSent" class="ac-sent"></p>
+        <div id="authCodeBoxes" class="ac-boxes" role="group">
+          <input inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="1" /><input inputmode="numeric" maxlength="6" aria-label="2" /><input inputmode="numeric" maxlength="6" aria-label="3" /><input inputmode="numeric" maxlength="6" aria-label="4" /><input inputmode="numeric" maxlength="6" aria-label="5" /><input inputmode="numeric" maxlength="6" aria-label="6" />
+        </div>
+        <div id="authCodeErr" class="ac-err" role="alert"></div>
+        <button id="authCodeOk" class="auth-btn" type="button"><span class="auth-btn-tx" id="authCodeOkTx"></span></button>
+        <div class="ac-links"><button id="authCodeBack" class="ac-link" type="button"></button><button id="authCodeResend" class="ac-link" type="button"></button></div>
+        <p id="authCodeHint" class="ac-hint"></p>
+      </div>
       <div id="authAccount" style="display:none">
         <div class="pf-meta"><span id="authWho"></span><span id="pfRole" class="pf-role"></span></div>
         <div id="pfSince" class="pf-since"></div>
@@ -496,8 +508,8 @@
   <script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="labs/vendor/OrbitControls.js"><\/script>')</script>
   <!-- Ko‘p tilli ma'lumotlar -->
   <script src="realtex.js?v=3"></script>
-  <script src="api.js?v=5"></script>
-  <script src="data.js?v=39"></script>
+  <script src="api.js?v=6"></script>
+  <script src="data.js?v=40"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
@@ -521,7 +533,7 @@
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=2"></script>
   <script src="labs/constellations.js?v=1"></script>
-  <script src="script.js?v=109"></script>
+  <script src="script.js?v=110"></script>
   <script src="guide.js?v=6"></script>
   <script src="a11y.js?v=1"></script>
   <script src="labs/ilmiy-d1.js?v=1"></script>

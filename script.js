@@ -6289,11 +6289,14 @@ function authT(){ return window.LOC[LANG].auth||window.LOC.uz.auth; }
 const authEl=id=>document.getElementById(id);
 function authBuildUI(){
   const t=authT(), u=window.API&&window.API.user;
-  authEl('authForm').style.display=u?'none':'';
+  authEl('authForm').style.display=u||authCh?'none':'';
+  authEl('authCode').style.display=!u&&authCh?'':'none';
+  authEl('authCodeOkTx').textContent=t.codeOk; authEl('authCodeBack').textContent=t.codeBack; authEl('authCodeHint').textContent=t.codeHint;
+  if(authCh){ authCodeSentText(); authResendLabel(); }
   authEl('authAccount').style.display=u?'':'none';
   authEl('authCard').classList.toggle('pf',!!u);
   authEl('authTitle').textContent=u?u.name:t.welcome;
-  authEl('authSub').textContent=u?'':t.sub;
+  authEl('authSub').textContent=u||authCh?'':t.sub;
   authEl('authTabIn').textContent=t.tabIn;
   authEl('authTabUp').textContent=t.tabUp;
   authEl('authName').placeholder=t.name;
@@ -6333,15 +6336,82 @@ function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(aut
   authPrevFocus=document.activeElement;
   window.__authCover=true; authEl('authView').classList.remove('off');
   if(window.API.user) pfLoad();
-  setTimeout(()=>{ const f=window.API.user?authEl('authClose'):authEl(authMode==='up'?'authName':'authEmail'); if(f) f.focus({preventScroll:true}); },240); }
+  setTimeout(()=>{ const f=window.API.user?authEl('authClose'):authCh?document.querySelector('#authCodeBoxes input'):authEl(authMode==='up'?'authName':'authEmail'); if(f) f.focus({preventScroll:true}); },240); }
 function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false;
   if(authPrevFocus && authPrevFocus.focus && document.contains(authPrevFocus)) authPrevFocus.focus({preventScroll:true}); authPrevFocus=null; }
 // Server xato kodlari → 3 tilli matn
 function authErrText(e){
   const t=authT();
   return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, CONFLICT:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
-    VALIDATION:t.errFill })[e&&e.code] || t.errServer;
+    VALIDATION:t.errFill, MAIL_FAILED:t.errMail, MAIL_NOT_CONFIGURED:t.errMailCfg, CODE_EXPIRED:t.errCodeExpired, TOO_MANY_ATTEMPTS:t.errCodeMany })[e&&e.code] || t.errServer;
 }
+/* ---------- 2-bosqich: pochtaga yuborilgan 6 xonali kod ---------- */
+var authCh=null, authChEmail='', authResendAt=0, authResendTm=null;
+const authBoxes=()=>[...document.querySelectorAll('#authCodeBoxes input')];
+function authCodeSentText(){ const p=authEl('authCodeSent'); p.textContent=authT().codeSent+' ';
+  const b=document.createElement('b'); b.textContent=authChEmail; p.appendChild(document.createElement('br')); p.appendChild(b); }
+function authResendLabel(){
+  const t=authT(), btn=authEl('authCodeResend'), left=Math.ceil((authResendAt-Date.now())/1000);
+  if(left>0){ btn.disabled=true; btn.textContent=t.codeResendIn.replace('{s}',left); }
+  else { btn.disabled=false; btn.textContent=t.codeResend; clearInterval(authResendTm); authResendTm=null; }
+}
+function authResendCountdown(sec){ authResendAt=Date.now()+sec*1000; clearInterval(authResendTm); authResendTm=setInterval(authResendLabel,1000); authResendLabel(); }
+function authCodeErr(msg,shake){ authEl('authCodeErr').textContent=msg||'';
+  if(shake){ const g=authEl('authCodeBoxes'); g.classList.remove('bad'); void g.offsetWidth; g.classList.add('bad'); } }
+function authShowCode(r){
+  authCh=r.challenge; authChEmail=r.email||'';
+  authBoxes().forEach(i=>{ i.value=''; i.classList.remove('filled'); }); authCodeErr('');
+  authEl('authCodeBoxes').classList.remove('bad');
+  authResendCountdown(r.resendIn||60);
+  authBuildUI(); authEl('authSub').textContent='';
+  setTimeout(()=>authBoxes()[0].focus({preventScroll:true}),60);
+}
+function authHideCode(){ authCh=null; clearInterval(authResendTm); authResendTm=null; authBuildUI(); }
+async function authVerify(){
+  if(authBusy||!authCh) return;
+  const t=authT(), code=authBoxes().map(i=>i.value).join('');
+  if(!/^\d{6}$/.test(code)) return authCodeErr(t.errCodeFill,true);
+  authBusy=true; const btn=authEl('authCodeOk'); btn.disabled=true; btn.classList.add('busy'); authCodeErr('');
+  try{
+    await window.API.verify(authCh,code);
+    authEl('authPass').value=''; authEl('authPass2').value='';
+    document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
+    authHideCode(); authClose(); playClick(880);
+  }catch(e){
+    if(e&&e.code==='WRONG_CODE'){
+      authCodeErr(t.errCode.replace('{n}',e.details&&e.details.left!=null?e.details.left:'?'),true);
+      authBoxes().forEach(i=>{ i.value=''; i.classList.remove('filled'); }); authBoxes()[0].focus();
+    } else if(e&&(e.code==='CODE_EXPIRED'||e.code==='TOO_MANY_ATTEMPTS')){
+      authCodeErr(authErrText(e),true); setTimeout(()=>{ if(authCh){ authHideCode(); authShowErr(authErrText(e)); } },1800);
+    } else authCodeErr(authErrText(e),true);
+  }finally{ authBusy=false; btn.disabled=false; btn.classList.remove('busy'); }
+}
+// Katakchalar: faqat raqam, keyingisiga o'tish, Backspace — oldingisiga; nusxa qo'yish / SMS-avto to'ldirish 6 raqamni taqsimlaydi
+authBoxes().forEach((inp,i,all)=>{
+  inp.addEventListener('input',()=>{
+    const d=inp.value.replace(/\D/g,'');
+    if(d.length>1){ d.slice(0,6-i).split('').forEach((ch,k)=>{ all[i+k].value=ch; all[i+k].classList.add('filled'); });
+      all[Math.min(5,i+d.length)].focus(); }
+    else { inp.value=d; inp.classList.toggle('filled',!!d); if(d&&i<5) all[i+1].focus(); }
+    authCodeErr('');
+    if(all.every(x=>/^\d$/.test(x.value))) authVerify();
+  });
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Backspace'&&!inp.value&&i>0){ all[i-1].value=''; all[i-1].classList.remove('filled'); all[i-1].focus(); e.preventDefault(); }
+    else if(e.key==='ArrowLeft'&&i>0) all[i-1].focus();
+    else if(e.key==='ArrowRight'&&i<5) all[i+1].focus();
+    else if(e.key==='Enter') authVerify();
+  });
+  inp.addEventListener('focus',()=>inp.select());
+});
+authEl('authCodeOk').addEventListener('click',()=>authVerify());
+authEl('authCodeBack').addEventListener('click',()=>{ playClick(520); authHideCode(); setTimeout(()=>authEl('authEmail').focus(),60); });
+authEl('authCodeResend').addEventListener('click',async()=>{
+  if(!authCh) return; const t=authT(), btn=authEl('authCodeResend'); btn.disabled=true;
+  try{ const r=await window.API.resend(authCh); authResendCountdown(r.resendIn||60); authCodeErr(''); authEl('authCodeErr').textContent=t.codeResent; playClick(760); }
+  catch(e){ if(e&&e.code==='RESEND_WAIT') authResendCountdown((e.details&&e.details.wait)||30);
+    else { authCodeErr(authErrText(e),true); btn.disabled=false; if(e&&e.code==='CODE_EXPIRED') setTimeout(()=>{ if(authCh) authHideCode(); },1800); } }
+});
 /* ---------- Profil: statistika, so'nggi natijalar, ism va parolni o'zgartirish ---------- */
 const PF_LOCALE={ uz:'uz-UZ', ru:'ru-RU', en:'en-GB' };
 let pfData=null;
@@ -6443,11 +6513,9 @@ async function authSubmit(){
   } else if(!email||!pass) return authShowErr(t.errFill);
   authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');
   try{
-    if(authMode==='up') await window.API.register(name,email,pass);
-    else await window.API.login(email,pass);
-    authEl('authPass').value=''; authEl('authPass2').value='';
-    document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
-    authClose(); playClick(880);
+    // 1-bosqich: parol tekshiriladi va pochtaga kod yuboriladi → kod oynasi
+    const r=authMode==='up' ? await window.API.register(name,email,pass) : await window.API.login(email,pass);
+    authShowCode(r); playClick(760);
   }catch(e){ authShowErr(authErrText(e)); }
   finally{ authBusy=false; authEl('authSubmit').disabled=false; authEl('authSubmit').classList.remove('busy'); }
 }

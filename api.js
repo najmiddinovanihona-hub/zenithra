@@ -32,7 +32,7 @@ async function req(method, url, body){
   let data = null;
   try{ data = await r.json(); }catch(e){}
   if(!r.ok || !data){
-    const err = { status:r.status, code:(data&&data.error)||'SERVER_ERROR' };
+    const err = { status:r.status, code:(data&&data.error)||'SERVER_ERROR', details:data&&data.details };
     // Sessiya kutilmaganda tugadi (muddati, bloklash, boshqa qurilmada parol almashtirildi) — chiqish kabi
     if(r.status===401 && API.user && !/\/auth\/(login|register)$/.test(url)){ API.user=null; forgetLocalUser(); emit(); }
     throw err;
@@ -122,15 +122,18 @@ async function syncAll(){
 }
 
 /* ---------- ommaviy funksiyalar ---------- */
+// Ro'yxatdan o'tish va kirish ikki bosqichli: avval pochtaga kod yuboriladi ({challenge, email, resendIn}),
+// so'ng API.verify(challenge, kod) sessiyani ochadi.
 API.register = async (name, email, password) => {
   const lang = LS.getItem('solar_lang') || 'uz';
-  const r = await req('POST', '/api/auth/register', { name, email, password, lang });
+  return req('POST', '/api/auth/register', { name, email, password, lang });
+};
+API.login = (email, password) => req('POST', '/api/auth/login', { email, password });
+API.verify = async (challenge, code) => {
+  const r = await req('POST', '/api/auth/verify', { challenge, code });
   API.user = r.user; emit(); syncAll(); return r.user;
 };
-API.login = async (email, password) => {
-  const r = await req('POST', '/api/auth/login', { email, password });
-  API.user = r.user; emit(); syncAll(); return r.user;
-};
+API.resend = (challenge) => req('POST', '/api/auth/resend', { challenge });
 // Chiqish: avval yuborilmagan o'zgarishlar saqlanadi. Server bilan aloqa bo'lmasa — xato qaytariladi va foydalanuvchi
 // kirgan holicha qoladi (aks holda saqlanmagan progress o'chib ketardi yoki cookie tirik qolib, "chiqdim" deb aldardi).
 API.logout = async () => {

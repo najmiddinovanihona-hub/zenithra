@@ -19,6 +19,7 @@ model User {
   passwordHash String       @map("password_hash")
   role         String       @default("user") // "user" | "admin"
   blocked      Boolean      @default(false)
+  emailVerified Boolean     @default(false) @map("email_verified")
   lang         String       @default("uz")
   createdAt    DateTime     @default(now()) @map("created_at")
   lastSeenAt   DateTime?    @map("last_seen_at")
@@ -26,8 +27,26 @@ model User {
   progress     Progress[]
   quizResults  QuizResult[]
   settings     Settings?
+  authCodes    AuthCode[]
 
   @@map("users")
+}
+
+// Email orqali tasdiqlash kodi (ro'yxatdan o'tish va kirish). id — brauzerdagi "challenge" tokenining SHA-256 xeshi;
+// kodning o'zi saqlanmaydi, faqat xeshi. 10 daqiqa amal qiladi, 5 ta noto'g'ri urinishdan keyin bekor bo'ladi.
+model AuthCode {
+  id        String   @id
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String   // "register" | "login"
+  codeHash  String   @map("code_hash")
+  attempts  Int      @default(0)
+  sends     Int      @default(1)
+  sentAt    DateTime @default(now()) @map("sent_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([userId])
+  @@map("auth_codes")
 }
 
 // Sessiya: cookie'dagi tasodifiy tokenning SHA-256 xeshi saqlanadi (token o'zi emas).

@@ -9,7 +9,10 @@ if (config.adminEmail) console.warn('[astro] ADMIN_EMAIL endi ishlatilmaydi — 
 if (config.isProd && !config.cookieSecure) console.warn("[astro] DIQQAT: COOKIE_SECURE=0 — sessiya cookie'si HTTPS'siz yuboriladi");
 if (!config.isProd) console.log("[astro] development rejimi (NODE_ENV=production bo'lmasa cookie Secure emas — faqat lokal sinov uchun)");
 
-const purgeSessions = () => prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
+const purgeSessions = () => Promise.all([
+  prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
+  prisma.authCode.deleteMany({ where: { expiresAt: { lt: new Date() } } }),   // muddati o'tgan email kodlari
+]).catch(() => {});
 await purgeSessions();
 setInterval(purgeSessions, 6 * 3600 * 1000).unref();
 

@@ -18,6 +18,7 @@ execSync('npx prisma db push --skip-generate', { cwd: ROOT, env: process.env, st
 
 const { createApp } = await import('../server/app.js');
 const { prisma } = await import('../server/db.js');
+const { outbox } = await import('../server/mailer.js');
 
 let server, base;
 before(async () => {
@@ -50,11 +51,24 @@ function client() {
   };
 }
 
+// Ro'yxatdan o'tish / kirish endi ikki bosqichli: pochtaga ketgan kod (testda — outbox) /verify ga yuboriladi.
+const lastCode = (to) => [...outbox].reverse().find((m) => m.to === to).code;
+async function signup(c, body) {
+  const r = await c('POST', '/api/auth/register', body);
+  if (r.status !== 202) return r;
+  return c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: lastCode(body.email.toLowerCase()) });
+}
+async function signin(c, email, password) {
+  const r = await c('POST', '/api/auth/login', { email, password });
+  if (r.status !== 202) return r;
+  return c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: lastCode(email) });
+}
+
 const admin = client();
 const alice = client();
 
 test('register: hamma "user" bo\'lib ro\'yxatdan o\'tadi (ADMIN_EMAIL ham), admin faqat make-admin orqali', async () => {
-  const a = await admin('POST', '/api/auth/register', { name: 'Boss', email: 'BOSS@test.uz', password: 'password-1' });
+  const a = await signup(admin, { name: 'Boss', email: 'BOSS@test.uz', password: 'password-1' });
   assert.equal(a.status, 201);
   assert.equal(a.json.user.role, 'user', 'ro\'yxatdan o\'tish orqali admin bo\'lib bo\'lmaydi');
   await prisma.user.update({ where: { email: 'boss@test.uz' }, data: { role: 'admin' } });   // make-admin o'rniga
@@ -63,7 +77,7 @@ test('register: hamma "user" bo\'lib ro\'yxatdan o\'tadi (ADMIN_EMAIL ham), admi
   assert.match(a.headers.get('set-cookie'), /HttpOnly/i);
   assert.match(a.headers.get('set-cookie'), /SameSite=Lax/i);
 
-  const b = await alice('POST', '/api/auth/register', { name: 'Alice', email: 'alice@test.uz', password: 'password-2' });
+  const b = await signup(alice, { name: 'Alice', email: 'alice@test.uz', password: 'password-2' });
   assert.equal(b.status, 201);
   assert.equal(b.json.user.role, 'user');
 });
@@ -92,10 +106,71 @@ test('login / logout', async () => {
   const c = client();
   assert.equal((await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'wrong-pass' })).json.error, 'INVALID_CREDENTIALS');
   assert.equal((await c('POST', '/api/auth/login', { email: 'nobody@test.uz', password: 'wrong-pass' })).json.error, 'INVALID_CREDENTIALS');
-  assert.equal((await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' })).status, 200);
+  assert.equal((await signin(c, 'alice@test.uz', 'password-2')).status, 200);
   assert.equal((await c('GET', '/api/auth/me')).json.user.email, 'alice@test.uz');
   await c('POST', '/api/auth/logout');
   assert.equal((await c('GET', '/api/auth/me')).json.user, null);
+});
+
+test('email kodi: parol to\'g\'ri bo\'lsa ham kodsiz kirib bo\'lmaydi; xat to\'g\'ri pochtaga ketadi', async () => {
+  const c = client();
+  const r = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  assert.equal(r.status, 202);
+  assert.equal(r.json.needCode, true);
+  assert.equal(r.json.email, 'al***@test.uz', 'to\'liq manzil qaytarilmaydi');
+  assert.equal(r.headers.get('set-cookie'), null, 'kod kiritilmaguncha sessiya yo\'q');
+  assert.equal((await c('GET', '/api/auth/me')).json.user, null);
+  const m = outbox.at(-1);
+  assert.equal(m.to, 'alice@test.uz');
+  assert.match(m.code, /^\d{6}$/);
+  assert.ok(m.subject.includes(m.code) && m.html.includes(m.code));
+  const rec = await prisma.authCode.findFirst({ where: { user: { email: 'alice@test.uz' } } });
+  assert.ok(rec && !rec.codeHash.includes(m.code) && rec.id !== r.json.challenge, 'bazada kod ham, token ham ochiq saqlanmaydi');
+});
+
+test('email kodi: noto\'g\'ri kod — 5 urinishdan keyin bekor; eski kod yangisidan keyin ishlamaydi', async () => {
+  const c = client();
+  const r1 = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  const code1 = lastCode('alice@test.uz');
+  const r2 = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  assert.equal((await c('POST', '/api/auth/verify', { challenge: r1.json.challenge, code: code1 })).json.error, 'CODE_EXPIRED', 'yangi kod eskisini bekor qiladi');
+  const good = lastCode('alice@test.uz'), bad = good === '000000' ? '111111' : '000000';
+  let w;
+  for (let i = 1; i <= 4; i++) { w = await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: bad }); assert.equal(w.json.error, 'WRONG_CODE'); assert.equal(w.json.details.left, 5 - i); }
+  assert.equal((await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: bad })).json.error, 'TOO_MANY_ATTEMPTS');
+  assert.equal((await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: good })).json.error, 'CODE_EXPIRED', 'to\'g\'ri kod ham endi ishlamaydi');
+  assert.equal((await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: '12ab56' })).status, 400);
+});
+
+test('email kodi: muddati o\'tgan kod; qayta yuborish 60 s dan keyin', async () => {
+  const c = client();
+  const r = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  const w = await c('POST', '/api/auth/resend', { challenge: r.json.challenge });
+  assert.equal(w.json.error, 'RESEND_WAIT');
+  assert.ok(w.json.details.wait > 50);
+  const id = (await prisma.authCode.findFirst({ where: { user: { email: 'alice@test.uz' } } })).id;
+  await prisma.authCode.update({ where: { id }, data: { sentAt: new Date(Date.now() - 61000) } });
+  const n = outbox.length;
+  assert.equal((await c('POST', '/api/auth/resend', { challenge: r.json.challenge })).status, 200);
+  assert.equal(outbox.length, n + 1);
+  await prisma.authCode.update({ where: { id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+  assert.equal((await c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: lastCode('alice@test.uz') })).json.error, 'CODE_EXPIRED');
+});
+
+test('email kodi: kod kiritilmay qolgan ro\'yxat qayta ochiladi, lekin tasdiqlangan/eski hisobni egallab bo\'lmaydi', async () => {
+  const c = client();
+  assert.equal((await c('POST', '/api/auth/register', { name: 'Yarim', email: 'half@test.uz', password: 'password-5' })).status, 202);
+  assert.equal((await prisma.user.findUnique({ where: { email: 'half@test.uz' } })).emailVerified, false);
+  // kod kelmadi / yo'qoldi — qayta ro'yxatdan o'tish mumkin (yangi parol bilan)
+  const v = await signup(c, { name: 'Yarim2', email: 'half@test.uz', password: 'password-6' });
+  assert.equal(v.status, 201);
+  const u = await prisma.user.findUnique({ where: { email: 'half@test.uz' } });
+  assert.equal(u.emailVerified, true); assert.equal(u.name, 'Yarim2');
+  assert.equal((await c('POST', '/api/auth/register', { name: 'X', email: 'half@test.uz', password: 'password-7' })).json.error, 'EMAIL_EXISTS');
+  // bu o'zgarishdan oldingi hisob (tasdiqlanmagan, lekin ishlatilgan) — ham himoyalangan
+  await prisma.user.create({ data: { name: 'Old', email: 'old@test.uz', passwordHash: 'x', lastSeenAt: new Date() } });
+  assert.equal((await c('POST', '/api/auth/register', { name: 'X', email: 'old@test.uz', password: 'password-7' })).json.error, 'EMAIL_EXISTS');
+  await prisma.user.deleteMany({ where: { email: { in: ['half@test.uz', 'old@test.uz'] } } });
 });
 
 test('progress: merge — o\'qilgan belgi yo\'qolmaydi, eng yaxshi ball kamaymaydi', async () => {
@@ -176,14 +251,14 @@ test('profil: ismni o\'zgartirish', async () => {
 
 test('parolni o\'zgartirish: joriy sessiya qoladi, boshqalari yopiladi', async () => {
   const other = client();
-  await other('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  await signin(other, 'alice@test.uz', 'password-2');
   assert.equal((await alice('POST', '/api/me/password', { currentPassword: 'nope-nope', newPassword: 'password-new' })).json.error, 'WRONG_PASSWORD');
   assert.equal((await alice('POST', '/api/me/password', { currentPassword: 'password-2', newPassword: 'short' })).status, 400);
   assert.equal((await alice('POST', '/api/me/password', { currentPassword: 'password-2', newPassword: 'password-new' })).status, 200);
   assert.equal((await alice('GET', '/api/auth/me')).json.user.email, 'alice@test.uz');
   assert.equal((await other('GET', '/api/auth/me')).json.user, null);
   const c = client();
-  assert.equal((await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-new' })).status, 200);
+  assert.equal((await signin(c, 'alice@test.uz', 'password-new')).status, 200);
   await alice('POST', '/api/me/password', { currentPassword: 'password-new', newPassword: 'password-2' });
 });
 
@@ -267,7 +342,7 @@ test('admin: o\'zini bloklay / o\'chira olmaydi', async () => {
 
 test('admin: ikki admin bir vaqtda bir-birini pasaytirsa ham bittasi qoladi', async () => {
   const second = client();
-  await second('POST', '/api/auth/register', { name: 'Admin2', email: 'admin2@test.uz', password: 'password-7' });
+  await signup(second, { name: 'Admin2', email: 'admin2@test.uz', password: 'password-7' });
   const id2 = (await prisma.user.update({ where: { email: 'admin2@test.uz' }, data: { role: 'admin' } })).id;
   const bossId = (await admin('GET', '/api/auth/me')).json.user.id;
   const [r1, r2] = await Promise.all([
@@ -285,7 +360,7 @@ test('admin: ikki admin bir vaqtda bir-birini pasaytirsa ham bittasi qoladi', as
 
 test('admin: CSV eksport (formula-injection himoyasi bilan)', async () => {
   const evil = client();
-  await evil('POST', '/api/auth/register', { name: '=HYPERLINK("x")', email: 'evil@test.uz', password: 'password-9' });
+  await signup(evil, { name: '=HYPERLINK("x")', email: 'evil@test.uz', password: 'password-9' });
   await evil('POST', '/api/me/quiz', { quizId: 'quiz:hard', score: 1, total: 10 });
   const r = await admin('GET', '/api/admin/quiz.csv');
   assert.equal(r.status, 200);
