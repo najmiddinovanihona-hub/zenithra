@@ -223,5 +223,5 @@ register('tonight',{ ico:'🌃', group:{uz:'Osmon',ru:'Небо',en:'Sky'}, name
   },
   open(){ if(this.live!==false && this.render){ const o=loc(), z=zoned(new Date(),o.tz); this.ymd=[z.y,z.m,z.d]; this.min=z.h*60+z.mi; } this.render&&this.render(true); }
 });
-window.SKY_ASTRO={bodies,altaz,look,precess,lst,D2R};
+window.SKY_ASTRO={bodies,altaz,look,precess,lst,D2R,PN,PC,CN};   // PN/PC/CN — nomlar va ranglar (AR rejimi uchun)
 })();

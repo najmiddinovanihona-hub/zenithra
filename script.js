@@ -1471,6 +1471,7 @@ const CONST_DEFS = [
   { key:'cygnus', ids:['deneb','sadr','albireo','deltaCyg','gienahCyg'], links:[[0,1],[1,2],[3,1],[1,4]] },
   { key:'scorpius', ids:['acrab','dschubba','piSco','antares','tauSco','epsSco','sargas','kappaSco','shaula'], links:[[0,1],[1,2],[1,3],[3,4],[4,5],[5,6],[6,7],[7,8]] },
 ];
+window.SKY_CONST_DEFS = CONST_DEFS;   // turkum chiziqlari — AR rejimi (labs/ar.js) ham ishlatadi
 const CONSTELLATIONS = [];
 CONST_DEFS.forEach(def=>{
   const world = def.ids.map(id=>skyStarById[id].pos.clone());
