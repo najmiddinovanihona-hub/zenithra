@@ -12,11 +12,11 @@ const SET = {
   solar_voice:{ k:'voice',     get:v=>v==='1',    put:v=>v?'1':'0' },
   dz_theme:   { k:'theme',     get:v=>v,          put:v=>v },
   dz_side:    { k:'side',      get:v=>v,          put:v=>v },
-  sky_loc:    { k:'loc',       get:v=>{ try{ return JSON.parse(v); }catch(e){ return null; } }, put:v=>JSON.stringify(v) },
-  loc_manual: { k:'locManual', get:v=>v==='1',    put:v=>v?'1':'0' },
 };
+// Joylashuv (sky_loc, loc_manual) ATAYLAB sinxronlanmaydi: u har bir qurilmaning o'ziga xos (telefon va kompyuter
+// turli joyda bo'lishi mumkin), aniq GPS koordinatasi va ko'cha nomi esa shaxsiy ma'lumot — serverga yuborilmaydi.
 const VALID = { lang:v=>['uz','ru','en'].includes(v), theme:v=>['day','night'].includes(v), side:v=>['open','shut'].includes(v),
-  voice:v=>typeof v==='boolean', locManual:v=>typeof v==='boolean', loc:v=>v===null||(v&&isFinite(v.lat)&&isFinite(v.lon)) };
+  voice:v=>typeof v==='boolean' };
 
 const listeners = [];
 const API = window.API = { online:false, user:null, on:f=>listeners.push(f) };
@@ -47,7 +47,7 @@ function watch(key, removed){
   if(applying || !API.user) return;
   if(key===PROG) return schedule('prog');
   const m = SET[key]; if(!m) return;
-  const v = removed ? (key==='loc_manual' ? false : null) : m.get(LS.getItem(key));
+  const v = removed ? null : m.get(LS.getItem(key));
   if(VALID[m.k](v)){ pendingSettings[m.k]=v; schedule('set'); }
 }
 Storage.prototype.setItem = function(k, v){ rawSet.call(this, k, v); if(this===LS) watch(k, false); };
@@ -89,7 +89,6 @@ async function syncAll(){
         if(LS.getItem(lsKey)===nv) continue;
         if(m.k==='lang'){ if(typeof window.applyLanguage==='function') quiet(()=>window.applyLanguage(s.lang)); else quiet(()=>LS.setItem(lsKey,nv)); }
         else quiet(()=>LS.setItem(lsKey, nv));
-        if(m.k==='loc') window.dispatchEvent(new CustomEvent('lab-loc', { detail:s.loc }));
       } else if(LS.getItem(lsKey)!==null){
         const v = m.get(LS.getItem(lsKey));
         if(VALID[m.k](v) && v!==null) missing[m.k]=v;
@@ -138,6 +137,16 @@ API.quiz = (quizId, score, total) => {
 /* ---------- ishga tushish ---------- */
 // Eski demo-auth (localStorage'dagi zaif parol xeshlari) endi ishlatilmaydi — o'chiramiz.
 try{ rawRemove.call(LS, 'st_users'); rawRemove.call(LS, 'st_session'); }catch(e){}
+// Bir martalik tuzatish: oldingi versiya joylashuvni sinxronlab, serverdagi ESKI joyni qurilmadagi to'g'ri joy ustiga
+// yozib qo'ygan bo'lishi mumkin. GPS bilan aniqlanmagan saqlangan joy o'chiriladi — keyingi ochilishda qayta aniqlanadi.
+try{
+  if(!LS.getItem('loc_fix_v1')){
+    let cur=null; try{ cur=JSON.parse(LS.getItem('sky_loc')||'null'); }catch(e){}
+    if(!cur || cur.src!=='gps'){ rawRemove.call(LS,'sky_loc'); rawRemove.call(LS,'loc_manual'); }
+    try{ sessionStorage.removeItem('loc_auto'); }catch(e){}
+    rawSet.call(LS,'loc_fix_v1','1');
+  }
+}catch(e){}
 
 API.ready = (async ()=>{
   if(!/^https?:$/.test(location.protocol)) return;

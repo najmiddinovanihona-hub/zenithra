@@ -127,15 +127,23 @@ test('quiz: saqlanadi va tekshiriladi', async () => {
   assert.equal(list.json.results.length, 1);
 });
 
-test('settings: qisman yangilash, noma\'lum kalit rad etiladi', async () => {
+test('settings: qisman yangilash, noma\'lum kalit rad etiladi, joylashuv saqlanmaydi', async () => {
   await alice('PUT', '/api/me/settings', { lang: 'ru', voice: true });
-  const r = await alice('PUT', '/api/me/settings', { loc: { k: 'tashkent', lat: 41.3, lon: 69.24, tz: 5 } });
+  const r = await alice('PUT', '/api/me/settings', { theme: 'day' });
   assert.equal(r.json.settings.lang, 'ru');
   assert.equal(r.json.settings.voice, true);
-  assert.equal(r.json.settings.loc.k, 'tashkent');
+  assert.equal(r.json.settings.theme, 'day');
   assert.equal((await alice('GET', '/api/auth/me')).json.user.lang, 'ru');
   assert.equal((await alice('PUT', '/api/me/settings', { hack: 1 })).status, 400);
-  assert.equal((await alice('PUT', '/api/me/settings', { loc: { lat: 200, lon: 0 } })).status, 400);
+  // Joylashuv qurilmaga xos va shaxsiy — server uni qabul qilmaydi
+  assert.equal((await alice('PUT', '/api/me/settings', { loc: { lat: 41.3, lon: 69.2 } })).status, 400);
+  // Bazada eski versiyadan qolgan loc bo'lsa ham tashqariga chiqmaydi
+  const me = (await alice('GET', '/api/auth/me')).json.user;
+  const row = await prisma.settings.findUnique({ where: { userId: me.id } });
+  await prisma.settings.update({ where: { userId: me.id }, data: { data: { ...row.data, loc: { lat: 1, lon: 2 } } } });
+  const g = (await alice('GET', '/api/me/settings')).json.settings;
+  assert.equal(g.loc, undefined);
+  assert.equal(g.theme, 'day');
 });
 
 test('profil: statistika va so\'nggi natijalar', async () => {

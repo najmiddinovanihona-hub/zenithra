@@ -9,6 +9,14 @@ if (config.adminEmail) {
 }
 await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
 
+// Oldingi versiya foydalanuvchi joylashuvini (aniq GPS, ko'cha) sozlamalarda saqlagan — endi saqlanmaydi, eskisi o'chiriladi.
+for (const s of await prisma.settings.findMany()) {
+  if (s.data && ('loc' in s.data || 'locManual' in s.data)) {
+    const { loc, locManual, ...rest } = s.data;
+    await prisma.settings.update({ where: { userId: s.userId }, data: { data: rest } });
+  }
+}
+
 const server = createApp().listen(config.port, () => {
   console.log(`[astro] http://localhost:${config.port}`);
 });

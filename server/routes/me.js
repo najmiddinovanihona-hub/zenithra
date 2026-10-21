@@ -92,33 +92,33 @@ router.get('/quiz', async (req, res) => {
 
 /* ---------------- Sozlamalar ---------------- */
 
-const Loc = z.object({
-  lat: z.number().min(-90).max(90),
-  lon: z.number().min(-180).max(180),
-}).catchall(z.union([z.string().max(120), z.number(), z.boolean(), z.null()]))
-  .refine((o) => Object.keys(o).length <= 12, 'too many fields');
-
+// Joylashuv bu yerda YO'Q: u qurilmaga xos va shaxsiy ma'lumot (aniq GPS, ko'cha) — faqat brauzerda saqlanadi.
+const SETTING_KEYS = ['lang', 'voice', 'theme', 'side'];
 const SettingsBody = z.object({
   lang: z.enum(['uz', 'ru', 'en']),
   voice: z.boolean(),
   theme: z.enum(['day', 'night']),
   side: z.enum(['open', 'shut']),
-  loc: Loc.nullable(),
-  locManual: z.boolean(),
 }).partial().strict();
+// Bazada qolgan eski/noma'lum kalitlar (masalan, oldingi versiyadagi loc) tashqariga chiqmaydi
+const pick = (d) => Object.fromEntries(SETTING_KEYS.filter((k) => d && d[k] !== undefined).map((k) => [k, d[k]]));
 
 router.get('/settings', async (req, res) => {
   const s = await prisma.settings.findUnique({ where: { userId: req.user.id } });
-  res.json({ settings: { lang: req.user.lang, ...(s?.data || {}) } });
+  res.json({ settings: { lang: req.user.lang, ...pick(s?.data) } });
 });
 
-// Qisman yangilash: faqat yuborilgan kalitlar o'zgaradi.
+// Qisman yangilash: faqat yuborilgan kalitlar o'zgaradi. O'qish+yozish bitta tranzaksiyada —
+// ikki tab bir vaqtda turli kalitni yozsa, biri ikkinchisini o'chirib yubormaydi.
 router.put('/settings', async (req, res) => {
   const patch = parse(SettingsBody, req.body);
   const userId = req.user.id;
-  const cur = await prisma.settings.findUnique({ where: { userId } });
-  const data = { ...(cur?.data || {}), ...patch };
-  await prisma.settings.upsert({ where: { userId }, create: { userId, data }, update: { data } });
+  const data = await prisma.$transaction(async (tx) => {
+    const cur = await tx.settings.findUnique({ where: { userId } });
+    const next = { ...pick(cur?.data), ...patch };
+    await tx.settings.upsert({ where: { userId }, create: { userId, data: next }, update: { data: next } });
+    return next;
+  });
   if (patch.lang && patch.lang !== req.user.lang) {
     await prisma.user.update({ where: { id: userId }, data: { lang: patch.lang } });
   }
