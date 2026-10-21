@@ -3336,8 +3336,10 @@ function impHit(P,n,S,o){
   flash.position.copy(B).addScaledVector(n,Rl*0.01);
   const fb=impAdd(new THREE.Mesh(new THREE.SphereGeometry(1,32,16), new THREE.MeshBasicMaterial({ color:o.dart?0xffe2b0:0xff8a3a, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false })));
   fb.position.copy(B); fb.visible=!!o.dart;
-  const ring=impAdd(new THREE.Mesh(new THREE.RingGeometry(0.86,1,96), new THREE.MeshBasicMaterial({ color:0xffd8a8, transparent:true, opacity:0, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false })));
-  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), n); ring.position.copy(P).addScaledVector(n,Rl*0.008);
+  // Sirt bo'ylab tarqaladigan to'lqin — sferik qopqoqda chiziladi (yassi disk Yer chetidan koinotga "pichoq" bo'lib chiqardi)
+  const ringMax=Math.min(Math.PI*0.9, S*(o.dart?1.4:2.2)*1.05);
+  const ring=impAdd(new THREE.Mesh(new THREE.SphereGeometry(Rl*1.005,160,48,0,TAU,0,ringMax), impSoftOpacity(impGroundRingMat(0xffd8a8))));
+  ring.quaternion.setFromUnitVectors(IMP_UP,n); ring.renderOrder=2;
   const capAng=Math.min(1.45,S*(air?1.25:0.8));
   const cap=impAdd(new THREE.Mesh(new THREE.SphereGeometry(Rl*1.006,64,14,0,TAU,0,capAng), air?impCapMat(0x3a2a1a,0x6a5638):(o.dark?impCapMat(0x140c08,0x3a2618):impCapMat(0x1a120c,0x7a6048))));
   cap.quaternion.setFromUnitVectors(IMP_UP,n); if(o.dart) cap.visible=false;
@@ -3352,7 +3354,7 @@ function impHit(P,n,S,o){
   IMPX.fx.push({ t:0, S, update(dt){ const t=this.t+=dt, R=Rl;
     const f=Math.min(1,t/0.22); flash.scale.setScalar(R*S*(o.theia?6:4.2)*(0.3+0.7*f)*(1+t*0.4)); flash.material.opacity=Math.max(0,1-Math.max(0,t-0.15)/1.6);
     fb.scale.setScalar(R*S*(o.theia?0.9:0.55)*Math.min(1,t/0.9)**0.5); fb.material.opacity=Math.max(0,0.9-t/2.2);
-    const rt=Math.max(0,t-(air?0.25:0.05)); ring.scale.setScalar(R*S*(o.dart?1.4:2.2)*Math.min(1,rt/2.6)**0.7+1e-4); ring.material.opacity=rt>0?Math.max(0,0.85*(1-rt/2.6)):0; ring.visible=!o.theia;
+    const rt=Math.max(0,t-(air?0.25:0.05)); ring.material.uniforms.uR.value=ringMax*0.95*Math.min(1,rt/2.6)**0.7; ring.material.opacity=rt>0?Math.max(0,0.75*(1-rt/2.6)):0; ring.material.uniforms.uCool.value=Math.min(1,rt/2.2); ring.visible=!o.theia;
     cap.material.uniforms.uA.value=Math.min(air?0.55:0.92,t/0.9); cap.material.uniforms.uHot.value=air?Math.max(0,0.5-t/2):Math.max(0,1-t/(o.theia?9:5));
     if(t<life){ const pa=g.attributes.position.array; for(let i=0;i<N;i++){ const v=vel[i]; let x=pa[i*3],y=pa[i*3+1],z=pa[i*3+2];
         const L=Math.hypot(x,y,z)||1; if(grav){ v.x-=x/L*grav*dt; v.y-=y/L*grav*dt; v.z-=z/L*grav*dt; }
@@ -3394,10 +3396,37 @@ function impCurtainMat(){ return new THREE.ShaderMaterial({ transparent:true, de
    'void main(){ float a=atan(vP.z,vP.x); float s=fb3(vec3(a*7.0,vUv.y*2.5,uSeed)); float st=smoothstep(0.32,0.72,s); float y=vUv.y;'+
    ' vec3 c=mix(vec3(1.3,0.62,0.2),vec3(0.42,0.33,0.26),smoothstep(0.0,0.55,y+(1.0-uHeat)*0.7));'+
    ' gl_FragColor=vec4(c, uA*pow(1.0-y,1.4)*(0.25+0.75*st)*smoothstep(0.0,0.06,y)); }' }); }
+// Zarba to'lqini gumbazi: faqat ingichka, notekis "kondensatsiya" qirrasi xira porlaydi (avval qalin oppoq yoylar edi)
 function impShockMat(){ return new THREE.ShaderMaterial({ transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
   uniforms:{ uA:{value:0} },
-  vertexShader:'varying vec3 vN; varying vec3 vV; void main(){ vec4 wp=modelMatrix*vec4(position,1.0); vN=normalize(mat3(modelMatrix)*normal); vV=normalize(cameraPosition-wp.xyz); gl_Position=projectionMatrix*viewMatrix*wp; }',
-  fragmentShader:'uniform float uA; varying vec3 vN; varying vec3 vV; void main(){ float r=1.0-abs(dot(normalize(vN),vV)); gl_FragColor=vec4(vec3(0.85,0.93,1.0)*pow(r,2.2)*uA,1.0); }' }); }
+  vertexShader:'varying vec3 vN; varying vec3 vV; varying vec3 vP; void main(){ vP=position; vec4 wp=modelMatrix*vec4(position,1.0); vN=normalize(mat3(modelMatrix)*normal); vV=normalize(cameraPosition-wp.xyz); gl_Position=projectionMatrix*viewMatrix*wp; }',
+  fragmentShader:IMP_NOISE+'uniform float uA; varying vec3 vN; varying vec3 vV; varying vec3 vP;'+
+   'void main(){ float r=1.0-abs(dot(normalize(vN),vV)); float n=fb3(vP*6.0);'+
+   ' gl_FragColor=vec4(mix(vec3(0.95,0.8,0.6),vec3(0.8,0.86,0.98),r)*pow(r,6.0)*uA*0.2*(0.5+0.9*n),1.0); }' }); }
+/* Yer bo'ylab tarqaladigan zarba/chang halqasi: yumshoq chetli, ichida notekis chang tolalari; kengaygan sari
+   issiq rangdan kulrang changga o'tadi (uCool). Yassi bir xil oq halqa o'rniga. */
+function impRingMat(hex, inner){ return new THREE.ShaderMaterial({ transparent:true, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending,
+  uniforms:{ uA:{value:0}, uCool:{value:0}, uC:{value:new THREE.Color(hex)}, uIn:{value:inner} },
+  vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader:IMP_NOISE+'uniform float uA,uCool,uIn; uniform vec3 uC; varying vec3 vP;'+
+   'void main(){ float r=length(vP.xy); float t=clamp((r-uIn)/(1.0-uIn),0.0,1.0); float a=atan(vP.y,vP.x);'+
+   ' float band=smoothstep(0.0,0.55,t)*(1.0-smoothstep(0.82,1.0,t)); float n=fb3(vec3(a*6.0,r*9.0,uCool*3.0));'+
+   ' vec3 c=mix(uC,vec3(0.42,0.36,0.3),uCool);'+
+   ' gl_FragColor=vec4(c*(0.5+0.9*n), uA*band*(0.35+0.65*n)); }' }); }
+// Sferik qopqoqdagi to'lqin: markazdan (qopqoq o'qi +Y) burchakli masofa uR atrofida yumshoq tasma;
+// tasma kengaygan sari kengayadi va issiq rangdan kulrang changga o'tadi.
+function impGroundRingMat(hex){ return new THREE.ShaderMaterial({ transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+  polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3,
+  uniforms:{ uA:{value:0}, uR:{value:0}, uCool:{value:0}, uC:{value:new THREE.Color(hex)} },
+  vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader:IMP_NOISE+'uniform float uA,uR,uCool; uniform vec3 uC; varying vec3 vP;'+
+   'void main(){ vec3 d=normalize(vP); float ang=acos(clamp(d.y,-1.0,1.0)); float w=0.02+uR*0.22;'+
+   ' float x=(ang-uR)/w; float band=exp(-x*x*2.2)*smoothstep(-2.5,0.0,x+1.2);'+
+   ' float n=fb3(vec3(atan(d.z,d.x)*5.0, ang*30.0, uCool*2.0)); vec3 c=mix(uC,vec3(0.45,0.38,0.31),uCool);'+
+   ' gl_FragColor=vec4(c*(0.55+0.8*n), uA*band*(0.35+0.65*n)); }' }); }
+// Oddiy materialdek ishlatish uchun: .opacity → uA (mavjud animatsiya kodi o'zgarmaydi)
+function impSoftOpacity(m){ Object.defineProperty(m,'opacity',{ get:()=>m.uniforms.uA.value, set:v=>{ if(m.uniforms) m.uniforms.uA.value=v; }, configurable:true });
+  m.color=m.uniforms.uC.value; return m; }   // .color.setRGB(...) ham ishlaydi
 function impDustMat(nL){ return new THREE.ShaderMaterial({ transparent:true, depthWrite:false,
   uniforms:{ uA:{value:0}, uAng:{value:0}, uN:{value:nL.clone()}, uT:{value:0} },
   vertexShader:'varying vec3 vP; void main(){ vP=normalize(position); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
@@ -3425,7 +3454,7 @@ function impHitPlus(P,n,S,o){
   let stem=null; if(!air && !o.theia && !o.dart){ stem=impAdd(new THREE.Mesh(new THREE.CylinderGeometry(0.55,1,1,32,6,true).translate(0,0.5,0), impFireMat())); stem.position.copy(P); stem.quaternion.copy(q); stem.scale.setScalar(1e-4); stem.renderOrder=4; }
   let cur=null; if(!air && !o.theia){ cur=impAdd(new THREE.Mesh(new THREE.CylinderGeometry(1,0.28,1,72,1,true).translate(0,0.5,0), impCurtainMat())); cur.position.copy(P); cur.quaternion.copy(q); cur.scale.setScalar(1e-4); cur.renderOrder=3; }
   const sh=impAdd(new THREE.Mesh(air?new THREE.SphereGeometry(1,48,24):new THREE.SphereGeometry(1,48,16,0,TAU,0,Math.PI/2), impShockMat())); sh.position.copy(air?B:P); sh.quaternion.copy(q); sh.scale.setScalar(1e-4); sh.renderOrder=5;
-  let rim=null; if(!air && !o.dart){ rim=impAdd(new THREE.Mesh(new THREE.RingGeometry(0.7,1,96), new THREE.MeshBasicMaterial({ color:0xffa040, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })));
+  let rim=null; if(!air && !o.dart){ rim=impAdd(new THREE.Mesh(new THREE.RingGeometry(0.6,1,128,4), impSoftOpacity(impRingMat(0xffa040, 0.6))));
     rim.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),n); rim.position.copy(P).addScaledVector(n,Rl*0.004); rim.scale.setScalar(R*(o.theia?0.9:0.42)); rim.renderOrder=3; }
   let dust=null; if(!o.dart && (S>=0.3 || o.theia)){ dust=impAdd(new THREE.Mesh(new THREE.SphereGeometry(Rl*1.026,96,64), impDustMat(n))); dust.renderOrder=1; }
   const gmax=o.theia?2.6:2.2, big=o.theia?2:1;
@@ -3444,9 +3473,23 @@ function impHitPlus(P,n,S,o){
   impFlash(B, o.theia?1.6:(o.dart?0.35:Math.min(1.2,0.35+S*2)));
 }
 // Atmosferaga kirishdagi plazma izi
+/* Plazma izi: boshida oq-sariq, so'ng to'q sariq → qizil va so'nadi; chetlari yumshoq (fresnel), olovli tolalar
+   shovqin bilan siljiydi. Silindr: y=0 (vUv.y=0) — jism yonida, y=1 — iz uchi. */
+function impTrailMat(dart){ return new THREE.ShaderMaterial({ transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
+  uniforms:{ uA:{value:0}, uT:{value:0}, uHeat:{value:1}, uDart:{value:dart?1:0} },
+  vertexShader:'varying vec2 vUv; varying vec3 vN; varying vec3 vV; varying vec3 vP;'+
+   'void main(){ vUv=uv; vP=position; vec4 wp=modelMatrix*vec4(position,1.0); vN=normalize(mat3(modelMatrix)*normal); vV=normalize(cameraPosition-wp.xyz); gl_Position=projectionMatrix*viewMatrix*wp; }',
+  fragmentShader:IMP_NOISE+'uniform float uA,uT,uHeat,uDart; varying vec2 vUv; varying vec3 vN; varying vec3 vV; varying vec3 vP;'+
+   'void main(){ float y=vUv.y; float core=pow(abs(dot(normalize(vN),vV)),1.4);'+
+   ' float a=atan(vP.z,vP.x); float fil=fb3(vec3(a*3.0, y*6.0-uT*9.0, uT*0.7));'+
+   ' float fade=pow(1.0-y,1.7)*smoothstep(0.0,0.04,y+0.02);'+
+   ' vec3 hot=mix(vec3(1.0,0.82,0.5),vec3(1.0,0.5,0.14),smoothstep(0.0,0.3,y)); hot=mix(hot,vec3(0.5,0.1,0.03),smoothstep(0.3,0.95,y));'+
+   ' vec3 c=mix(hot, vec3(0.6,0.8,1.0)*(1.0-y), uDart);'+
+   // yorqinlik 1 dan oshmasin — aks holda qo'shiluvchi (additive) aralashuvda iz oppoq "chiroq konusi"ga aylanardi
+   ' gl_FragColor=vec4(min(c*(0.55+0.45*fil)*min(uHeat,1.0), vec3(1.0)), uA*0.6*fade*core*(0.4+0.6*fil)); }' }); }
 function impTrail(im, dt, emit, heat){
   const T=im.tr, pa=T.g.attributes.position.array, ca=T.g.attributes.color.array, dart=IMPX.cfg.target==='dart';
-  if(emit){ for(let e=0;e<3;e++){ const i=T.i=(T.i+1)%T.N, j=im.r*0.7;
+  if(emit){ for(let e=0;e<3;e++){ const i=T.i=(T.i+1)%T.N, j=im.r*0.35;
       pa[i*3]=im.head.position.x+gRand()*j; pa[i*3+1]=im.head.position.y+gRand()*j; pa[i*3+2]=im.head.position.z+gRand()*j; T.age[i]=0; T.h[i]=dart?0.35:0.25+0.9*heat; } }
   for(let i=0;i<T.N;i++){ const a=T.age[i]+=dt, k=Math.max(0,1-a/1.8)*T.h[i];
     if(dart){ ca[i*3]=0.55*k; ca[i*3+1]=0.75*k; ca[i*3+2]=k; } else { ca[i*3]=k; ca[i*3+1]=k*(0.45+0.4*k); ca[i*3+2]=k*0.25*k; } }
@@ -3475,9 +3518,47 @@ function impRock(r,o,seed){
     cc.copy(c0).lerp(c1,Math.min(1,Math.max(0,nz*1.25-0.1))).multiplyScalar(1-pit*0.35);
     col[i*3]=cc.r; col[i*3+1]=cc.g; col[i*3+2]=cc.b;
     p.setXYZ(i, v.x*d*o.ax[0]*r, v.y*d*o.ax[1]*r, v.z*d*o.ax[2]*r); }
-  g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.computeVertexNormals();
-  const m=new THREE.MeshStandardMaterial({ vertexColors:true, roughness:o.ro, metalness:o.me, flatShading:!!o.flat, emissive:0xff5a1e, emissiveIntensity:0 });
+  g.setAttribute('color',new THREE.BufferAttribute(col,3)); impSmoothNormals(g);
+  const m=new THREE.MeshStandardMaterial({ vertexColors:true, roughness:o.ro, metalness:o.me, flatShading:!!o.flat, emissive:0xff4a14, emissiveIntensity:0 });
+  impRockShader(m, o.flat?0.55:0.9);
   const mesh=new THREE.Mesh(g,m); mesh.userData.mat=m; return mesh;
+}
+/* r128 IcosahedronGeometry indekslanmagan — computeVertexNormals() har uchburchakka alohida normal berib, tosh qirrali
+   "piksel" bo'lib ko'rinardi. Bir joydagi uchlar birlashtirilib, yuzaga qarab o'rtacha (silliq) normal hisoblanadi. */
+function impSmoothNormals(g){
+  const p=g.attributes.position, n=p.count, ids=new Map(), map=new Int32Array(n), acc=[];
+  for(let i=0;i<n;i++){ const k=Math.round(p.getX(i)*1e6)+','+Math.round(p.getY(i)*1e6)+','+Math.round(p.getZ(i)*1e6);
+    let id=ids.get(k); if(id===undefined){ id=acc.length/3; ids.set(k,id); acc.push(0,0,0); } map[i]=id; }
+  const a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3(), cb=new THREE.Vector3(), ab=new THREE.Vector3();
+  for(let i=0;i+2<n;i+=3){ a.fromBufferAttribute(p,i); b.fromBufferAttribute(p,i+1); c.fromBufferAttribute(p,i+2);
+    cb.subVectors(c,b).cross(ab.subVectors(a,b));   // uzunligi yuzaga proporsional — katta yuzlar ko'proq ta'sir qiladi
+    for(let k=0;k<3;k++){ const j=map[i+k]*3; acc[j]+=cb.x; acc[j+1]+=cb.y; acc[j+2]+=cb.z; } }
+  const nr=new Float32Array(n*3);
+  for(let i=0;i<n;i++){ const j=map[i]*3, x=acc[j], y=acc[j+1], z=acc[j+2], l=Math.hypot(x,y,z)||1; nr[i*3]=x/l; nr[i*3+1]=y/l; nr[i*3+2]=z/l; }
+  g.setAttribute('normal',new THREE.BufferAttribute(nr,3));
+}
+/* Asteroid sirtini realistik qiladi (MeshStandardMaterial'ga kichik qo'shimcha):
+   - mayda relyef: obyekt koordinatasidagi shovqindan normal buziladi — poligon qirralari va "plastmassa" silliqligi yo'qoladi;
+   - qizish faqat OLDINGI tomonda: atmosferaga kirganda havo jism oldida siqilib qiziydi, orqa tomon qorong'i qoladi
+     (avval butun tosh bir tekis to'q sariq-oq porlardi). uLead — dunyo koordinatasida harakat yo'nalishi. */
+function impRockShader(m, bumpK){
+  m.userData.lead={ value:new THREE.Vector3(0,0,1) };
+  m.onBeforeCompile=sh=>{
+    sh.uniforms.uLead=m.userData.lead; sh.uniforms.uBump={ value:bumpK };
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vObj;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvObj=position;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vObj; uniform vec3 uLead; uniform float uBump;\n'+IMP_NOISE)
+      .replace('#include <normal_fragment_maps>',
+        '#include <normal_fragment_maps>\n'+
+        '{ vec3 q=normalize(vObj)*7.0; float e=0.05, n0=fb3(q);\n'+
+        '  vec3 gr=vec3(fb3(q+vec3(e,0,0))-n0, fb3(q+vec3(0,e,0))-n0, fb3(q+vec3(0,0,e))-n0)/e;\n'+
+        '  normal=normalize(normal - (viewMatrix*vec4(gr,0.0)).xyz*0.06*uBump); }')
+      .replace('#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\n'+
+        '{ float lead=max(dot(normal, normalize((viewMatrix*vec4(uLead,0.0)).xyz)),0.0);\n'+
+        '  totalEmissiveRadiance*=pow(lead,2.2)*(0.7+0.6*fb3(normalize(vObj)*5.0)); }');
+  };
+  m.customProgramCacheKey=()=>'impRock';
 }
 let _theiaTex=null;
 function impTheiaTex(){ // Teya: Mars kattaligidagi yosh sayyora — bazalt po'st, kraterlar, yoriqlardan lava
@@ -3520,12 +3601,13 @@ function impMakeImpactor(P,n,cfg,delay){
   if(cfg.body==='dart'||cfg.target==='dart') head.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), dir.clone().negate());
   impAdd(head); head.position.copy(from);
   const glow=impAdd(new THREE.Sprite(new THREE.SpriteMaterial({ map:impGlow(), color:cfg.target==='dart'?0xbfe0ff:(cfg.body==='comet'?0xd6ecff:0xffc080), transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false })));
-  const trail=impAdd(new THREE.Mesh(new THREE.CylinderGeometry(0,1,1,16,1,true), new THREE.MeshBasicMaterial({ color:cfg.target==='dart'?0x9fd0ff:0xffb070, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })));
+  const trail=impAdd(new THREE.Mesh(new THREE.CylinderGeometry(0,1,1,32,24,true), impTrailMat(cfg.target==='dart')));
   trail.quaternion.setFromUnitVectors(IMP_UP, dir);
   const TN=280, tp=new Float32Array(TN*3), tc=new Float32Array(TN*3), tg=new THREE.BufferGeometry();
   for(let i=0;i<TN;i++) tp.set([from.x,from.y,from.z],i*3);
   tg.setAttribute('position',new THREE.BufferAttribute(tp,3)); tg.setAttribute('color',new THREE.BufferAttribute(tc,3));
-  const tpts=impAdd(new THREE.Points(tg,new THREE.PointsMaterial({ map:impGlow(), size:Math.max(r*2.4,Rl*0.022), vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }))); tpts.frustumCulled=false;
+  // Iz zarralari: mayda va zich — alohida to'q sariq "dog'lar" emas, uzluksiz cho'g' oqimi
+  const tpts=impAdd(new THREE.Points(tg,new THREE.PointsMaterial({ map:impGlow(), size:Math.max(r*1.1,Rl*0.009), vertexColors:true, transparent:true, opacity:0.8, blending:THREE.AdditiveBlending, depthWrite:false }))); tpts.frustumCulled=false;
   const tr={ g:tg, N:TN, i:0, age:new Float32Array(TN).fill(9), h:new Float32Array(TN) };
   return { head, glow, trail, tr, from, tgt, P, n, dir, r, delay, tin:Math.max(cfg.tin||2.4, IMPX.chase?4.2:0), hit:false };
 }
@@ -3586,17 +3668,19 @@ async function eraApply(rec,cfg){
   if(cfg.target!=='earth' || !cfg.era){ IMPX.ready=true; return; }
   if(cfg.era==='theia' && rec.extras.moonPivot) hide(rec.extras.moonPivot);
   const U=rec.mesh.material.uniforms, cl=rec.extras.clouds;
-  ERA.saved={ rec, day:U.dayTex.value, night:U.nightTex.value, norm:U.normTex.value, rough:U.roughTex.value, cl:cl?cl.material.opacity:0 };
-  const t=await eraBuild(cfg);
+  ERA.saved={ rec, day:U.dayTex.value, night:U.nightTex.value, norm:U.normTex.value, rough:U.roughTex.value, cl:cl?cl.material.opacity:0, real:U.realMap?U.realMap.value:0 };
+  // Bugungi davr (Tunguska, Chelyabinsk): yuklangan haqiqiy NASA xaritasi earth-now.jpg dan sifatliroq — o'sha qoladi
+  const t=(cfg.era==='now' && window.__REALTEX && window.__REALTEX.earth) ? null : await eraBuild(cfg);
   if(IMPX.rec!==rec || !ERA.saved) return;
-  if(t){ U.dayTex.value=t.day; U.nightTex.value=t.night; U.normTex.value=t.norm; U.roughTex.value=t.rough; }
+  // Davr xaritasi o'zining relyef/okean xaritalari bilan keladi — "haqiqiy NASA tekstura" rejimi vaqtincha o'chadi
+  if(t){ U.dayTex.value=t.day; U.nightTex.value=t.night; U.normTex.value=t.norm; U.roughTex.value=t.rough; if(U.realMap) U.realMap.value=0; }
   if(cl) cl.material.opacity=cfg.era==='theia'?0:0.28;
   IMPX.ready=true;
 }
 function eraRestore(){
   ERA.hidden.forEach(o=>o.visible=true); ERA.hidden=[];
   const s=ERA.saved; if(!s) return; ERA.saved=null;
-  const U=s.rec.mesh.material.uniforms; U.dayTex.value=s.day; U.nightTex.value=s.night; U.normTex.value=s.norm; U.roughTex.value=s.rough;
+  const U=s.rec.mesh.material.uniforms; U.dayTex.value=s.day; U.nightTex.value=s.night; U.normTex.value=s.norm; U.roughTex.value=s.rough; if(U.realMap) U.realMap.value=s.real;
   if(s.rec.extras.clouds) s.rec.extras.clouds.material.opacity=s.cl;
 }
 // ---------- Ta'sir hududlari: sirtdagi konsentrik zonalar + yorliqlar ----------
@@ -3741,10 +3825,15 @@ function impactStep(dt){
     const u=Math.min(1,lt/im.tin), e=u*u*(0.4+0.6*u)*0.55+u*0.45;
     im.head.position.lerpVectors(im.from,im.tgt,e); if(!im.head.userData.noSpin){ im.head.rotation.x+=dt*(cfg.theia?0.25:1.3); im.head.rotation.y+=dt*(cfg.theia?0.35:0.9); }
     const alt=Math.max(0,im.head.position.length()-Rl)/Rl, heat=cfg.target==='dart'?0.5:Math.min(1,Math.max(0,1-alt/0.6));
-    const hm=im.head.userData.mat; if(hm) hm.emissiveIntensity=(im.head.userData.e0||0)+heat*1.6;
-    im.glow.position.copy(im.head.position); im.glow.scale.setScalar(Math.max(im.r*7,Rl*0.07)*(0.5+heat)); im.glow.material.opacity=Math.min(1,u*3)*(0.35+0.65*heat);
-    const len=Rl*(cfg.target==='dart'?1.2:(0.25+0.9*heat))*(cfg.theia?2:1), w=Math.max(im.r*1.1,Rl*0.008);
-    im.trail.scale.set(w,len,w); im.trail.position.copy(im.head.position).addScaledVector(im.dir,len/2); im.trail.material.opacity=Math.min(1,u*3)*(0.25+0.6*heat);
+    const hm=im.head.userData.mat; if(hm){ hm.emissiveIntensity=(im.head.userData.e0||0)+heat*1.5;
+      // qizish oldingi tomonda: harakat yo'nalishi (−dir) dunyo koordinatasida
+      if(hm.userData.lead){ IMPX.grp.updateMatrixWorld(); hm.userData.lead.value.copy(im.dir).negate().transformDirection(IMPX.grp.matrixWorld); } }
+    // Nur — jism OLDIDA (siqilgan qaynoq havo), kichikroq: avval jismni butunlay oqartirib yuborardi
+    im.glow.position.copy(im.head.position).addScaledVector(im.dir,-im.r*0.55);
+    im.glow.scale.setScalar(Math.max(im.r*3.4,Rl*0.03)*(0.45+heat)); im.glow.material.opacity=Math.min(1,u*3)*(0.12+0.55*heat*heat);
+    const len=Rl*(cfg.target==='dart'?1.2:(0.25+0.9*heat))*(cfg.theia?2:1), w=Math.max(im.r*1.25,Rl*0.008);
+    im.trail.scale.set(w,len,w); im.trail.position.copy(im.head.position).addScaledVector(im.dir,len/2);
+    const tu=im.trail.material.uniforms; tu.uA.value=Math.min(1,u*3)*(0.3+0.7*heat); tu.uT.value=IMPX.t; tu.uHeat.value=cfg.target==='dart'?1:0.45+0.75*heat;
     impTrail(im,sd,true,heat);
     if(u>=1){ im.hit=true; im.head.visible=cfg.theia; im.glow.visible=false; im.trail.visible=false;
       impHit(im.P,im.n,cfg.frags?cfg.s*(0.7+Math.random()*0.6):cfg.s,{ air:cfg.air, theia:cfg.theia, dart:cfg.target==='dart', dark:cfg.target==='jupiter' });
