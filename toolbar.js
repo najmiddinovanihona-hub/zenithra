@@ -32,7 +32,7 @@
   const GROUPS=[
     { key:'tour',  ico:'🚀', items:['toursBtn','discBtn','rtBtn'] },
     { key:'learn', ico:'📖', items:['darsBtn','quizBtn2','ilmiyBtn'] },
-    { key:'lab',   ico:'🔬', items:[labsWrap,'lsBtn','seasonsBtn','ubBtn','skyBtn','weatherBtn','gridBtn'] },
+    { key:'lab',   ico:'🔬', items:[labsWrap,'lsBtn','seasonsBtn','ubBtn','skyBtn','weatherBtn','gridBtn','conBtn'] },
   ];
   const groupsEl=document.createElement('div'); groupsEl.className='tb-groups';
   const groups=GROUPS.map(g=>{

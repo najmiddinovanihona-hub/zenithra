@@ -12,7 +12,7 @@ const TX={
   close:{uz:'Yopish',ru:'Закрыть',en:'Close'},
   sensors:{uz:'📱 Datchiklarni yoqish',ru:'📱 Включить датчики',en:'📱 Enable sensors'},
   camOn:{uz:'📷 Kamera',ru:'📷 Камера',en:'📷 Camera'}, camOff:{uz:'📷 Kamerasiz',ru:'📷 Без камеры',en:'📷 No camera'},
-  find:{uz:'Topish:',ru:'Найти:',en:'Find:'}, none:{uz:'—',ru:'—',en:'—'},
+  find:{uz:'Topish:',ru:'Найти:',en:'Find:'}, gPlan:{uz:'Quyosh, Oy, sayyoralar',ru:'Солнце, Луна, планеты',en:'Sun, Moon, planets'}, gCon:{uz:'Yulduz turkumlari',ru:'Созвездия',en:'Constellations'}, none:{uz:'—',ru:'—',en:'—'},
   drag:{uz:'Kompyuterda: sichqoncha bilan suring, g‘ildirakcha — yaqinlashtirish. Telefonda datchiklarni yoqing.',
         ru:'На компьютере: тяните мышью, колесо — масштаб. На телефоне включите датчики.',
         en:'On a computer: drag to look around, scroll to zoom. On a phone, enable the sensors.'},
@@ -74,7 +74,10 @@ register('ar',{ ico:'📱', bare:true, group:{uz:'Osmon',ru:'Небо',en:'Sky'}
       </div>`;
     const q=s=>body.querySelector(s), cv=q('.ar-cv'), ctx=cv.getContext('2d'), video=q('.ar-video'), note=q('.ar-note');
     const sel=q('.ar-sel');
-    sel.innerHTML=`<option value="">${esc(T(TX.none))}</option>`+PLAN.map(k=>`<option value="${k}">${esc(T(window.SKY_ASTRO.PN[k]))}</option>`).join('');
+    const LI=Math.max(0,['uz','ru','en'].indexOf(L()));
+    const conOpts=(window.SKY_CONSTELLATIONS||[]).map(c=>[c.k,c.n[LI]]).sort((a,b)=>a[1].localeCompare(b[1],L()));
+    sel.innerHTML=`<option value="">${esc(T(TX.none))}</option><optgroup label="${esc(T(TX.gPlan))}">`+PLAN.map(k=>`<option value="${k}">${esc(T(window.SKY_ASTRO.PN[k]))}</option>`).join('')+'</optgroup>'
+      +(conOpts.length?`<optgroup label="${esc(T(TX.gCon))} (${conOpts.length})">`+conOpts.map(([k,n])=>`<option value="c:${k}">${esc(n)}</option>`).join('')+'</optgroup>':'');
     sel.value=lab.target; sel.onchange=()=>{ lab.target=sel.value; click(700); };
     note.textContent=T(TX.drag);
 
@@ -84,10 +87,16 @@ register('ar',{ ico:'📱', bare:true, group:{uz:'Osmon',ru:'Небо',en:'Sky'}
     const inLines=new Set(DEFS.flatMap(d=>d.ids));
     const stars=CAT.filter(s=>s.mag<=3.2||inLines.has(s.id)).map(s=>({ s, rgb:bvRGB(s.bv) }));
     const byId={}; stars.forEach(o=>{ byId[o.s.id]=o; });
+    // 88 ta turkum (labs/constellations.js): chiziq nuqtalari va nom joyi (o'rtacha yo'nalish) — RA/Dec'da
+    const CONS=(window.SKY_CONSTELLATIONS||[]).map(c=>{ let x=0,y=0,z=0;
+      c.l.flat().forEach(([ra,de])=>{ const a=ra*15*D2R, d=de*D2R; x+=Math.cos(d)*Math.cos(a); y+=Math.cos(d)*Math.sin(a); z+=Math.sin(d); });
+      return { c, cra:((Math.atan2(y,x)/D2R+360)%360)/15, cdec:Math.atan2(z,Math.hypot(x,y))/D2R }; });
     let objs=null, lastCalc=0;
     function calc(){
       const o=loc(), J=jd(new Date()), B=A.bodies(J);
       stars.forEach(x=>{ const p=A.precess(x.s.ra*15,x.s.dec,J), h=A.altaz(p.ra,p.dec,J,o); x.az=h.az; x.alt=h.alt; x.v=enu(h.az,h.alt); });
+      const hz=(ra,de)=>{ const p=A.precess(ra*15,de,J), h=A.altaz(p.ra,p.dec,J,o); return enu(h.az,h.alt); };
+      CONS.forEach(x=>{ x.vs=x.c.l.map(seg=>seg.map(([ra,de])=>hz(ra,de))); x.cv=hz(x.cra,x.cdec); });
       objs=PLAN.map(k=>{ const h=A.look(k,B,J,o); return { k, az:h.az, alt:h.alt, v:enu(h.az,h.alt), mag:B[k].mag, ill:B[k].ill }; });
       q('.ar-loc').textContent=locName ? locName(o) : '';
       lastCalc=Date.now();
@@ -164,7 +173,11 @@ register('ar',{ ico:'📱', bare:true, group:{uz:'Osmon',ru:'Небо',en:'Sky'}
       T(CARD).forEach((n,i)=>{ const p=P(enu(i*90,0)); if(p){ ctx.fillStyle='rgba(140,230,160,.95)'; ctx.fillText(n,p[0],p[1]-8); } });
       // turkum chiziqlari va nomlari
       ctx.lineWidth=1; ctx.strokeStyle=cam?'rgba(160,200,255,.7)':'rgba(120,160,255,.45)';
-      DEFS.forEach(d=>{ const pts=d.ids.map(id=>byId[id]&&P(byId[id].v));
+      if(CONS.length){ const li=['uz','ru','en'].indexOf(L()); ctx.font='italic 12px system-ui,sans-serif';
+        CONS.forEach(x=>{ x.vs.forEach(seg=>{ ctx.beginPath(); let pen=false;
+            seg.forEach(v=>{ const p=P(v); if(!p){ pen=false; return; } if(pen) ctx.lineTo(p[0],p[1]); else { ctx.moveTo(p[0],p[1]); pen=true; } }); ctx.stroke(); });
+          const pc=P(x.cv); if(pc && pc[0]>-40 && pc[0]<W+40 && pc[1]>-20 && pc[1]<H+20){ ctx.fillStyle=x.c.z?'rgba(255,217,138,.85)':'rgba(160,190,255,.8)'; ctx.fillText(x.c.n[li<0?0:li],pc[0],pc[1]); } });
+      } else DEFS.forEach(d=>{ const pts=d.ids.map(id=>byId[id]&&P(byId[id].v));
         d.links.forEach(([a,b])=>{ const p=pts[a], q2=pts[b]; if(p&&q2){ ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q2[0],q2[1]); ctx.stroke(); } });
         const vis=pts.filter(Boolean); if(vis.length>=2 && A.CN && A.CN[d.key]){ const mx=vis.reduce((s,p)=>s+p[0],0)/vis.length, my=vis.reduce((s,p)=>s+p[1],0)/vis.length;
           ctx.fillStyle='rgba(160,190,255,.8)'; ctx.font='italic 12px system-ui,sans-serif'; ctx.fillText(A.CN[d.key][['uz','ru','en'].indexOf(L())]||A.CN[d.key][0],mx,my+22); } });
@@ -184,11 +197,14 @@ register('ar',{ ico:'📱', bare:true, group:{uz:'Osmon',ru:'Небо',en:'Sky'}
         ctx.globalAlpha=1;
         const d=Math.hypot(p[0]-cx,p[1]-cy); if(d<bestD && d<80){ bestD=d; best={ name:T(A.PN[o.k]), alt:o.alt }; } });
       // qidirilayotgan ob'ektga yo'l ko'rsatkich (ekrandan tashqarida bo'lsa)
-      if(lab.target){ const o=objs.find(x=>x.k===lab.target); if(o){ const w=rotZ(o.v,off), z=dot(w,B.f), x=dot(w,B.r), y=dot(w,B.u);
+      if(lab.target){ let o=null;
+        if(lab.target.startsWith('c:')){ const x=CONS.find(y=>'c:'+y.c.k===lab.target); if(x&&x.cv) o={ v:x.cv, alt:Math.asin(Math.max(-1,Math.min(1,x.cv[2])))/D2R, name:x.c.n[Math.max(0,['uz','ru','en'].indexOf(L()))] }; }
+        else { const y=objs.find(x=>x.k===lab.target); if(y) o={ v:y.v, alt:y.alt, name:T(A.PN[y.k]) }; }
+        if(o){ const w=rotZ(o.v,off), z=dot(w,B.f), x=dot(w,B.r), y=dot(w,B.u);
           const p=z>0.05?[cx+x/z*F, cy-y/z*F]:null;
           if(!p || p[0]<30||p[0]>W-30||p[1]<90||p[1]>H-150){ const ang=Math.atan2(-y,x), R0=Math.min(W,H)*0.36, ax=cx+Math.cos(ang)*R0, ay=cy+Math.sin(ang)*R0;
             ctx.save(); ctx.translate(ax,ay); ctx.rotate(ang); ctx.fillStyle='rgba(255,213,79,.95)'; ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(-10,-11); ctx.lineTo(-4,0); ctx.lineTo(-10,11); ctx.closePath(); ctx.fill(); ctx.restore();
-            ctx.fillStyle='rgba(255,213,79,.95)'; ctx.font='600 12px system-ui,sans-serif'; ctx.fillText(T(A.PN[o.k])+(o.alt<0?' ('+T(TX.below)+')':''),ax,ay+28); } } }
+            ctx.fillStyle='rgba(255,213,79,.95)'; ctx.font='600 12px system-ui,sans-serif'; ctx.fillText(o.name+(o.alt<0?' ('+T(TX.below)+')':''),ax,ay+28); } } }
       // HUD: qayoqqa qarayapmiz
       const fw=rotZ(B.f,-off), az=(Math.atan2(fw[0],fw[1])/D2R+360)%360, alt=Math.asin(Math.max(-1,Math.min(1,fw[2])))/D2R;
       lab.hudT=lab.hudT||0; if(Date.now()-lab.hudT>200){ lab.hudT=Date.now();

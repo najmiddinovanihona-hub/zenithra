@@ -1975,6 +1975,50 @@ skyRoot.traverse(o=>{
 });
 dust.material.userData.skyBase = dust.material.opacity; SKY_FADE_MATS.push(dust.material);
 
+/* --- Barcha 88 ta yulduz turkumi (labs/constellations.js): chiziqlar + nomlar, ✨ tugmasi bilan yoqiladi.
+       Osmon guruhida — yulduzlar bilan aniq ustma-ust tushadi va kosmik uzoqlashishda ular bilan birga so'nadi. --- */
+const CON_ALL = (function(){
+  const D=window.SKY_CONSTELLATIONS||[], grp=new THREE.Group(); grp.visible=false; skyRoot.add(grp);
+  const R=CONST_R*0.995, segPts=[];
+  D.forEach(c=>c.l.forEach(s=>{ for(let i=0;i<s.length-1;i++) segPts.push(radecToVector(s[i][0],s[i][1],R), radecToVector(s[i+1][0],s[i+1][1],R)); }));
+  const lineMat=new THREE.LineBasicMaterial({ color:0x8fb4ff, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending });
+  grp.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(segPts), lineMat));
+  // Nom joyi — turkum chiziqlari nuqtalarining o'rtacha yo'nalishi
+  const cent=D.map(c=>{ const v=new THREE.Vector3(); c.l.flat().forEach(p=>v.add(radecToVector(p[0],p[1],1))); return v.normalize().multiplyScalar(CONST_R*0.97); });
+  function tex(txt, zod){
+    const c=makeCanvas(512,96), x=c.getContext('2d');
+    x.font='500 42px "Segoe UI", system-ui, sans-serif'; if('letterSpacing' in x) x.letterSpacing='2px';
+    const w=Math.min(500, x.measureText(txt).width+24);
+    x.textAlign='center'; x.textBaseline='middle'; x.shadowColor='rgba(0,0,0,0.95)'; x.shadowBlur=8;
+    x.fillStyle=zod?'#ffd98a':'#b4cbff'; x.fillText(txt,256,50);
+    return { map:asTexture(c,false), w:w/512 };
+  }
+  let labels=[];
+  const st={ f:0, t:0, k:-1 };
+  function build(){
+    labels.forEach(s=>{ grp.remove(s); s.material.map.dispose(); s.material.dispose(); }); labels=[];
+    const li={uz:0,ru:1,en:2}[LANG]; const ix=li==null?0:li;
+    D.forEach((c,i)=>{ const t=tex(c.n[ix], c.z);
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({ map:t.map, transparent:true, opacity:0, depthWrite:false }));
+      sp.center.set(0.5,0.5); sp.scale.set(300,300*96/512,1); sp.position.copy(cent[i]); grp.add(sp); labels.push(sp); });
+    st.k=-1;
+  }
+  build();
+  function step(dt){
+    if(st.f!==st.t){ st.f=Math.max(0,Math.min(1, st.f+Math.sign(st.t-st.f)*dt*1.6)); }
+    const k=easeInOut(st.f)*COSMO.skyFade;
+    if(Math.abs(k-st.k)<0.002) return;
+    st.k=k; grp.visible=k>0.003;
+    lineMat.opacity=0.42*k; labels.forEach(s=>{ s.material.opacity=0.88*k; });
+  }
+  function toggle(){ st.t=st.t?0:1; return st.t===1; }
+  return { step, toggle, build, count:D.length };
+})();
+const CON_BTN_T={ uz:'Yulduz turkumlari (88)', ru:'Созвездия (88)', en:'Constellations (88)' };
+{ const b=document.getElementById('conBtn');
+  if(b){ b.title=CON_BTN_T[LANG]||CON_BTN_T.uz;
+    b.addEventListener('click', ()=>{ const on=CON_ALL.toggle(); b.classList.toggle('active', on); playClick(on?760:440); }); } }
+
 // Osmondagi Somon yo'li tasmasi — haqiqiy galaktik tekislik bo'ylab, markazi Qavs turkumida,
 // Oqqushdan Qavsgacha "Buyuk yoriq" chang lentasi bilan
 const mwBand = new THREE.Mesh(new THREE.SphereGeometry(2950, 64, 32), new THREE.ShaderMaterial({
@@ -2757,6 +2801,7 @@ function applyLanguage(lang){
   // Kirish oynasi matnlari yangi tilda (startupda hali yuklanmagan bo'lishi mumkin)
   if(window.__authReady) authBuildUI();
   // Osmon to'ri yorliqlari yangi tilda
+  if(typeof CON_ALL!=='undefined'){ CON_ALL.build(); const cb=document.getElementById('conBtn'); if(cb) cb.title=CON_BTN_T[LANG]||CON_BTN_T.uz; }
   if(typeof skyBuildPoleLabel==='function'){ skyBuildPoleLabel(); skyGridK=-1;
     const gb=document.getElementById('gridBtn'), gt=window.LOC[LANG].sky;
     if(gb&&gt) gb.title=gt.btn; }
@@ -5429,6 +5474,7 @@ function animate(){
   starsNear.rotation.y -= sdt*0.006;
   starsNear.material.opacity = 0.5 + Math.sin(clock.elapsedTime*1.7)*0.12;   // jimirlash (xiraroq — katalog ustun)
   skyGridStep(dt);
+  CON_ALL.step(dt);
   skyPoleStep(dt);
   constLinesStep(dt);
   nebulaGroup.rotation.y += sdt*0.002;
