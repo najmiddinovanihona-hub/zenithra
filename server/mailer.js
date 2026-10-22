@@ -59,3 +59,6 @@ export async function sendCode({ to, name, lang, purpose, code }) {
   }
   await getTransport().sendMail({ from: env.MAIL_FROM || env.SMTP_USER, to, subject: msg.subject, text: msg.text, html: msg.html });
 }
+
+// Ishga tushganda ulanishni tekshirish (login/parol to'g'rimi)
+export const verifyMail = () => getTransport().verify();

@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { prisma } from './db.js';
 import { createApp } from './app.js';
 import { initPush, startScheduler } from './push.js';
+import { mailConfigured, verifyMail } from './mailer.js';
 
 // Admin faqat server egasi tomonidan tayinlanadi: npm run make-admin -- email@example.com
 // (avval ADMIN_EMAIL bilan ro'yxatdan o'tgan HAR QANDAY odam admin bo'lardi — email tasdiqlanmagani uchun xavfli edi).
@@ -26,6 +27,14 @@ for (const s of await prisma.settings.findMany()) {
 
 await initPush();
 startScheduler();
+
+// Pochta holati: ulanmagan bo'lsa tasdiqlash kodlari xat bo'lib bormaydi — buni ochiq aytamiz
+if (mailConfigured()) {
+  verifyMail().then(() => console.log(`[mail] ✔ Pochta ulangan: ${process.env.SMTP_USER} — kodlar xat bo'lib yuboriladi`))
+    .catch((e) => console.warn(`[mail] ✖ Pochtaga ulanib bo'lmadi (${e.code || e.message}). Qayta sozlash: npm run mail:setup`));
+} else {
+  console.warn("[mail] ⚠ Pochta ULANMAGAN — kodlar xat bo'lib bormaydi, faqat shu oynada ko'rinadi. Ulash: npm run mail:setup");
+}
 
 const server = createApp().listen(config.port, () => {
   console.log(`[astro] http://localhost:${config.port}`);

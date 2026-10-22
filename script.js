@@ -6299,11 +6299,11 @@ function authBuildUI(){
   authEl('authSub').textContent=u||authCh?'':t.sub;
   authEl('authTabIn').textContent=t.tabIn;
   authEl('authTabUp').textContent=t.tabUp;
-  authEl('authName').placeholder=t.name;
+  authEl('authName').placeholder=t.firstName; authEl('authSurname').placeholder=t.lastName;
   authEl('authEmail').placeholder=t.email;
   authEl('authPass').placeholder=t.pass;
   authEl('authPass2').placeholder=t.pass2;
-  authEl('authSubmitTx').textContent=authMode==='in'?t.btnIn:t.btnUp;
+  authApplyFields();
   document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.title=b.classList.contains('on')?t.hidePass:t.showPass; b.setAttribute('aria-label',b.title); });
   const av=authEl('authAvatar'); av.classList.toggle('guest',!u); av.textContent=u?(u.name.trim()[0]||'✦').toUpperCase():'✦';
   authEl('authClose').title=t.close;
@@ -6323,12 +6323,30 @@ function authSetMode(m){
   authEl('authTabUp').classList.toggle('active',m==='up');
   authEl('authTabIn').setAttribute('aria-selected',m==='in'); authEl('authTabUp').setAttribute('aria-selected',m==='up');
   authEl('authTabs').classList.toggle('up',m==='up');
-  authEl('authName').style.display=m==='up'?'block':'none';
-  authEl('authPass2Wrap').style.display=m==='up'?'':'none';
+  authUpStep=1;
   authEl('authPass').autocomplete=m==='up'?'new-password':'current-password';
   authEl('authErr').classList.remove('on');
   authBuildUI();
 }
+// Ro'yxatdan o'tish 3 bosqichda: ① ism + familiya → ② email + parol → ③ pochtaga kelgan kod
+var authUpStep=1;
+function authApplyFields(){
+  const t=authT(), up=authMode==='up', s1=up&&authUpStep===1, u=window.API&&window.API.user;
+  authEl('authName').style.display=s1?'block':'none';
+  authEl('authSurname').style.display=s1?'block':'none';
+  authEl('authEmail').style.display=s1?'none':'block';
+  authEl('authPass').closest('.auth-pw').style.display=s1?'none':'';
+  authEl('authPass2Wrap').style.display=up&&!s1?'':'none';
+  authEl('authSubmitTx').textContent=!up?t.btnIn:s1?t.next:t.sendCode;
+  authEl('authStepBack').style.display=up&&!s1?'':'none';
+  authEl('authStepBack').textContent=t.stepBack;
+  const st=authEl('authSteps'), cur=authCh?3:up?authUpStep:0;
+  st.style.display=!u&&(up||authCh&&authChUp)?'':'none';
+  [...st.children].forEach((li,i)=>{ li.lastChild.textContent=t.stepNames[i]; li.classList.toggle('on',i+1===cur); li.classList.toggle('done',i+1<cur); });
+}
+function authGoStep(n){ authUpStep=n; authEl('authErr').classList.remove('on'); authApplyFields();
+  setTimeout(()=>authEl(n===1?'authName':'authEmail').focus({preventScroll:true}),40); }
+authEl('authStepBack').addEventListener('click',()=>{ playClick(520); authGoStep(1); });
 // Oyna ochiq paytda 3D sahna pauza qilinadi (__authCover → animate()): blur qotgan kadr ustida bir marta
 // hisoblanadi, GPU bo'shaydi — kiritish va animatsiyalar qotmaydi.
 let authPrevFocus=null;   // oyna yopilganda fokus shu elementga qaytadi (klaviatura bilan ishlovchilar uchun)
@@ -6346,7 +6364,7 @@ function authErrText(e){
     VALIDATION:t.errFill, MAIL_FAILED:t.errMail, MAIL_NOT_CONFIGURED:t.errMailCfg, CODE_EXPIRED:t.errCodeExpired, TOO_MANY_ATTEMPTS:t.errCodeMany })[e&&e.code] || t.errServer;
 }
 /* ---------- 2-bosqich: pochtaga yuborilgan 6 xonali kod ---------- */
-var authCh=null, authChEmail='', authResendAt=0, authResendTm=null;
+var authCh=null, authChUp=false, authChEmail='', authResendAt=0, authResendTm=null;
 const authBoxes=()=>[...document.querySelectorAll('#authCodeBoxes input')];
 function authCodeSentText(){ const p=authEl('authCodeSent'); p.textContent=authT().codeSent+' ';
   const b=document.createElement('b'); b.textContent=authChEmail; p.appendChild(document.createElement('br')); p.appendChild(b); }
@@ -6359,7 +6377,7 @@ function authResendCountdown(sec){ authResendAt=Date.now()+sec*1000; clearInterv
 function authCodeErr(msg,shake){ authEl('authCodeErr').textContent=msg||'';
   if(shake){ const g=authEl('authCodeBoxes'); g.classList.remove('bad'); void g.offsetWidth; g.classList.add('bad'); } }
 function authShowCode(r){
-  authCh=r.challenge; authChEmail=r.email||'';
+  authCh=r.challenge; authChUp=authMode==='up'; authChEmail=r.email||'';
   authBoxes().forEach(i=>{ i.value=''; i.classList.remove('filled'); }); authCodeErr('');
   authEl('authCodeBoxes').classList.remove('bad');
   authResendCountdown(r.resendIn||60);
@@ -6504,9 +6522,12 @@ async function authSubmit(){
   const pass=authEl('authPass').value;
   let name='';
   if(authMode==='up'){
-    name=authEl('authName').value.trim();
+    const first=authEl('authName').value.trim().replace(/\s+/g,' '), last=authEl('authSurname').value.trim().replace(/\s+/g,' ');
+    if(authUpStep===1){ if(!first||!last) return authShowErr(t.errName); playClick(700); return authGoStep(2); }
+    name=first+' '+last;
+    if(!first||!last){ authGoStep(1); return authShowErr(t.errName); }
     const pass2=authEl('authPass2').value;
-    if(!name||!email||!pass||!pass2) return authShowErr(t.errFill);
+    if(!email||!pass||!pass2) return authShowErr(t.errFill);
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail);
     if(pass.length<8) return authShowErr(t.errPassLen);
     if(pass!==pass2) return authShowErr(t.errPass2);

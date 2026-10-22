@@ -188,6 +188,7 @@ uz: {
   auth:{
     welcome:'Quyosh tizimiga xush kelibsiz', sub:"Davom etish uchun kiring yoki ro'yxatdan o'ting",
     tabIn:'Kirish', tabUp:"Ro'yxatdan o'tish",
+    firstName:'Ismingiz', lastName:'Familiyangiz', next:'Davom etish →', sendCode:'Pochtaga kod yuborish', stepBack:'← Ism va familiya', errName:'Ism va familiyani kiriting', stepNames:['Ism', 'Pochta', 'Kod'],
     name:'Ismingiz', email:'Email', pass:'Parol', pass2:'Parolni tasdiqlang',
     btnIn:'Kirish', btnUp:"Ro'yxatdan o'tish",
     errFill:"Barcha maydonlarni to'ldiring", errEmail:"Email noto'g'ri ko'rinishda",
@@ -619,6 +620,7 @@ ru: {
   auth:{
     welcome:'Добро пожаловать в Солнечную систему', sub:'Войдите или зарегистрируйтесь, чтобы продолжить',
     tabIn:'Вход', tabUp:'Регистрация',
+    firstName:'Имя', lastName:'Фамилия', next:'Далее →', sendCode:'Отправить код на почту', stepBack:'← Имя и фамилия', errName:'Введите имя и фамилию', stepNames:['Имя', 'Почта', 'Код'],
     name:'Ваше имя', email:'Email', pass:'Пароль', pass2:'Подтвердите пароль',
     btnIn:'Войти', btnUp:'Зарегистрироваться',
     errFill:'Заполните все поля', errEmail:'Email выглядит неверно',
@@ -1050,6 +1052,7 @@ en: {
   auth:{
     welcome:'Welcome to the Solar System', sub:'Sign in or create an account to continue',
     tabIn:'Sign in', tabUp:'Sign up',
+    firstName:'First name', lastName:'Last name', next:'Continue →', sendCode:'Email me a code', stepBack:'← Name', errName:'Enter your first and last name', stepNames:['Name', 'Email', 'Code'],
     name:'Your name', email:'Email', pass:'Password', pass2:'Confirm password',
     btnIn:'Sign in', btnUp:'Create account',
     errFill:'Please fill in all fields', errEmail:'That email does not look right',

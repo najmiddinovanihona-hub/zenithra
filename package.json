@@ -15,6 +15,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "make-admin": "node server/scripts/make-admin.js",
+    "mail:setup": "node server/scripts/mail-setup.js",
     "test": "node --test --test-concurrency=1 \"test/*.test.js\""
   },
   "prisma": {

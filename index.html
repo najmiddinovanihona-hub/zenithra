@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="logo.svg" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="stylesheet" href="style.css?v=98" />
+  <link rel="stylesheet" href="style.css?v=99" />
 </head>
 <body>
   <!-- 3D sahna shu canvasga chiziladi -->
@@ -293,13 +293,15 @@
       <div id="authAvatar" class="guest" aria-hidden="true">✦</div>
       <h2 id="authTitle"></h2>
       <p id="authSub"></p>
+      <ol id="authSteps" class="auth-steps" style="display:none" aria-hidden="true"><li><b>1</b><span></span></li><li><b>2</b><span></span></li><li><b>3</b><span></span></li></ol>
       <div id="authForm">
         <div id="authTabs" role="tablist">
           <button id="authTabIn" class="auth-tab active" type="button" role="tab"></button>
           <button id="authTabUp" class="auth-tab" type="button" role="tab"></button>
         </div>
         <div id="authFields">
-          <input id="authName" type="text" autocomplete="name" maxlength="60" style="display:none" />
+          <input id="authName" type="text" autocomplete="given-name" maxlength="29" style="display:none" />
+          <input id="authSurname" type="text" autocomplete="family-name" maxlength="29" style="display:none" />
           <input id="authEmail" type="email" autocomplete="email" inputmode="email" maxlength="254" />
           <div class="auth-pw">
             <input id="authPass" type="password" autocomplete="current-password" maxlength="128" />
@@ -312,6 +314,7 @@
         </div>
         <div id="authErr" role="alert"></div>
         <button id="authSubmit" class="auth-btn" type="button"><span class="auth-btn-tx" id="authSubmitTx"></span></button>
+        <button id="authStepBack" class="ac-link auth-back" type="button" style="display:none"></button>
       </div>
       <!-- 2-bosqich: pochtaga yuborilgan 6 xonali kod -->
       <div id="authCode" style="display:none">
@@ -509,7 +512,7 @@
   <!-- Ko‘p tilli ma'lumotlar -->
   <script src="realtex.js?v=3"></script>
   <script src="api.js?v=6"></script>
-  <script src="data.js?v=40"></script>
+  <script src="data.js?v=41"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
@@ -533,7 +536,7 @@
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=2"></script>
   <script src="labs/constellations.js?v=1"></script>
-  <script src="script.js?v=110"></script>
+  <script src="script.js?v=111"></script>
   <script src="guide.js?v=6"></script>
   <script src="a11y.js?v=1"></script>
   <script src="labs/ilmiy-d1.js?v=1"></script>

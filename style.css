@@ -1985,3 +1985,16 @@ body.clean #bottomBar{ display:none !important; }
 .ac-link:not(:disabled):hover{ text-decoration:underline; }
 .ac-hint{ font-size:11px; line-height:1.5; color:#7d89b0; margin:12px 0 0; }
 @media (max-width:400px){ .ac-boxes{ gap:6px; } .ac-boxes input{ width:40px; height:50px; font-size:20px; } }
+
+/* Ro'yxatdan o'tish bosqichlari: 1 Ism — 2 Pochta — 3 Kod */
+.auth-steps{ list-style:none; display:flex; align-items:flex-start; justify-content:center; gap:0; margin:-2px 0 16px; padding:0; }
+.auth-steps li{ display:flex; flex-direction:column; align-items:center; gap:5px; width:74px; position:relative; font-size:11px; color:#7d89b0; }
+.auth-steps li + li::before{ content:""; position:absolute; top:13px; right:50%; width:100%; height:2px; margin-right:14px;
+  background:rgba(140,170,255,.18); border-radius:2px; }
+.auth-steps li.done + li::before, .auth-steps li.done + li.on::before{ background:linear-gradient(90deg,var(--neon),var(--neon-2)); }
+.auth-steps b{ position:relative; z-index:1; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:#9aa8d6; background:rgba(6,9,22,.9); border:1px solid rgba(140,170,255,.25); transition:all .2s; }
+.auth-steps li.on{ color:var(--text); }
+.auth-steps li.on b{ color:#04060f; background:linear-gradient(135deg,var(--neon),var(--neon-2)); border-color:transparent; box-shadow:0 0 0 4px rgba(78,168,255,.15); }
+.auth-steps li.done b{ color:var(--neon); border-color:var(--neon); }
+.auth-back{ display:block; margin:10px auto 0; }
