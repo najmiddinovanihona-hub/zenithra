@@ -2298,21 +2298,17 @@ body.obswmode .ui-toggle{ display:none !important; }
 @media (max-width:760px){ .obsw-lbn{ position:absolute; bottom:20px; } .obsw-lbn.prev{ left:20px; } .obsw-lbn.next{ right:20px; } .obsw-gal{ grid-template-columns:1fr 1fr; } }
 .obsw .obsw-card{ background:#0c1328 !important; }   /* to'liq qoplaydi — orqadagi menyu ko'rinmasin */
 
-/* ===== Yoqilgan funksiyalar paneli (labs/active-tray.js): pastki boshqaruv qatori ustidagi chiplar ===== */
-#activeTray{ position:fixed; left:50%; transform:translateX(-50%); z-index:30; display:none; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;
-  max-width:calc(100% - 24px); pointer-events:none; }
-#activeTray.on{ display:flex; } #activeTray.hid, body.obswmode #activeTray{ display:none; }
-#activeTray .atr-list{ display:contents; }
-.atr-chip{ pointer-events:auto; display:flex; align-items:center; gap:7px; padding:5px 6px 5px 12px; border-radius:999px; font-size:12.5px; color:var(--text,#e8eeff);
-  border:1px solid rgba(78,168,255,.45); box-shadow:0 6px 20px rgba(0,0,0,.35), 0 0 0 1px rgba(78,168,255,.12) inset; animation:atrIn .22s ease-out both; }
-.atr-chip.out{ animation:atrOut .2s ease-in both; }
-@keyframes atrIn{ from{ opacity:0; transform:translateY(6px) scale(.96); } to{ opacity:1; transform:none; } }
-@keyframes atrOut{ to{ opacity:0; transform:translateY(6px) scale(.96); } }
-.atr-dot{ width:7px; height:7px; border-radius:50%; background:#3ddc84; box-shadow:0 0 0 0 rgba(61,220,132,.6); animation:atrPulse 1.8s ease-out infinite; }
-@keyframes atrPulse{ 70%{ box-shadow:0 0 0 7px rgba(61,220,132,0); } 100%{ box-shadow:0 0 0 0 rgba(61,220,132,0); } }
-.atr-ico{ font-size:14px; line-height:1; } .atr-lbl{ white-space:nowrap; max-width:42vw; overflow:hidden; text-overflow:ellipsis; }
-.atr-x{ width:24px; height:24px; border-radius:50%; border:0; cursor:pointer; color:#fff; font-size:11px; line-height:1; background:rgba(255,255,255,.1); transition:background .15s,transform .15s; }
-.atr-x:hover{ background:rgba(255,80,80,.75); transform:scale(1.08); } .atr-x:focus-visible{ outline:2px solid var(--neon); outline-offset:2px; }
-.atr-all{ pointer-events:auto; border:1px solid rgba(255,120,120,.45); background:rgba(40,10,14,.7); color:#ffd2d2; font:inherit; font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; }
-.atr-all:hover{ background:rgba(170,40,40,.8); color:#fff; }
-@media (max-width:760px){ .atr-chip{ font-size:12px; padding:4px 5px 4px 10px; } .atr-lbl{ max-width:34vw; } }
+/* ===== Yoqilgan funksiyalar (labs/active-tray.js): sahna boshqaruvi ichidagi kichik dumaloq belgilar ===== */
+#activeTray{ display:flex; align-items:center; gap:5px; padding-left:8px; margin-left:2px; border-left:1px solid rgba(140,170,255,.2); }
+#activeTray[hidden],.atr-all[hidden]{ display:none; }
+.atr-chip,.atr-all{ position:relative; width:28px; height:28px; padding:0; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:14px; line-height:1; color:#fff; background:rgba(78,168,255,.16); border:1px solid rgba(78,168,255,.5); transition:background .15s,border-color .15s,transform .15s; animation:atrIn .2s ease-out both; }
+.atr-chip::after{ content:""; position:absolute; left:-1px; bottom:-1px; width:7px; height:7px; border-radius:50%; background:#3ddc84; box-shadow:0 0 0 2px #0b1226; }
+.atr-x{ position:absolute; top:-5px; right:-5px; width:14px; height:14px; border-radius:50%; font-style:normal; font-size:8px; line-height:14px; text-align:center;
+  background:#2a3150; color:#cfd7f0; box-shadow:0 0 0 2px #0b1226; transition:background .15s,color .15s; }
+.atr-chip:hover,.atr-chip:focus-visible{ background:rgba(255,80,80,.22); border-color:rgba(255,110,110,.7); transform:scale(1.06); outline:none; }
+.atr-chip:hover .atr-x,.atr-chip:focus-visible .atr-x{ background:#e5484d; color:#fff; }
+.atr-all{ font-size:13px; color:#ffb4b4; background:rgba(120,20,30,.35); border-color:rgba(255,120,120,.45); }
+.atr-all:hover,.atr-all:focus-visible{ background:rgba(200,50,60,.75); color:#fff; outline:none; }
+@keyframes atrIn{ from{ opacity:0; transform:scale(.7); } to{ opacity:1; transform:none; } }
+@media (max-width:760px){ #activeTray{ padding-left:5px; gap:4px; } .atr-chip,.atr-all{ width:24px; height:24px; font-size:12px; } }
