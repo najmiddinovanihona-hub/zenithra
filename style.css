@@ -1998,3 +1998,83 @@ body.clean #bottomBar{ display:none !important; }
 .auth-steps li.on b{ color:#04060f; background:linear-gradient(135deg,var(--neon),var(--neon-2)); border-color:transparent; box-shadow:0 0 0 4px rgba(78,168,255,.15); }
 .auth-steps li.done b{ color:var(--neon); border-color:var(--neon); }
 .auth-back{ display:block; margin:10px auto 0; }
+
+/* ===== Ulug'bek rasadxonasi — yangi modul (labs/ulugbek.js) ===== */
+#ubCard{ width:min(980px, calc(100% - 24px)); }
+#ubTabs{ flex-wrap:wrap; }
+.ub-tab{ font-size:12px; padding:7px 14px; }
+.ub3d{ position:relative; border-radius:14px; overflow:hidden; background:#0a0f20; border:1px solid rgba(140,170,255,.14); }
+.ub3d canvas{ display:block; width:100%; cursor:grab; touch-action:none; }
+.ub3d canvas:active{ cursor:grabbing; }
+.ub3d-lbls{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.ub3d-lbl{ position:absolute; left:0; top:0; font-size:11px; font-weight:600; color:#fff; white-space:nowrap; padding:3px 8px; border-radius:7px;
+  background:rgba(8,12,28,.72); border:1px solid rgba(140,170,255,.28); transition:opacity .2s; will-change:transform; }
+.ub3d-hud{ position:absolute; left:10px; top:10px; display:grid; grid-template-columns:repeat(2,auto); gap:6px 16px; padding:9px 12px; border-radius:11px;
+  background:rgba(6,10,24,.74); border:1px solid rgba(140,170,255,.2); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.ub3d-hud span{ display:block; font-size:9.5px; letter-spacing:.05em; color:var(--text-dim); }
+.ub3d-hud b{ font-size:13px; }
+.ub3d-hud b.ub-z{ color:#9aa6cc; } .ub3d-hud b.ub-z.hot{ color:#ffd54f; text-shadow:0 0 10px rgba(255,200,80,.6); }
+.ub3d-tools{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:6px; }
+.ub3d-tools .sn-chip{ background:rgba(6,10,24,.74); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.ub3d-tools .sn-chip.on{ border-color:var(--neon); color:var(--neon); }
+.ub3d-msg{ display:none; padding:40px 20px; text-align:center; color:var(--text-dim); font-size:13px; }
+.ub3d.nogl .ub3d-msg{ display:block; } .ub3d.nogl canvas, .ub3d.nogl .ub3d-hud, .ub3d.nogl .ub3d-tools{ display:none; }
+.ub-ctl{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+.ub-ctl label{ display:grid; grid-template-columns:110px 1fr; align-items:center; gap:10px; font-size:11.5px; color:var(--text-dim); }
+.ub-ctl input[type=range]{ -webkit-appearance:none; appearance:none; height:4px; border-radius:4px; background:linear-gradient(90deg,#3d6bd6,#ffd54f); outline:none; }
+.ub-ctl input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#fff3c4; border:2px solid #ffb84d; cursor:pointer; }
+.ub-ctl input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%; background:#fff3c4; border:2px solid #ffb84d; cursor:pointer; }
+.ub-btns{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.ub-note{ font-size:11.5px; line-height:1.55; color:var(--text-dim); margin:10px 0 0; text-wrap:pretty; }
+.ub-note.top{ margin:0 0 10px; color:var(--text); }
+.ub-cv{ width:100%; display:block; border-radius:12px; border:1px solid rgba(140,170,255,.14); }
+.ub-pane .ub-stats{ margin-top:10px; }
+.ub-aha{ display:none; font-size:11.5px; line-height:1.5; color:#7fe0a8; padding:8px 10px; margin-top:8px; border-radius:9px; background:rgba(60,200,120,.08); border:1px solid rgba(60,200,120,.25); }
+.ub-aha.on{ display:block; }
+.ub-yearnote{ font-size:11px; color:var(--text-dim); line-height:1.5; margin-top:8px; }
+.ub-try{ display:flex; flex-direction:column; gap:6px; border-top:1px solid rgba(140,170,255,.15); padding-top:9px; margin-top:10px; }
+.ub-try #ubTryQ{ font-size:12px; font-weight:700; } .ub-try #ubTryOpts{ display:flex; gap:6px; flex-wrap:wrap; } .ub-try #ubTryMsg{ font-size:11.5px; color:#ffe08a; min-height:15px; }
+/* Tarix — vaqt chizig'i */
+.ub-tl{ position:relative; display:flex; flex-direction:column; gap:10px; padding-left:8px; }
+.ub-tl::before{ content:""; position:absolute; left:93px; top:8px; bottom:8px; width:2px; background:linear-gradient(#ffd54f,#3d6bd6 60%,rgba(61,107,214,.2)); border-radius:2px; }
+.ub-tl-it{ display:grid; grid-template-columns:58px 38px 1fr; align-items:start; gap:10px; animation:ubIn .45s both; animation-delay:calc(var(--i)*60ms); }
+@keyframes ubIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+.ub-tl-y{ font-size:12.5px; font-weight:800; color:#ffd54f; text-align:right; padding-top:9px; font-variant-numeric:tabular-nums; }
+.ub-tl-ic{ position:relative; z-index:1; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px;
+  background:#101a3a; border:2px solid rgba(255,213,79,.6); }
+.ub-tl-c{ padding:9px 12px; border-radius:11px; background:rgba(255,255,255,.04); border:1px solid rgba(140,170,255,.12); }
+.ub-tl-c b{ display:block; font-size:13px; margin-bottom:3px; }
+.ub-tl-c p{ margin:0; font-size:12px; line-height:1.55; color:var(--text-dim); text-wrap:pretty; }
+.ub-quote{ margin:14px 0 0; text-align:center; color:#ffd54f; font-style:italic; font-size:12.5px; }
+/* Zij */
+.ub-yv{ font-size:15px; color:#ffd54f; margin-left:6px; font-variant-numeric:tabular-nums; }
+.ub-shift{ font-size:11.5px; color:var(--text-dim); }
+.ub-zinfo{ margin-top:10px; font-size:12px; line-height:1.6; }
+.ub-zinfo:not(:empty){ padding:9px 12px; border-radius:11px; background:rgba(255,213,79,.06); border:1px solid rgba(255,213,79,.25); }
+.ub-zinfo b{ font-size:13.5px; } .ub-zinfo span{ color:var(--text-dim); margin-left:6px; }
+.ub-zinfo .ok{ color:#7fe0a8; } .ub-zinfo .no{ color:#ff9d8c; }
+.ub-facts{ margin:12px 0 0; padding-left:18px; display:flex; flex-direction:column; gap:6px; font-size:12px; line-height:1.55; color:var(--text-dim); }
+#ubZcv{ cursor:crosshair; }
+/* Ulug'bek o'rnida */
+.ub-steps{ display:grid; grid-template-columns:1fr; gap:6px; margin-top:12px; font-size:12px; }
+.ub-steps p{ margin:6px 0 0; line-height:1.5; }
+.ub-steps .sn-chip{ justify-self:start; }
+.ub-steps b{ font-size:12px; color:#ffd54f; min-height:16px; }
+.ub-formula{ margin-top:12px; padding:9px 12px; border-radius:10px; text-align:center; font-family:Georgia,serif; font-size:14px; background:rgba(255,255,255,.04); border:1px dashed rgba(140,170,255,.25); }
+.ub-table{ width:100%; border-collapse:collapse; font-size:11.5px; margin-top:10px; }
+.ub-table th{ text-align:left; font-size:10px; letter-spacing:.06em; color:var(--text-dim); padding:6px 8px; border-bottom:1px solid rgba(140,170,255,.18); }
+.ub-table td{ padding:6px 8px; border-bottom:1px solid rgba(140,170,255,.08); vertical-align:top; }
+.ub-table td.ub-uv{ color:#ffd54f; font-weight:700; white-space:nowrap; }
+.ub-table .ub-note-row td{ font-size:10.5px; color:var(--text-dim); border-bottom:1px solid rgba(140,170,255,.18); padding-top:0; }
+.ub-grade{ margin:10px 0 0; font-weight:700; font-size:13px; } .ub-grade.g1{ color:#7fe0a8; } .ub-grade.g2{ color:#ffd54f; } .ub-grade.g3{ color:#ff9d8c; }
+.ub-h4{ margin:18px 0 0; font-size:13px; letter-spacing:.03em; }
+.ub-foot{ margin-top:10px; font-size:12px; color:#ffd54f; text-align:center; }
+#ubYreset{ margin-top:8px; }
+@media (max-width:640px){
+  .ub-ctl label{ grid-template-columns:1fr; gap:4px; }
+  .ub3d-hud{ grid-template-columns:1fr 1fr; padding:7px 9px; gap:4px 10px; } .ub3d-hud b{ font-size:12px; }
+  .ub3d-tools{ top:auto; bottom:10px; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; }
+  .ub3d-lbl{ font-size:9.5px; padding:2px 6px; }
+  .ub-tl::before{ left:79px; } .ub-tl-it{ grid-template-columns:46px 36px 1fr; gap:8px; }
+}
+body.ubmode .ui-toggle{ display:none !important; }

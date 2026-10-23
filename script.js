@@ -6022,174 +6022,31 @@ window.addEventListener('resize',()=>{ if(snCamera){ snCamera.aspect=window.inne
    vertikaldan (zenitdan) boshlab graduslanadi, δ(N) — snDecl() dan olinadi.
    -------------------------------------------------------------------------- */
 var ubActive=false;
-let ubDay=171, ubTab=0, ubTry=null, ubDPR=1;
-const UB_LAT=39.67;   // Samarqand kengligi
+// Modulning o'zi — labs/ulugbek.js (3D rasadxona, sekstant, tarix, Zij yulduzlari, "Ulug'bek o'rnida").
+// Bu yerda faqat ochish/yopish va unga kerakli yordamchilar (til, Quyosh og'ishi, sana, ovoz).
 const ubT=()=>window.LOC[LANG].ulugbek||window.LOC.uz.ulugbek;
-function ubZ(N){ return Math.abs(UB_LAT-snDecl(N)); }   // z = 90−h = |φ−δ|
-// Nazorat: 21-iyun z≈16.2°, tengkunlik z≈39.7°, 21-dekabr z≈63.1°
-console.assert(ubZ(171)>15.5&&ubZ(171)<17,'ulugbek: iyun z',ubZ(171));
-console.assert(ubZ(81)>39.2&&ubZ(81)<40.2,'ulugbek: tengkunlik z',ubZ(81));   // snDecl formulasida tengkunlik ~81-kun (20-mart)
-console.assert(ubZ(354)>62.5&&ubZ(354)<63.7,'ulugbek: dekabr z',ubZ(354));
 function ubFmtDate(N){ const t=window.LOC[LANG].seasons; let n=Math.floor(N)%365,m=0;
   while(n>=SN_MDAYS[m]){n-=SN_MDAYS[m];m++;}
   const d=n+1,mn=t.monthsFull[m];
   return t.fmt==='MD'?mn+' '+d:d+(t.fmt==='D-M'?'-':' ')+mn; }
-// --- Canvas chizma: faqat qiymat o'zgarganda chaqiriladi (har frame emas) ---
-function ubDraw(){
-  const cv=document.getElementById('ubCanvas'), t=ubT();
-  const cssW=cv.clientWidth, cssH=Math.max(240,Math.round(cssW*0.62));
-  ubDPR=Math.min(2,window.devicePixelRatio||1);
-  if(cv.width!==cssW*ubDPR){ cv.width=cssW*ubDPR; cv.height=cssH*ubDPR; }
-  cv.style.height=cssH+'px';
-  const x=cv.getContext('2d'); x.setTransform(ubDPR,0,0,ubDPR,0,0);
-  x.clearRect(0,0,cssW,cssH);
-  // Geometriya: tuynuk (yoy markazi) chap-yuqorida, yoy pastga-o'ngga tushadi
-  const cx=cssW*0.30, cy=cssH*0.18, R=Math.min(cssW*0.62,cssH*0.92);
-  const gy=cssH*0.42;   // yer sathi
-  // xandaq (yer osti) foni
-  x.fillStyle='rgba(30,24,14,0.5)'; x.fillRect(0,gy,cssW,cssH-gy);
-  x.strokeStyle='rgba(140,170,255,.5)'; x.lineWidth=1.2;
-  x.beginPath(); x.moveTo(0,gy); x.lineTo(cssW,gy); x.stroke();
-  x.fillStyle='#9aa6cc'; x.font='10px sans-serif';
-  x.fillText(t.ground, 6, gy-6);
-  // Yoy: zenit (pastga vertikal) dan boshlab z graduslanadi.
-  // Ekranda burchak: pastga = +90°(PI/2). z belgisi = PI/2 - z (janub tomonga og'adi)
-  const a0=Math.PI/2-72*Math.PI/180, a1=Math.PI/2;  // 0..72° oralig'i ko'rsatiladi
-  x.beginPath(); x.arc(cx,cy,R,a0,a1);
-  x.strokeStyle='rgba(255,213,79,.28)'; x.lineWidth=9; x.stroke();
-  x.beginPath(); x.arc(cx,cy,R,a0,a1);
-  x.strokeStyle='#ffd54f'; x.lineWidth=1.6; x.stroke();
-  // Shkala: har 1° mayda, har 10° yirik + raqam
-  for(let d=0;d<=72;d++){
-    const a=Math.PI/2-d*Math.PI/180, big=d%10===0;
-    const r1=R-(big?12:6), r2=R+(big?4:2);
-    x.beginPath();
-    x.moveTo(cx+Math.cos(a)*r1, cy+Math.sin(a)*r1);
-    x.lineTo(cx+Math.cos(a)*r2, cy+Math.sin(a)*r2);
-    x.strokeStyle=big?'#e8edff':'rgba(232,237,255,.4)'; x.lineWidth=big?1.4:0.7; x.stroke();
-    if(big){ x.fillStyle='#9aa6cc'; x.font='10px sans-serif';
-      x.fillText(d+'°', cx+Math.cos(a)*(R-26)-6, cy+Math.sin(a)*(R-26)+4); }
-  }
-  x.fillStyle='#9aa6cc'; x.font='10px sans-serif';
-  const aMid=Math.PI/2-36*Math.PI/180;
-  x.fillText(t.arcLbl, cx+Math.cos(aMid)*(R+14), cy+Math.sin(aMid)*(R+14));
-  // Tuynuk (diafragma)
-  x.fillStyle='#fff3c4'; x.beginPath(); x.arc(cx,cy,4,0,Math.PI*2); x.fill();
-  x.strokeStyle='rgba(255,243,196,.5)'; x.lineWidth=1;
-  x.strokeRect(cx-9,cy-14,18,10);
-  x.fillStyle='#9aa6cc'; x.fillText(t.slit, cx+13, cy-4);
-  // Nur: tuynukdan z burchak ostida (zenitdan og'ish) yoyga tushadi
-  const z=ubZ(ubDay), az=Math.PI/2-z*Math.PI/180;
-  const sx=cx+Math.cos(az)*R, sy=cy+Math.sin(az)*R;
-  // yarim shaffof sariq tasma
-  const g=x.createLinearGradient(cx,cy,sx,sy);
-  g.addColorStop(0,'rgba(255,224,138,.85)'); g.addColorStop(1,'rgba(255,224,138,.35)');
-  x.strokeStyle=g; x.lineWidth=5; x.lineCap='round';
-  x.beginPath(); x.moveTo(cx,cy); x.lineTo(sx,sy); x.stroke();
-  // yorug' dog'
-  const rg=x.createRadialGradient(sx,sy,0,sx,sy,13);
-  rg.addColorStop(0,'rgba(255,243,196,.95)'); rg.addColorStop(1,'rgba(255,158,27,0)');
-  x.fillStyle=rg; x.beginPath(); x.arc(sx,sy,13,0,Math.PI*2); x.fill();
-  x.fillStyle='#ff9e1b'; x.beginPath(); x.arc(sx,sy,3.4,0,Math.PI*2); x.fill();
-  // dog' yonida z qiymati
-  x.fillStyle='#fff3c4'; x.font='bold 13px sans-serif';
-  x.fillText(z.toFixed(1)+'°', sx+10, sy+4);
-}
-function ubUpdateHud(){
-  const t=ubT(), z=ubZ(ubDay), h=90-z;
-  document.getElementById('ubDateV').textContent=ubFmtDate(ubDay);
-  document.getElementById('ubHV').textContent=h.toFixed(1)+'°';
-  document.getElementById('ubZV').textContent=z.toFixed(1)+'°';
-  document.getElementById('ubRead').textContent=t.hudRead+': '+z.toFixed(1)+'°';
-  document.getElementById('ubAha').classList.toggle('on', Math.abs(ubDay-79)<3||Math.abs(ubDay-265)<3);
-  ubDraw();
-}
-function ubBuildUI(){
-  const t=ubT();
-  document.getElementById('ubTitle').textContent=t.title;
-  const ub=document.getElementById('ubBtn'); if(ub) ub.title=t.btn;
-  // tablar
-  const tb=document.getElementById('ubTabs'); tb.innerHTML='';
-  t.tabs.forEach((nm,i)=>{ const b=document.createElement('button');
-    b.className='ub-tab'+(i===ubTab?' active':''); b.textContent=nm;
-    b.addEventListener('click',()=>{ playClick(620); ubTab=i; ubBuildUI(); }); tb.appendChild(b); });
-  ['ubHist','ubSext','ubMeas'].forEach((id,i)=>document.getElementById(id).classList.toggle('on',i===ubTab));
-  // tarix
-  const ht=document.getElementById('ubHistText'); ht.innerHTML='';
-  t.history.forEach(p=>{ const el=document.createElement('p'); el.textContent=p; ht.appendChild(el); });
-  // sekstant HUD
-  document.getElementById('ubDateK').textContent=t.hudDate;
-  document.getElementById('ubHK').textContent=t.hudH;
-  document.getElementById('ubZK').textContent=t.hudZ;
-  document.getElementById('ubAha').textContent=t.ahaLat;
-  document.getElementById('ubYearNote').textContent='📏 '+t.yearNote;
-  const db=document.getElementById('ubDateBtns'); db.innerHTML='';
-  [171,79,354].forEach((dN,i)=>{ const b=document.createElement('button'); b.className='sn-chip';
-    b.textContent=t.dates[i===0?0:(i===1?1:2)];
-    b.addEventListener('click',()=>{ playClick(700); ubDay=dN;
-      document.getElementById('ubDaySl').value=dN; ubUpdateHud(); }); db.appendChild(b); });
-  // topshiriq
-  document.getElementById('ubTryBtn').textContent='🎯 '+t.tryBtn;
-  document.getElementById('ubTryQ').textContent='';
-  document.getElementById('ubTryOpts').innerHTML='';
-  document.getElementById('ubTryMsg').textContent='';
-  ubTry=null;
-  // jadval
-  const tbl=document.getElementById('ubTable');
-  let h2='<tr>'+t.tblHead.map(x2=>'<th>'+x2+'</th>').join('')+'</tr>';
-  t.tblRows.forEach(r=>{ h2+='<tr><td>'+r[0]+'</td><td class="ub-uv">'+r[1]+'</td><td>'+r[2]+'</td></tr>'
-    +'<tr class="ub-note-row"><td colspan="3">↳ '+r[3]+'</td></tr>'; });
-  tbl.innerHTML=h2;
-  document.getElementById('ubFoot').textContent='⏳ '+t.tblFoot;
-  if(ubTab===1){ ubUpdateHud(); }
-}
-// --- "O'zingiz o'lchang" mini-seriyasi: 5 savol, faslni z dan topish ---
-function ubStartTry(){
-  const t=ubT();
-  ubTry={n:0,score:0};
-  ubNextTry();
-}
-function ubNextTry(){
-  const t=ubT();
-  if(ubTry.n>=5){
-    document.getElementById('ubTryQ').textContent=t.tryDone+': '+ubTry.score+'/5';
-    document.getElementById('ubTryOpts').innerHTML='';
-    document.getElementById('ubTryMsg').textContent=ubTry.score>=4?'🏆':'';
-    ubTry=null; return;
-  }
-  // tasodifiy kun — dog' o'sha kunga qo'yiladi
-  const pool=[[354,20,0],[79,265,1],[171,150,2]];   // [kun1,kun2,fasl-indeksi]
-  const pick=pool[Math.floor(Math.random()*3)];
-  ubTry.day=pick[Math.random()<0.5?0:1]; ubTry.ans=pick[2];
-  ubDay=ubTry.day; document.getElementById('ubDaySl').value=ubDay; ubUpdateHud();
-  document.getElementById('ubTryQ').textContent=(ubTry.n+1)+'/5 · '+t.tryQ;
-  const op=document.getElementById('ubTryOpts'); op.innerHTML='';
-  t.trySeasons.forEach((nm,i)=>{ const b=document.createElement('button'); b.className='sn-chip';
-    b.textContent=nm;
-    b.addEventListener('click',()=>{
-      if(!ubTry) return;
-      const ok=i===ubTry.ans;
-      document.getElementById('ubTryMsg').textContent=ok?('✅ '+t.tryOk):('❌ '+t.tryNo);
-      playClick(ok?950:300);
-      ubTry.score+=ok?1:0; ubTry.n++;
-      setTimeout(()=>{ if(ubTry) ubNextTry(); },900);
-    }); op.appendChild(b); });
-  document.getElementById('ubTryMsg').textContent='';
-}
+window.UB_HOST={ lang:()=>LANG, decl:N=>snDecl(N), fmtDate:N=>ubFmtDate(N), click:f=>playClick(f), loc:()=>ubT() };
+function ubBuildUI(){ const ub=document.getElementById('ubBtn'); if(ub) ub.title=ubT().btn; if(ubActive&&window.ULUGBEK) window.ULUGBEK.rebuild(); }
 function openUb(){
   if(ubActive) return;
   if(typeof seasonsActive!=='undefined'&&seasonsActive) closeSeasons();
   if(typeof cutActive!=='undefined'&&cutActive) closeCut();
-  ubActive=true; ubTab=0;
+  ubActive=true;
   document.getElementById('ubView').classList.add('on');
   document.getElementById('ubBtn').classList.add('active');
   document.body.classList.add('ubmode');
   closePanel(); controls.enabled=false;
-  ubBuildUI(); playClick(760);
+  if(window.ULUGBEK) window.ULUGBEK.open();
+  playClick(760);
 }
 function closeUb(){
   if(!ubActive) return;
   ubActive=false;
+  if(window.ULUGBEK) window.ULUGBEK.close();
   document.getElementById('ubView').classList.remove('on');
   document.getElementById('ubBtn').classList.remove('active');
   document.body.classList.remove('ubmode');
@@ -6198,9 +6055,6 @@ function closeUb(){
 document.getElementById('ubBtn').addEventListener('click',()=>{ ubActive?closeUb():openUb(); });
 document.getElementById('ubClose').addEventListener('click',()=>closeUb());
 window.addEventListener('keydown',e=>{ if(e.key==='Escape'&&ubActive) closeUb(); });
-document.getElementById('ubDaySl').addEventListener('input',e=>{ ubDay=+e.target.value; ubUpdateHud(); });
-document.getElementById('ubTryBtn').addEventListener('click',()=>{ playClick(700); ubStartTry(); });
-window.addEventListener('resize',()=>{ if(ubActive&&ubTab===1) ubDraw(); });
 
 
 /* --------------------------------------------------------------------------
