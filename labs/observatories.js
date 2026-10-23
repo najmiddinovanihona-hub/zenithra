@@ -334,11 +334,26 @@ function frame(t){ E.raf=requestAnimationFrame(frame); if(!E.ok||!E.root||docume
   const w=E.host.clientWidth, h=E.host.clientHeight, v=new window.THREE.Vector3();
   E.labels.forEach(l=>{ v.copy(l.p).project(E.cam); const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05; l.el.style.opacity=vis?1:0;
     if(vis) l.el.style.transform='translate('+((v.x*0.5+0.5)*w)+'px,'+((-v.y*0.5+0.5)*h)+'px) translate(-50%,-100%)'; }); }
+/* --- To'liq ekran: 3D oynani butun ekranga kattalashtirish (tugma, ikki marta bosish, Esc) --- */
+const FX={ on:{uz:'⛶ To‘liq ekran',ru:'⛶ Во весь экран',en:'⛶ Full screen'}, off:{uz:'🗗 Kichraytirish',ru:'🗗 Свернуть',en:'🗗 Exit full screen'} };
+function syncFull(){ document.querySelectorAll('.obsw-3d').forEach(h=>{ const b=h.querySelector('.obsw-fs'); if(b){ const on=h.classList.contains('full'); b.textContent=T(on?FX.off:FX.on); b.classList.toggle('on',on); } }); }
+function fullToggle(host,force){ if(!host) return; const on=force!=null?force:!host.classList.contains('full');
+  if(on===host.classList.contains('full')) return syncFull(); host.classList.toggle('full',on);
+  if(on){ try{ const p=host.requestFullscreen&&host.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }
+  else if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
+  syncFull(); click(on?760:520); }
+function fullWire(host){ if(host._fs) return; host._fs=1; const b=host.querySelector('.obsw-fs'); if(b) b.addEventListener('click',()=>fullToggle(host));
+  host.querySelector('canvas').addEventListener('dblclick',()=>fullToggle(host)); syncFull(); }
+// haqiqiy to'liq ekrandan (Esc, F11) chiqilganda — kattalashtirish ham bekor bo'ladi; brauzer ruxsat bermasa, oyna CSS bilan to'ldirilgan holda qoladi
+document.addEventListener('fullscreenchange',()=>{ const fe=document.fullscreenElement; document.querySelectorAll('.obsw-3d').forEach(h=>{ if(fe===h) h._real=true; else if(h._real){ h._real=false; h.classList.remove('full'); } }); syncFull(); });
+// Esc avval to'liq ekrandan chiqaradi (ekranning o'zi yopilmaydi)
+window.addEventListener('keydown',e=>{ if(e.key!=='Escape') return; const h=document.querySelector('.obsw-3d.full'); if(h){ e.stopImmediatePropagation(); fullToggle(h,false); } },true);
+new MutationObserver(syncFull).observe(document.documentElement,{ attributes:true, attributeFilter:['lang'] });
 function engineStart(){ if(!E.raf){ E.last=0; E.raf=requestAnimationFrame(frame); } }
 function engineStop(){ if(E.raf){ cancelAnimationFrame(E.raf); E.raf=0; } }
-function engineDispose(){ engineStop(); clearModel(); if(E.envRT){ E.envRT.dispose(); E.envRT=null; } if(!E.r) return; if(E.ro) E.ro.disconnect(); E.ctl.dispose(); E.r.dispose(); try{ E.r.forceContextLoss(); }catch(e){}
+function engineDispose(){ engineStop(); if(E.host) fullToggle(E.host,false); clearModel(); if(E.envRT){ E.envRT.dispose(); E.envRT=null; } if(!E.r) return; if(E.ro) E.ro.disconnect(); E.ctl.dispose(); E.r.dispose(); try{ E.r.forceContextLoss(); }catch(e){}
   // majburan o'chirilgan kontekstli canvasda yangi WebGL ochilmaydi — keyingi ochilish uchun yangi canvas qo'yamiz
-  const old=E.host&&E.host.querySelector('canvas'); if(old) old.replaceWith(document.createElement('canvas'));
+  const old=E.host&&E.host.querySelector('canvas'); if(old){ const nc=document.createElement('canvas'); old.replaceWith(nc); nc.addEventListener('dblclick',()=>fullToggle(nc.parentNode)); }
   Object.assign(E,{ ok:false, r:null, sc:null, cam:null, ctl:null, host:null, ro:null, cur:null }); }
 
 /* ======================= Ekran (UI) ======================= */
@@ -458,7 +473,7 @@ function build(){
   el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><span class="obsw-count"></span><button class="panel-close obsw-x" type="button" aria-label="close">✕</button></div>'+
     '<div class="obsw-main"><aside class="obsw-list"><div class="obsw-cats"></div><div class="obsw-items"></div></aside>'+
     '<section class="obsw-view"><div class="obsw-3d"><canvas></canvas><div class="obsw-lbls"></div><div class="obsw-msg"></div><div class="obsw-load"><i></i><span></span></div>'+
-    '<div class="obsw-tools"><button class="sn-chip" id="obswCut"></button><button class="sn-chip" id="obswDome"></button><button class="sn-chip" id="obswSpin"></button><button class="sn-chip" id="obswHome"></button></div></div>'+
+    '<div class="obsw-tools"><button class="sn-chip" id="obswCut"></button><button class="sn-chip" id="obswDome"></button><button class="sn-chip" id="obswSpin"></button><button class="sn-chip" id="obswHome"></button><button class="sn-chip obsw-fs"></button></div></div>'+
     '<div class="obsw-info"></div></section></div></div>';
   document.body.appendChild(el); U.el=el;
   el.querySelector('.obsw-x').addEventListener('click',close);
@@ -466,6 +481,7 @@ function build(){
   el.querySelector('#obswCut').addEventListener('click',()=>{ click(620); E.cut=!E.cut; syncTools(); });
   el.querySelector('#obswDome').addEventListener('click',()=>{ click(700); E.domeOpen=!E.domeOpen; syncTools(); });
   el.querySelector('#obswSpin').addEventListener('click',()=>{ click(620); E.spin=!E.spin; if(E.ctl) E.ctl.autoRotate=E.spin; syncTools(); });
+  fullWire(el.querySelector('.obsw-3d'));
   el.querySelector('#obswHome').addEventListener('click',()=>{ click(620); if(E.home) E.camGoal={ pos:E.home.pos.clone(), tgt:E.home.tgt.clone() }; });
   el.addEventListener('pointerdown',e=>{ if(e.target===el) close(); });
   texts(); }
@@ -486,5 +502,5 @@ function wireBtn(){ const b=document.getElementById('obsWorldBtn'); if(b&&!b._ob
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',wireBtn); else wireBtn();
 window.OBS_WORLD={ open, close, select, _E:E };
 // Umumiy 3D dvigatel — boshqa ekranlar (masalan, 🧭 Astronomik asboblar) ham shundan foydalanadi; bir vaqtda bitta ekran ochiq bo'ladi
-window.OBS_ENGINE={ E, init:engineInit, load:loadModel, start:engineStart, stop:engineStop, dispose:engineDispose, setSun, X, M };
+window.OBS_ENGINE={ E, full:fullToggle, fullWire, init:engineInit, load:loadModel, start:engineStart, stop:engineStop, dispose:engineDispose, setSun, X, M };
 })();

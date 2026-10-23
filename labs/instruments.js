@@ -92,7 +92,7 @@ function build(){
     '<div class="obsw-main"><aside class="obsw-list"><label class="insw-search"><span aria-hidden="true">🔍</span><input class="insw-q" type="search" autocomplete="off"></label>'+
     '<div class="insw-flt"><small class="insw-ft1"></small><div class="obsw-cats insw-uses"></div><small class="insw-ft2"></small><div class="obsw-cats insw-eras"></div></div><div class="obsw-items"></div></aside>'+
     '<section class="obsw-view"><div class="obsw-3d"><canvas></canvas><div class="obsw-lbls"></div><div class="obsw-msg"></div><div class="obsw-load"><i></i><span></span></div>'+
-    '<div class="obsw-tools"><button class="sn-chip" id="inswPlay"></button><button class="sn-chip" id="inswCut"></button><button class="sn-chip" id="inswSpin"></button><button class="sn-chip" id="inswHome"></button></div></div>'+
+    '<div class="obsw-tools"><button class="sn-chip" id="inswPlay"></button><button class="sn-chip" id="inswCut"></button><button class="sn-chip" id="inswSpin"></button><button class="sn-chip" id="inswHome"></button><button class="sn-chip obsw-fs"></button></div></div>'+
     '<div class="obsw-info"></div></section></div></div>';
   document.body.appendChild(el); I.el=el;
   el.querySelector('.obsw-x').addEventListener('click',close);
@@ -100,6 +100,7 @@ function build(){
   el.querySelector('#inswPlay').addEventListener('click',togglePlay);
   el.querySelector('#inswCut').addEventListener('click',()=>{ click(620); const E=Eg(); E.cut=!E.cut; syncTools(); });
   el.querySelector('#inswSpin').addEventListener('click',()=>{ click(620); const E=Eg(); E.spin=!E.spin; if(E.ctl) E.ctl.autoRotate=E.spin; syncTools(); });
+  EN().fullWire(el.querySelector('.obsw-3d'));
   el.querySelector('#inswHome').addEventListener('click',()=>{ click(620); const E=Eg(); if(E.home) E.camGoal={ pos:E.home.pos.clone(), tgt:E.home.tgt.clone() }; });
   const qi=el.querySelector('.insw-q'); qi.addEventListener('input',()=>{ I.q=qi.value.trim(); renderList(); });
   qi.addEventListener('keydown',e=>{ if(e.key==='Escape'&&qi.value){ e.stopPropagation(); qi.value=''; I.q=''; renderList(); } if(e.key==='Enter'){ const f=list()[0]; if(f) select(f.id); } });
