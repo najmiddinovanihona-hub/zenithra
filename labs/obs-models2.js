@@ -3,9 +3,8 @@
 'use strict';
 const OM=window.OBS_MODELS=window.OBS_MODELS||[];
 const t3=(uz,ru,en)=>({uz,ru,en});
-const pines=(c,n,r0,r1,hFn)=>{ const {THREE,M,mesh,rnd}=c, trunk=M({ color:0x4a3a2a, rough:1 }), nd=M({ color:0x22452a, rough:0.95, flat:true });
-  for(let i=0;i<n;i++){ const a=rnd()*Math.PI*2, r=r0+rnd()*(r1-r0), x=Math.cos(a)*r, z=Math.sin(a)*r, y=hFn?hFn(x,z):0, s=0.8+rnd()*0.8;
-    mesh(new THREE.CylinderGeometry(0.25*s,0.35*s,3*s,6),trunk,[x,y+1.5*s,z]); mesh(new THREE.ConeGeometry(2.4*s,8*s,7),nd,[x,y+6*s,z]); } };
+const pines=(c,n,r0,r1,hFn)=>{ const {rnd}=c;
+  for(let i=0;i<n;i++){ const a=rnd()*Math.PI*2, r=r0+rnd()*(r1-r0), x=Math.cos(a)*r, z=Math.sin(a)*r, y=hFn?hFn(x,z):0; c.tree('pine',x,y,z,0.8+rnd()*0.8); } };
 
 /* ---------------- Yerkes ---------------- */
 OM.push({ id:'yerkes', cat:'classic', icon:'🔭', flag:'🇺🇸', yearN:1897,
@@ -122,10 +121,11 @@ OM.push({ id:'alma', cat:'modern', icon:'📡', flag:'🇨🇱', yearN:2013,
   facts:[t3('66 ta antenna birgalikda bitta ulkan teleskop bo‘lib ishlaydi — ular orasidagi masofa 16 km gacha cho‘ziladi.','66 антенн работают как один гигантский телескоп — расстояние между ними до 16 км.','66 antennas work together as one giant telescope — spread over up to 16 km.'),
     t3('Antennalarni 28 g‘ildirakli maxsus yuk mashinalari joyidan joyga ko‘chiradi.','Антенны перевозят специальные 28-колёсные тягачи.','Special 28-wheeled transporters move the antennas around.'),
     t3('ALMA qora tuynukning birinchi «surati» (2019) olingan Event Horizon Telescope tarmog‘ida qatnashgan va sayyoralar tug‘ilayotgan disklarni suratga olgan.','ALMA участвовала в сети Event Horizon Telescope, получившей первое «фото» чёрной дыры (2019), и сняла диски, где рождаются планеты.','ALMA was part of the Event Horizon Telescope that took the first black-hole “photo” (2019), and it imaged discs where planets are forming.')],
-  env:{ sky:'day', sunAz:20, sunAlt:55, ground:'sand', groundColor:'#a0705a', size:3200, seg:120, shadow:140, terrain:almaH },
+  env:{ sky:'day', sunAz:20, sunAlt:55, ground:'sand', groundColor:'#a0705a', size:4000, seg:130, shadow:140, terrain:almaH },
   build(c){ const {THREE,M,mesh,lbl,rnd}=c;
-    const vol=M({ color:0x7a4f42, rough:1, flat:true }), snow=M({ color:0xf4f6f8, rough:0.8, flat:true });
-    [[-1300,-1700,520,420],[900,-1900,620,360],[2000,-600,500,300]].forEach(([x,z,r,h])=>{ mesh(new THREE.ConeGeometry(r,h,18),vol,[x,h/2-10,z],null,null,true); mesh(new THREE.ConeGeometry(r*0.22,h*0.22,18),snow,[x,h-10-h*0.11+1,z],null,null,true); });
+    const vol=M({ map:c.X.ground('#7a5244',0.22,[3,3]), rough:1, bump:1.2 }), snow=M({ map:c.X.noise('#eef1f4',0.08,[2,2]), rough:0.7, env:0.8 });
+    [[-850,-1100,520,420],[620,-1250,620,360],[1300,-420,500,300]].forEach(([x,z,r,h])=>{ mesh(c.jitter(new THREE.ConeGeometry(r,h,40,10),r*0.06),vol,[x,h/2-10,z],null,null,true);
+      mesh(c.jitter(new THREE.ConeGeometry(r*0.24,h*0.24,40,3),r*0.02),snow,[x,h-10-h*0.12+1,z],null,null,true); });
     const pts=[]; let guard=0; while(pts.length<26&&guard++<2000){ const a=rnd()*Math.PI*2, r=Math.sqrt(rnd())*150, x=Math.cos(a)*r, z=Math.sin(a)*r; if(pts.every(p=>Math.hypot(p[0]-x,p[1]-z)>19)) pts.push([x,z, pts.length<20?12:7]); }
     const base=M({ color:0xeceef0, rough:0.6, metal:0.2 }), steel=M({ color:0xc8ccd2, rough:0.5, metal:0.3 });
     const ants=pts.map(([x,z,D])=>{ const s=D/12, g=new THREE.Group(); g.position.set(x,almaH(x,z),z); c.root.add(g);
@@ -136,7 +136,7 @@ OM.push({ id:'alma', cat:'modern', icon:'📡', flag:'🇨🇱', yearN:2013,
     c.anim(t=>{ const A=Math.sin(t*0.06)*1.2, E=0.45+Math.sin(t*0.09)*0.25; ants.forEach(a=>{ a.az.rotation.y=A; a.el.rotation.x=E; }); });
     lbl(t3('66 antenna — bitta ulkan teleskop','66 антенн — один огромный телескоп','66 antennas — one giant telescope'),[0,30,0]);
     lbl(t3('12 m antenna','Антенна 12 м','12 m antenna'),[pts[0][0],22,pts[0][1]]);
-    lbl(t3('Chaxnantor · 5000 m','Чахнантор · 5000 м','Chajnantor · 5000 m'),[-1300,470,-1700]);
+    lbl(t3('Chaxnantor · 5000 m','Чахнантор · 5000 м','Chajnantor · 5000 m'),[-850,470,-1100]);
     return { cam:[150,55,190], tgt:[0,8,0], maxDist:1600 }; },
   feat:{}
 });

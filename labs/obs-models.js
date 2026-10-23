@@ -16,9 +16,10 @@ OM.push({ id:'stonehenge', cat:'naked', icon:'🪨', flag:'🇬🇧', yearN:-250
     t3('Sarsen doirasining diametri ~33 m, eng baland trilit — 7,3 m. Qurilish ~1500 yil davom etgan.','Диаметр круга сарсенов ~33 м, самый высокий трилит — 7,3 м. Строили около 1500 лет.','The sarsen circle is ~33 m across, the tallest trilithon 7.3 m. Building went on for ~1500 years.')],
   env:{ sky:'dusk', sunAz:49.5, sunAlt:2, ground:'grass', size:800, shadow:70, hemiGround:0x3a4a2a },
   build(c){ const {THREE,M,X,mesh,jitter,lbl,D2R,rnd}=c, A=49.5*D2R, u=[Math.sin(A),0,-Math.cos(A)];
-    const stone=M({ map:X.noise('#8f8c83',0.28,[1,1],{n:50,r:9,c:'rgba(130,150,90,.7)'}), rough:0.96 });
+    const stones=['#8f8c83','#9a9384','#86857e','#a09a8a'].map(col=>M({ map:X.noise(col,0.26,[1,1],{n:70,r:10,c:'rgba(150,160,100,.75)'}), rough:0.96, bump:1.4, env:0.5 }));
+    const stoneOf=()=>stones[(rnd()*stones.length)|0];
     const at=(r,deg)=>{ const a=deg*D2R; return [Math.sin(a)*r,0,-Math.cos(a)*r]; };
-    const st=(w,h,d,pos,rotY,tilt)=>{ const g=jitter(new THREE.BoxGeometry(w,h,d,2,4,2),0.22); const m=mesh(g,stone,[pos[0],pos[1]!=null?pos[1]:h/2,pos[2]],[tilt||0,rotY,0]); return m; };
+    const st=(w,h,d,pos,rotY,tilt)=>{ const g=jitter(new THREE.BoxGeometry(w,h,d,3,6,2),0.26); const m=mesh(g,stoneOf(),[pos[0],pos[1]!=null?pos[1]:h/2,pos[2]],[tilt||0,rotY,0]); return m; };
     const miss=new Set([4,9,13,21,22,26,27]), lint=new Set([0,1,2,28,29,6,7,16]), A0=49.5;
     for(let i=0;i<30;i++){ if(miss.has(i)) continue; const deg=A0+(i+0.5)/30*360, p=at(16.5,deg);
       if(i===8){ st(2.1,1.1,4.1,[p[0]*1.18,0.55,p[2]*1.18],-deg*D2R); continue; }
@@ -53,7 +54,7 @@ OM.push({ id:'caracol', cat:'naked', icon:'🐌', flag:'🇲🇽', yearN:906,
     t3('Mayyalar Venera siklini (584 kun) bir necha soat aniqlik bilan bilgan — bu «Drezden kodeksi»da yozilgan.','Майя знали цикл Венеры (584 дня) с точностью до часов — это записано в «Дрезденском кодексе».','The Maya knew Venus’s 584-day cycle to within hours — it is recorded in the Dresden Codex.')],
   env:{ sky:'day', sunAz:120, sunAlt:48, ground:'grass', size:700, shadow:60, hemiGround:0x405030 },
   build(c){ const {THREE,M,X,mesh,lbl,D2R,rnd}=c;
-    const lime=X.blocks('#cdbf9f','rgba(95,80,55,.45)',[6,2],6,4), limeM=M({ map:lime, rough:0.92 }), limeC=M({ map:lime, rough:0.92, clip:true }), limeIn=M({ color:0x9b8e72, rough:0.95, side:THREE.BackSide, clip:true });
+    const lime=X.blocks('#a59b82','rgba(50,44,34,.6)',[12,5],8,5), limeM=M({ map:lime, rough:0.95, bump:1.0 }), limeC=M({ map:lime, rough:0.95, clip:true, bump:1.0 }), limeIn=M({ color:0x9b8e72, rough:0.95, side:THREE.BackSide, clip:true });
     mesh(new THREE.BoxGeometry(52,6,67),limeM,[0,3,0]);
     for(let i=0;i<12;i++) mesh(new THREE.BoxGeometry(2,0.5,12),limeM,[-26-1-i*1.0,6-0.25-i*0.5,8]);
     mesh(new THREE.BoxGeometry(24,4.5,20),limeM,[0,8.25,0]);
@@ -69,9 +70,7 @@ OM.push({ id:'caracol', cat:'naked', icon:'🐌', flag:'🇲🇽', yearN:906,
     for(let k=0;k<38;k++){ const a=k*0.36, y=y0+0.2+k*0.19; mesh(new THREE.BoxGeometry(1.5,0.18,0.55),limeC,[Math.sin(a)*2.0,y,Math.cos(a)*2.0],[0,a+Math.PI/2,0]); }
     const yT=y0+wallH+0.7; ring(3.2,3.4,[1.0,1.35,1.75,4.2],yT,limeC);
     mesh(new THREE.SphereGeometry(3.25,32,12,0.6,Math.PI*1.45,0,Math.PI/2),limeC,[0,yT+3.4,0]);
-    const trunk=M({ color:0x5a4330, rough:1 }), leaf=M({ color:0x2f6b2c, rough:0.95, flat:true });
-    for(let i=0;i<70;i++){ const a=rnd()*Math.PI*2, r=55+rnd()*220, s=0.8+rnd()*0.9; mesh(new THREE.CylinderGeometry(0.3*s,0.4*s,4*s,6),trunk,[Math.cos(a)*r,2*s,Math.sin(a)*r]);
-      mesh(new THREE.IcosahedronGeometry(3.2*s,0),leaf,[Math.cos(a)*r,5*s,Math.sin(a)*r]); }
+    for(let i=0;i<90;i++){ const a=rnd()*Math.PI*2, r=50+rnd()*240; c.tree('broad',Math.cos(a)*r,0,Math.sin(a)*r,1.1+rnd()*1.0); }
     lbl(t3('Kuzatuv xonasi · Venera derazalari','Комната наблюдений · окна Венеры','Observation room · Venus windows'),[0,yT+7.5,0]);
     lbl(t3('Spiral zinapoya — «shilliqqurt»','Винтовая лестница — «улитка»','Spiral staircase — the “snail”'),[0,y0+4,1.5]);
     lbl(t3('Platforma · 67 × 52 m','Платформа · 67 × 52 м','Platform · 67 × 52 m'),[20,6.5,28]);
