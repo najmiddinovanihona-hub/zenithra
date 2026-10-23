@@ -51,7 +51,7 @@ html,body{
 .sp-logo{ width:min(170px,38vw); aspect-ratio:1; position:relative; }
 .sp-l{ position:absolute; inset:0; }
 .sp-l svg{ display:block; width:100%; height:100%; overflow:visible; }
-/* Yangi ASTRO belgisi: Yer → «A» (kontur chiziladi, keyin to'ladi) → orbita → yulduz chaqnaydi → yozuv */
+/* Zenithra belgisi: Yer → «A» (kontur chiziladi, keyin to'ladi) → orbita → yulduz chaqnaydi → yozuv */
 .sp-glow{ position:absolute; inset:-35%; border-radius:50%; background:radial-gradient(circle, rgba(58,140,255,.5) 0%, rgba(58,140,255,.14) 40%, transparent 68%); opacity:0; transform:scale(.4); animation:spGrow 2.2s ease .3s forwards, spPulse 4s ease-in-out 2.6s infinite; }
 .sp-earth{ transform-origin:51% 70%; opacity:0; transform:translateY(14%) scale(.6); animation:spRise 1.4s cubic-bezier(.2,.9,.3,1) .3s forwards; }
 .sp-aline{ stroke-dasharray:1; stroke-dashoffset:1; animation:spDraw 1.5s cubic-bezier(.6,0,.3,1) .7s forwards, spFadeOut .6s ease 2.4s forwards; }
@@ -59,12 +59,11 @@ html,body{
 .sp-amark{ transform-origin:50% 60%; animation:spLift 1s cubic-bezier(.2,.9,.3,1) 1.7s both; }
 .sp-ring{ clip-path:inset(0 100% 0 0); animation:spSweep 1.1s cubic-bezier(.5,0,.2,1) 2.3s forwards; }
 .sp-star{ transform-origin:78% 18%; opacity:0; transform:scale(0) rotate(-90deg); animation:spStar .8s cubic-bezier(.2,1.5,.4,1) 3.1s forwards, spTwinkle 2.4s ease-in-out 4s infinite; }
-.sp-name{ margin:24px 0 0; display:flex; align-items:center; gap:.18em; font-size:clamp(32px,6.4vw,50px); font-weight:800; letter-spacing:.06em; color:#fff; text-shadow:0 0 22px rgba(58,140,255,.55); }
+.sp-name{ margin:24px 0 0; display:flex; align-items:center; gap:.18em; font-size:clamp(26px,5.6vw,46px); font-weight:800; letter-spacing:.04em; color:#fff; text-shadow:0 0 22px rgba(58,140,255,.55); }
 .sp-name span{ display:inline-block; opacity:0; transform:translateY(18px); animation:spLetter .9s cubic-bezier(.2,.9,.3,1) forwards; }
-.sp-name span:nth-child(1){ animation-delay:3.3s } .sp-name span:nth-child(2){ animation-delay:3.45s } .sp-name span:nth-child(3){ animation-delay:3.6s } .sp-name span:nth-child(4){ animation-delay:3.75s } .sp-name span:nth-child(5){ animation-delay:3.9s }
+.sp-name span:nth-child(1){ animation-delay:3.3s } .sp-name span:nth-child(2){ animation-delay:3.4s } .sp-name span:nth-child(3){ animation-delay:3.5s } .sp-name span:nth-child(4){ animation-delay:3.6s }
+.sp-name span:nth-child(5){ animation-delay:3.7s } .sp-name span:nth-child(6){ animation-delay:3.8s } .sp-name span:nth-child(7){ animation-delay:3.9s } .sp-name span:nth-child(8){ animation-delay:4.0s }
 .sp-la{ position:relative; } .sp-la i{ position:absolute; left:50%; bottom:.12em; transform:translateX(-50%); font-style:normal; font-size:.34em; color:#4aa8ff; text-shadow:0 0 8px #4aa8ff; }
-.sp-lo{ position:relative; width:.78em; height:.78em; border-radius:50%; border:.14em solid #2f8cff; box-shadow:0 0 14px rgba(47,140,255,.8), inset 0 0 10px rgba(47,140,255,.5); box-sizing:border-box; margin-left:.06em; }
-.sp-lo i{ position:absolute; top:-.2em; right:-.12em; width:.2em; height:.2em; border-radius:50%; background:#fff; box-shadow:0 0 8px #fff; }
 .sp-sub{ margin:12px 0 0; font-size:clamp(10px,1.6vw,13px); letter-spacing:.42em; text-transform:uppercase; color:#e8eeff; opacity:0; animation:spFade .9s ease 4.2s forwards; }
 .sp-motto{ display:flex; align-items:center; gap:14px; margin:12px 0 0; font-size:clamp(11px,1.7vw,14px); font-style:italic; letter-spacing:.16em; color:#3aa0ff; opacity:0; animation:spFade .9s ease 4.5s forwards; }
 .sp-motto i{ display:block; width:44px; height:1px; background:linear-gradient(90deg,transparent,#2f8cff); } .sp-motto i:last-child{ transform:scaleX(-1); }
@@ -1857,7 +1856,7 @@ input[type=range]:focus-visible{ outline:2px solid var(--neon); outline-offset:3
 
 
 /* ================= YUQORI PANEL: GURUHLAR (toolbar.js) =================
-   [ASTRO] [Sayohat ▾] [O'rganish ▾] [Laboratoriya ▾] ........ [?] [UZ] [👤]
+   [ZENITHRA] [Sayohat ▾] [O'rganish ▾] [Laboratoriya ▾] ........ [?] [UZ] [👤]
    Guruh panellari ichida mavjud tugmalar ikonka + nom (title) ko'rinishida; ichki menyular yonida ochiladi. */
 #topbar .controls{ flex:1; display:flex; align-items:center; gap:10px; margin-left:18px; min-width:0; }
 .tb-groups{ display:flex; gap:8px; }

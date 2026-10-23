@@ -2,7 +2,7 @@
   "name": "astro-solar-system",
   "version": "1.0.0",
   "private": true,
-  "description": "ASTRO · Quyosh tizimi — statik sayt + Node.js backend (auth, progress, admin)",
+  "description": "Zenithra · Quyosh tizimi — statik sayt + Node.js backend (auth, progress, admin)",
   "type": "module",
   "main": "server/index.js",
   "engines": {

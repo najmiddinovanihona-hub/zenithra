@@ -23,11 +23,11 @@ function getTransport() {
 }
 
 const T = {
-  uz: { subject: (c) => `ASTRO — tasdiqlash kodi: ${c}`, register: 'Ro‘yxatdan o‘tishni yakunlash uchun kod:', login: 'Hisobingizga kirish uchun kod:',
+  uz: { subject: (c) => `Zenithra — tasdiqlash kodi: ${c}`, register: 'Ro‘yxatdan o‘tishni yakunlash uchun kod:', login: 'Hisobingizga kirish uchun kod:',
     ttl: 'Kod 10 daqiqa amal qiladi.', ignore: 'Agar bu siz bo‘lmasangiz, xatni e’tiborsiz qoldiring — hisobingizga hech kim kira olmaydi.', hello: 'Salom' },
-  ru: { subject: (c) => `ASTRO — код подтверждения: ${c}`, register: 'Код для завершения регистрации:', login: 'Код для входа в аккаунт:',
+  ru: { subject: (c) => `Zenithra — код подтверждения: ${c}`, register: 'Код для завершения регистрации:', login: 'Код для входа в аккаунт:',
     ttl: 'Код действует 10 минут.', ignore: 'Если это были не вы, просто проигнорируйте письмо — без кода в аккаунт никто не войдёт.', hello: 'Здравствуйте' },
-  en: { subject: (c) => `ASTRO — verification code: ${c}`, register: 'Your code to finish signing up:', login: 'Your sign-in code:',
+  en: { subject: (c) => `Zenithra — verification code: ${c}`, register: 'Your code to finish signing up:', login: 'Your sign-in code:',
     ttl: 'The code is valid for 10 minutes.', ignore: 'If this wasn’t you, just ignore this email — nobody can sign in without the code.', hello: 'Hello' },
 };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -35,11 +35,11 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 function render(lang, purpose, code, name) {
   const t = T[lang] || T.uz;
   const lead = purpose === 'register' ? t.register : t.login;
-  const text = `${t.hello}${name ? ', ' + name : ''}!\n\n${lead} ${code}\n\n${t.ttl}\n${t.ignore}\n\n— ASTRO · Quyosh tizimi`;
+  const text = `${t.hello}${name ? ', ' + name : ''}!\n\n${lead} ${code}\n\n${t.ttl}\n${t.ignore}\n\n— Zenithra · Quyosh tizimi`;
   const html = `<!doctype html><html><body style="margin:0;background:#070b1a;font-family:Segoe UI,Arial,sans-serif;color:#e6ecff">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#070b1a;padding:32px 12px"><tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:460px;background:#0e1530;border:1px solid #26305a;border-radius:16px;padding:28px">
-<tr><td style="font-size:12px;letter-spacing:.25em;color:#7fa8ff;font-weight:700">ASTRO · QUYOSH TIZIMI</td></tr>
+<tr><td style="font-size:12px;letter-spacing:.25em;color:#7fa8ff;font-weight:700">ZENITHRA · QUYOSH TIZIMI</td></tr>
 <tr><td style="padding-top:18px;font-size:16px">${esc(t.hello)}${name ? ', ' + esc(name) : ''}!</td></tr>
 <tr><td style="padding-top:8px;font-size:15px;color:#b9c6ee">${esc(lead)}</td></tr>
 <tr><td align="center" style="padding:22px 0"><div style="display:inline-block;font-size:34px;letter-spacing:10px;font-weight:700;color:#fff;background:#1a2350;border:1px solid #3a4a8c;border-radius:12px;padding:14px 22px">${code}</div></td></tr>

@@ -1,6 +1,6 @@
 /* Yuqori panel tartibi: 20 ta tugma bir qatorda sig'masdi (kompyuterda bir qismi kesilardi, telefonda yarmi
    yashirin edi). Endi:
-     [ASTRO]  [Sayohat ▾] [O'rganish ▾] [Laboratoriya ▾]            [?] [UZ] [👤]
+     [ZENITHRA]  [Sayohat ▾] [O'rganish ▾] [Laboratoriya ▾]            [?] [UZ] [👤]
    pastda: [⏸ tezlik ⤢] + sayyoralar paneli; telefonda panel pastki navigatsiyaga aylanadi.
    Mavjud tugmalar O'CHIRILMAYDI — o'z id'lari va ishlovchilari bilan guruh panellariga ko'chiriladi, shuning uchun
    script.js / labs / guide.js dagi barcha mantiq o'zgarmaydi. Band yozuvi — tugmaning title'i (3 tilda). */

@@ -1,11 +1,11 @@
-/* ASTRO service worker — faqat osmon eslatmalari (Web Push). Fayllarni keshlamaydi: sayt har doim yangi versiyada ochiladi. */
+/* Zenithra service worker — faqat osmon eslatmalari (Web Push). Fayllarni keshlamaydi: sayt har doim yangi versiyada ochiladi. */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (e) => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'ASTRO', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'ASTRO', {
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'Zenithra', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Zenithra', {
     body: d.body || '', icon: '/logo.svg', badge: '/logo.svg', tag: d.tag || undefined,
     data: { url: d.url || '/' },
   }));

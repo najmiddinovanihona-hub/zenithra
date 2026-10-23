@@ -33,7 +33,7 @@ function saveEnv(values) {
   writeFileSync(ENV, lines.join('\n') + '\n');
 }
 
-console.log('\n  ASTRO — Gmail orqali tasdiqlash kodlarini yuborishni ulash\n');
+console.log('\n  Zenithra — Gmail orqali tasdiqlash kodlarini yuborishni ulash\n');
 console.log('  Kerak bo\'ladi: Gmail manzili va 16 belgili "ilova paroli" (oddiy Gmail parolingiz EMAS).');
 console.log('  Ilova parolini olish: https://myaccount.google.com/apppasswords  (2 bosqichli tekshiruv yoqilgan bo\'lishi shart)\n');
 
@@ -52,12 +52,12 @@ catch (e) {
   else console.error('  Ulanib bo\'lmadi:', e.code || '', e.message, '\n  Internet yoki antivirus/firewall 465-portni to\'smayotganini tekshiring.');
   process.exit(1);
 }
-const from = `ASTRO <${user}>`;
+const from = `Zenithra <${user}>`;
 process.stdout.write(`  Sinov xati ${user} ga yuborilmoqda... `);
 try {
-  await t.sendMail({ from, to: user, subject: 'ASTRO — pochta ulandi ✔',
-    text: 'Tabriklaymiz! ASTRO sayti endi shu pochta orqali tasdiqlash kodlarini yuboradi.',
-    html: '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px">✔ <b>ASTRO</b> sayti endi shu pochta orqali tasdiqlash kodlarini yuboradi.</div>' });
+  await t.sendMail({ from, to: user, subject: 'Zenithra — pochta ulandi ✔',
+    text: 'Tabriklaymiz! Zenithra sayti endi shu pochta orqali tasdiqlash kodlarini yuboradi.',
+    html: '<div style="font-family:Segoe UI,Arial,sans-serif;font-size:15px">✔ <b>Zenithra</b> sayti endi shu pochta orqali tasdiqlash kodlarini yuboradi.</div>' });
   console.log('✔');
 } catch (e) { console.log('✖'); console.error('  Xat yuborilmadi:', e.message); process.exit(1); }
 

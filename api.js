@@ -1,4 +1,4 @@
-/* ASTRO API — backend bilan aloqa: kirish, darslik progressi, test natijalari va sozlamalar sinxroni.
+/* Zenithra API — backend bilan aloqa: kirish, darslik progressi, test natijalari va sozlamalar sinxroni.
    Backend bo'lmasa (file:// yoki statik hosting) — API.online=false, sayt avvalgidek mehmon rejimida
    faqat localStorage bilan ishlaydi.
    Sinxron: localStorage.setItem ustidan kuzatuv — `dz_prog` va sozlama kalitlari o'zgarsa, kirgan

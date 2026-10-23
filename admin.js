@@ -1,4 +1,4 @@
-/* ASTRO · Admin paneli — statistika, foydalanuvchilar, test natijalari. Ruxsat server tomonda tekshiriladi. */
+/* Zenithra · Admin paneli — statistika, foydalanuvchilar, test natijalari. Ruxsat server tomonda tekshiriladi. */
 (function(){
 const TX = {
   admin:{uz:'Admin',ru:'Админ',en:'Admin'},
@@ -94,7 +94,7 @@ function applyLang(){
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T(TX[el.dataset.t]); });
   document.querySelectorAll('[data-tp]').forEach(el => { el.placeholder = T(TX[el.dataset.tp]); });
   document.querySelectorAll('.ad-langs button').forEach(b => b.classList.toggle('on', b.dataset.lang===LANG));
-  document.title = 'ASTRO · ' + T(TX.admin);
+  document.title = 'Zenithra · ' + T(TX.admin);
 }
 document.querySelectorAll('.ad-langs button').forEach(b => b.onclick = () => {
   LANG = b.dataset.lang; try{ localStorage.setItem('solar_lang', LANG); }catch(e){}
