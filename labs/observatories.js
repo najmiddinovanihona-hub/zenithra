@@ -245,6 +245,8 @@ function frame(t){ E.raf=requestAnimationFrame(frame); if(!E.ok||!E.root||docume
 function engineStart(){ if(!E.raf){ E.last=0; E.raf=requestAnimationFrame(frame); } }
 function engineStop(){ if(E.raf){ cancelAnimationFrame(E.raf); E.raf=0; } }
 function engineDispose(){ engineStop(); clearModel(); if(!E.r) return; if(E.ro) E.ro.disconnect(); E.ctl.dispose(); E.r.dispose(); try{ E.r.forceContextLoss(); }catch(e){}
+  // majburan o'chirilgan kontekstli canvasda yangi WebGL ochilmaydi — keyingi ochilish uchun yangi canvas qo'yamiz
+  const old=E.host&&E.host.querySelector('canvas'); if(old) old.replaceWith(document.createElement('canvas'));
   Object.assign(E,{ ok:false, r:null, sc:null, cam:null, ctl:null, host:null, ro:null, cur:null }); }
 
 /* ======================= Ekran (UI) ======================= */
