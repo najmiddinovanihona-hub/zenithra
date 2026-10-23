@@ -706,7 +706,16 @@ window.AST_PHOTOS={
    "page": "https://commons.wikimedia.org/wiki/File:Shenzhou_5_walkout_Yang_Liwei.png"
   }
  ],
- "wangyaping": [],
+ "wangyaping": [
+  {
+   "src": "photos/ast/wangyaping-1.jpg",
+   "title": "Wang Yaping in 2021",
+   "artist": "China News Service",
+   "lic": "CC BY 4.0",
+   "licUrl": "https://creativecommons.org/licenses/by/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Wang_Yaping_in_2021.jpg"
+  }
+ ],
  "liuyang": [
   {
    "src": "photos/ast/liuyang-2.jpg",
