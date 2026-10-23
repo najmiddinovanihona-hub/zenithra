@@ -48,24 +48,39 @@ html,body{
 #loader *{ will-change:transform,opacity; }
 .sp-stars{ position:absolute; inset:-260px; background-image:radial-gradient(1px 1px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 20%,#cfe0ff,transparent),radial-gradient(1.5px 1.5px at 40% 80%,#fff,transparent),radial-gradient(1px 1px at 85% 65%,#fff,transparent),radial-gradient(1px 1px at 10% 70%,#bcd2ff,transparent),radial-gradient(1.5px 1.5px at 55% 45%,#fff,transparent),radial-gradient(1px 1px at 30% 10%,#fff,transparent),radial-gradient(1px 1px at 92% 90%,#fff,transparent);
   background-size:260px 260px; opacity:0; animation:spFadeS 2.6s ease forwards, spDrift 60s linear infinite; }
-.sp-logo{ width:min(150px,34vw); aspect-ratio:1; position:relative; }
+.sp-logo{ width:min(170px,38vw); aspect-ratio:1; position:relative; }
 .sp-l{ position:absolute; inset:0; }
 .sp-l svg{ display:block; width:100%; height:100%; overflow:visible; }
-.sp-glow{ position:absolute; inset:-35%; border-radius:50%; background:radial-gradient(circle, rgba(78,168,255,.45) 0%, rgba(78,168,255,.12) 40%, transparent 68%); opacity:0; transform:scale(.4); animation:spGrow 2.2s ease .3s forwards, spPulse 3.4s ease-in-out 4.4s infinite; }
-.sp-planet{ transform-origin:48.4% 53.1%; transform:scale(0); animation:spPop 1.6s cubic-bezier(.2,1.3,.4,1) .4s forwards; }
-.sp-ringb,.sp-ringf{ transform-origin:50% 53.1%; opacity:0; transform:rotate(-40deg) scale(.35); animation:spRing 1.8s cubic-bezier(.25,1,.35,1) 1.5s forwards; }
-.sp-orbit{ transform-origin:48.4% 53.1%; opacity:0; transform:rotate(-220deg); animation:spOrbit 2.4s cubic-bezier(.45,0,.2,1) 2.6s forwards; }
-.sp-name{ margin:22px 0 0; display:flex; gap:.32em; font-size:clamp(30px,6vw,46px); font-weight:800; letter-spacing:0; color:#fff; text-shadow:0 0 22px rgba(78,168,255,.6); }
+/* Yangi ASTRO belgisi: Yer → «A» (kontur chiziladi, keyin to'ladi) → orbita → yulduz chaqnaydi → yozuv */
+.sp-glow{ position:absolute; inset:-35%; border-radius:50%; background:radial-gradient(circle, rgba(58,140,255,.5) 0%, rgba(58,140,255,.14) 40%, transparent 68%); opacity:0; transform:scale(.4); animation:spGrow 2.2s ease .3s forwards, spPulse 4s ease-in-out 2.6s infinite; }
+.sp-earth{ transform-origin:51% 70%; opacity:0; transform:translateY(14%) scale(.6); animation:spRise 1.4s cubic-bezier(.2,.9,.3,1) .3s forwards; }
+.sp-aline{ stroke-dasharray:1; stroke-dashoffset:1; animation:spDraw 1.5s cubic-bezier(.6,0,.3,1) .7s forwards, spFadeOut .6s ease 2.4s forwards; }
+.sp-afill{ opacity:0; animation:spFill .9s ease 1.7s forwards; }
+.sp-amark{ transform-origin:50% 60%; animation:spLift 1s cubic-bezier(.2,.9,.3,1) 1.7s both; }
+.sp-ring{ clip-path:inset(0 100% 0 0); animation:spSweep 1.1s cubic-bezier(.5,0,.2,1) 2.3s forwards; }
+.sp-star{ transform-origin:78% 18%; opacity:0; transform:scale(0) rotate(-90deg); animation:spStar .8s cubic-bezier(.2,1.5,.4,1) 3.1s forwards, spTwinkle 2.4s ease-in-out 4s infinite; }
+.sp-name{ margin:24px 0 0; display:flex; align-items:center; gap:.18em; font-size:clamp(32px,6.4vw,50px); font-weight:800; letter-spacing:.06em; color:#fff; text-shadow:0 0 22px rgba(58,140,255,.55); }
 .sp-name span{ display:inline-block; opacity:0; transform:translateY(18px); animation:spLetter .9s cubic-bezier(.2,.9,.3,1) forwards; }
-.sp-name span:nth-child(1){ animation-delay:3.2s } .sp-name span:nth-child(2){ animation-delay:3.45s } .sp-name span:nth-child(3){ animation-delay:3.7s } .sp-name span:nth-child(4){ animation-delay:3.95s } .sp-name span:nth-child(5){ animation-delay:4.2s }
-.sp-tag{ margin:10px 0 0; font-size:12px; letter-spacing:.3em; text-transform:uppercase; color:var(--text-dim); opacity:0; animation:spFade 1s ease 4.6s forwards; }
+.sp-name span:nth-child(1){ animation-delay:3.3s } .sp-name span:nth-child(2){ animation-delay:3.45s } .sp-name span:nth-child(3){ animation-delay:3.6s } .sp-name span:nth-child(4){ animation-delay:3.75s } .sp-name span:nth-child(5){ animation-delay:3.9s }
+.sp-la{ position:relative; } .sp-la i{ position:absolute; left:50%; bottom:.12em; transform:translateX(-50%); font-style:normal; font-size:.34em; color:#4aa8ff; text-shadow:0 0 8px #4aa8ff; }
+.sp-lo{ position:relative; width:.78em; height:.78em; border-radius:50%; border:.14em solid #2f8cff; box-shadow:0 0 14px rgba(47,140,255,.8), inset 0 0 10px rgba(47,140,255,.5); box-sizing:border-box; margin-left:.06em; }
+.sp-lo i{ position:absolute; top:-.2em; right:-.12em; width:.2em; height:.2em; border-radius:50%; background:#fff; box-shadow:0 0 8px #fff; }
+.sp-sub{ margin:12px 0 0; font-size:clamp(10px,1.6vw,13px); letter-spacing:.42em; text-transform:uppercase; color:#e8eeff; opacity:0; animation:spFade .9s ease 4.2s forwards; }
+.sp-motto{ display:flex; align-items:center; gap:14px; margin:12px 0 0; font-size:clamp(11px,1.7vw,14px); font-style:italic; letter-spacing:.16em; color:#3aa0ff; opacity:0; animation:spFade .9s ease 4.5s forwards; }
+.sp-motto i{ display:block; width:44px; height:1px; background:linear-gradient(90deg,transparent,#2f8cff); } .sp-motto i:last-child{ transform:scaleX(-1); }
+.sp-tag{ margin:16px 0 0; font-size:12px; letter-spacing:.3em; text-transform:uppercase; color:var(--text-dim); opacity:0; animation:spFade 1s ease 4.8s forwards; }
 .sp-bar{ width:140px; height:2px; margin-top:18px; border-radius:2px; background:rgba(120,150,255,.15); overflow:hidden; opacity:0; animation:spFade .8s ease 4.6s forwards; }
 .sp-bar i{ display:block; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--neon),transparent); animation:spLoad 1.6s ease-in-out infinite; }
 @keyframes spFadeS{ to{ opacity:.7 } }
 @keyframes spDrift{ to{ transform:translate(-260px,-130px) } }
-@keyframes spPop{ to{ transform:scale(1) } }
-@keyframes spRing{ to{ opacity:1; transform:none } }
-@keyframes spOrbit{ 0%{ opacity:0 } 25%{ opacity:1 } 100%{ opacity:1; transform:rotate(0) } }
+@keyframes spRise{ to{ opacity:1; transform:none } }
+@keyframes spDraw{ to{ stroke-dashoffset:0 } }
+@keyframes spFadeOut{ to{ opacity:0 } }
+@keyframes spFill{ to{ opacity:1 } }
+@keyframes spLift{ from{ transform:scale(.94) } 60%{ transform:scale(1.04) } to{ transform:none } }
+@keyframes spSweep{ to{ clip-path:inset(0 0 0 0) } }
+@keyframes spStar{ to{ opacity:1; transform:none } }
+@keyframes spTwinkle{ 50%{ transform:scale(.72) rotate(45deg); opacity:.75 } }
 @keyframes spGrow{ to{ opacity:1; transform:scale(1) } }
 @keyframes spPulse{ 50%{ transform:scale(1.12); opacity:.75 } }
 @keyframes spLetter{ to{ opacity:1; transform:none } }
@@ -91,11 +106,11 @@ html,body{
 #intro h1{
   font-size:clamp(48px, 11vw, 120px);
   font-weight:800; line-height:.92; letter-spacing:.02em;
-  filter:drop-shadow(0 0 30px rgba(120,120,255,.35));
+  filter:drop-shadow(0 0 30px rgba(58,140,255,.4));
 }
 #intro h1 span{
   display:block;
-  background:linear-gradient(120deg,#ffffff 0%, var(--neon) 45%, var(--neon-2) 100%);
+  background:linear-gradient(120deg,#ffffff 0%, #6cc4ff 42%, #2f7dff 72%, #1446d8 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent;
 }
 #intro h1 span:last-child{ font-weight:300; opacity:.9; }
@@ -106,12 +121,12 @@ html,body{
 #startBtn{
   cursor:pointer; border:none; border-radius:100px;
   padding:16px 38px; font-size:16px; font-weight:600; color:#fff;
-  background:linear-gradient(120deg, var(--neon), var(--neon-2));
-  box-shadow:0 0 40px rgba(100,120,255,.55), inset 0 0 0 1px rgba(255,255,255,.25);
+  background:linear-gradient(120deg, #4aa8ff, #1f5fe8);
+  box-shadow:0 0 40px rgba(47,140,255,.55), inset 0 0 0 1px rgba(255,255,255,.25);
   transition:transform .25s ease, box-shadow .25s ease;
 }
 #startBtn:hover{ transform:translateY(-3px) scale(1.03);
-  box-shadow:0 0 60px rgba(120,140,255,.8), inset 0 0 0 1px rgba(255,255,255,.4); }
+  box-shadow:0 0 60px rgba(47,140,255,.8), inset 0 0 0 1px rgba(255,255,255,.4); }
 .hint-row{
   display:flex; gap:22px; justify-content:center; flex-wrap:wrap;
   margin-top:38px; color:var(--text-dim); font-size:12.5px; letter-spacing:.04em;
@@ -120,28 +135,26 @@ html,body{
 /* Intro: uchar yulduz → sarlavha → pastki yozuvlar */
 #intro h1{ position:relative; }
 /* Faqat transform/opacity animatsiyasi — GPU kompozitorda, sahifa qayta chizilmaydi */
+/* Logotip: avval yorug'lik bilan paydo bo'ladi, keyin sarlavha ustidan orbita chiziladi va uchida yulduz chaqnaydi */
+.intro-logo{ width:clamp(70px,11vw,96px); margin:0 auto 14px; filter:drop-shadow(0 0 22px rgba(47,140,255,.55)); }
+.intro-logo img{ display:block; width:100%; height:auto; }
+#intro.intro-play .intro-logo{ animation:introLogo 1.3s cubic-bezier(.2,.9,.3,1) .1s backwards; }
+@keyframes introLogo{ from{ opacity:0; transform:translateY(10px) scale(.7); filter:blur(8px) drop-shadow(0 0 0 rgba(47,140,255,0)); } }
 .intro-meteor{
-  position:absolute; inset:0; pointer-events:none; opacity:0; z-index:2;
-  transform:translate(-30%,-10%); will-change:transform,opacity;
-}
-.intro-meteor::before{
-  content:""; position:absolute; left:0; top:0; width:clamp(180px,34vw,380px); height:5px; border-radius:5px;
-  background:linear-gradient(90deg, rgba(160,200,255,0), rgba(190,220,255,.7) 55%, #fff);
-  box-shadow:0 0 12px 2px rgba(170,210,255,.55);
-  transform:translate(-100%,-50%) rotate(14deg); transform-origin:100% 50%;
+  position:absolute; left:-9%; right:-9%; top:30%; height:42%; pointer-events:none; opacity:0; z-index:2;
+  transform:rotate(-9deg); will-change:clip-path,opacity;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-30 -10 60 20' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%231d63ff' stop-opacity='.2'/%3E%3Cstop offset='.6' stop-color='%235cc0ff'/%3E%3Cstop offset='1' stop-color='%23fff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M-29 0A29 8.5 0 0 0 29 0A29 6.6 0 0 1 -29 0Z' fill='url(%23g)'/%3E%3C/svg%3E") center/100% 100% no-repeat; filter:drop-shadow(0 0 10px rgba(92,192,255,.85));
 }
 .intro-meteor::after{
-  content:""; position:absolute; left:-9px; top:-9px; width:18px; height:18px;
-  border-radius:50%; background:#fff;
-  box-shadow:0 0 18px 6px #fff, 0 0 50px 18px rgba(160,205,255,.9), 0 0 120px 46px rgba(110,140,255,.45), 0 0 220px 90px rgba(90,120,255,.18);
+  content:""; position:absolute; right:-1.5%; top:-34%; width:clamp(18px,3vw,30px); aspect-ratio:1;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 0L11.6 8.4L20 10L11.6 11.6L10 20L8.4 11.6L0 10L8.4 8.4Z' fill='%23fff'/%3E%3C/svg%3E") center/contain no-repeat; filter:drop-shadow(0 0 8px #fff) drop-shadow(0 0 18px #6cc4ff);
+  transform:scale(0) rotate(-90deg);
 }
-#intro.intro-play .intro-meteor{ animation:introMeteor 2.6s cubic-bezier(.4,.1,.4,1) .3s both; }
-@keyframes introMeteor{
-  0%  { transform:translate(-30%,-10%); opacity:0; }
-  10% { opacity:1; }
-  80% { opacity:1; }
-  100%{ transform:translate(130%,110%); opacity:0; }
-}
+#intro.intro-play .intro-meteor{ animation:introOrbit 1.6s cubic-bezier(.5,0,.2,1) .5s both; }
+#intro.intro-play .intro-meteor::after{ animation:introStar .7s cubic-bezier(.2,1.5,.4,1) 1.9s both, introTwinkle 2.6s ease-in-out 2.7s infinite; }
+@keyframes introOrbit{ from{ opacity:1; clip-path:inset(-60% 100% -60% 0); } to{ opacity:.9; clip-path:inset(-60% -10% -60% 0); } }
+@keyframes introStar{ to{ transform:none; } }
+@keyframes introTwinkle{ 50%{ transform:scale(.7) rotate(45deg); } }
 #intro.intro-play h1 span{ animation:introWipe 1.4s cubic-bezier(.35,.3,.3,1) .85s backwards; }
 #intro.intro-play h1 span:last-child{ animation-delay:1.35s; }
 @keyframes introWipe{
