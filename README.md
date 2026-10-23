@@ -1,7 +1,21 @@
-# ASTRO · Quyosh tizimi
+# Zenithra · Quyosh tizimi
 
-Interaktiv 3D astronomiya sayti (statik frontend) + Node.js backend: kirish/ro'yxatdan o'tish,
-darslik progressi va test natijalarini serverda saqlash, admin paneli.
+*Space Exploration Platform — Look Up. Explore. Discover.*
+
+O'zbek tilidagi (rus va ingliz tillari bilan) interaktiv 3D astronomiya platformasi (statik frontend) + Node.js backend:
+kirish/ro'yxatdan o'tish (email kodi bilan), darslik progressi va test natijalarini serverda saqlash, osmon eslatmalari (Web Push), admin paneli.
+
+### Asosiy imkoniyatlar
+
+- **3D Quyosh tizimi** — sayyoralar, yo'ldoshlar, real vaqt rejimi, sayohatlar, osmon to'ri va 88 ta yulduz turkumi.
+- **Darslik** — astronomiya va kosmonavtika bo'yicha 40 mavzu: 3D modellar, grafiklar, formulalar, masalalar, testlar.
+- **Ulug'bek rasadxonasi** — 3D qayta tiklangan rasadxona, Faxriy sekstanti, «Zij».
+- **Dunyo rasadxonalari** — 14 ta rasadxonaning realistik 3D modeli, maqolalar, grafiklar, haqiqiy suratlar.
+- **Astronomik asboblar** — 20 ta asbobning 3D modeli (gnomondan Habbl va LIGO gacha), ishlash namoyishi va qismlari.
+- **Astronom olimlar** — 54 ta olim: hayoti, asarlari, asboblari, formulalari, xronologiyasi.
+- **Kosmonavtlar** — 50 ta kosmonavt: parvozlari, rekordlari, kemalari, kosmosda o'tkazilgan vaqt taqqoslamasi.
+
+Suratlar Wikimedia Commons'dan, faqat erkin litsenziyalar ostida — mualliflar `photos/*/CREDITS.md` fayllarida.
 
 ## Ishga tushirish
 
