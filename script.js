@@ -3048,6 +3048,7 @@ function stopTour(resetView){
   eclipseStage = 0;
   if(resetView) flyToOverview();
 }
+window.__solar.stopTour=stopTour;   // yoqilgan funksiyalar paneli (labs/active-tray.js) sayohatni shu orqali to'xtatadi
 // Sayohatlar menyusi: ochish/yopish va tur tanlash
 tourBtn.addEventListener('click', (e)=>{
   e.stopPropagation(); playClick(650);
