@@ -320,12 +320,13 @@ function renderList(){ const box=U.el.querySelector('.obsw-items'), items=list()
   box.innerHTML=items.map(m=>'<button class="obsw-it'+(U.sel===m.id?' on':'')+'" data-id="'+m.id+'"><span class="obsw-ic">'+m.icon+'</span><span class="obsw-tx"><b>'+esc(T(m.name))+'</b><small>'+esc(T(m.place))+'</small></span><span class="obsw-yr">'+esc(T(m.year))+'</span></button>').join('');
   box.querySelectorAll('.obsw-it').forEach(b=>b.addEventListener('click',()=>{ click(700); select(b.dataset.id); }));
   U.el.querySelector('.obsw-count').textContent=list().length+T(TX.count); }
-/* --- Ma'lumot paneli: 4 bo'lim — Umumiy · Tarix · Kashfiyotlar · Taqqoslash (grafiklar) --- */
-const ITX={ tabs:[{uz:'📊 Umumiy',ru:'📊 Обзор',en:'📊 Overview'},{uz:'📷 Suratlar',ru:'📷 Фото',en:'📷 Photos'},{uz:'📜 Tarix',ru:'📜 История',en:'📜 History'},{uz:'🔬 Kashfiyotlar',ru:'🔬 Открытия',en:'🔬 Discoveries'},{uz:'📈 Taqqoslash',ru:'📈 Сравнение',en:'📈 Compare'}],
+/* --- Ma'lumot paneli: Umumiy · Maqola · Suratlar · Tarix · Kashfiyotlar · Taqqoslash (grafiklar) --- */
+const ITX={ tabs:[{uz:'📊 Umumiy',ru:'📊 Обзор',en:'📊 Overview'},{uz:'📖 Maqola',ru:'📖 Статья',en:'📖 Article'},{uz:'📷 Suratlar',ru:'📷 Фото',en:'📷 Photos'},{uz:'📜 Tarix',ru:'📜 История',en:'📜 History'},{uz:'🔬 Kashfiyotlar',ru:'🔬 Открытия',en:'🔬 Discoveries'},{uz:'📈 Taqqoslash',ru:'📈 Сравнение',en:'📈 Compare'}],
   apT:{uz:'Asosiy asbob o‘lchami (logarifmik shkala)',ru:'Размер главного инструмента (логарифмическая шкала)',en:'Size of the main instrument (log scale)'},
   apS:{uz:'Teleskopsiz davrda — inson ko‘z qorachig‘i (~7 mm). Har bir bo‘linma 10 baravar katta.',ru:'До телескопа — зрачок человека (~7 мм). Каждое деление в 10 раз больше.',en:'Before telescopes — the human pupil (~7 mm). Each step is 10× larger.'},
   altT:{uz:'Joylashuv balandligi (dengiz sathidan)',ru:'Высота над уровнем моря',en:'Altitude above sea level'},
   altS:{uz:'Baland tog‘da havo yupqa va quruq — tasvir tiniqroq.',ru:'Высоко в горах воздух тонкий и сухой — изображение чётче.',en:'High on mountains the air is thin and dry — images are sharper.'},
+  read:{uz:'Batafsil o‘qish →',ru:'Читать подробнее →',en:'Read more →'},
   timeT:{uz:'Vaqt chizig‘i: 5000 yillik kuzatuvlar',ru:'Шкала времени: 5000 лет наблюдений',en:'Timeline: 5,000 years of observing'},
   timeS:{uz:'Shkala siqilgan: yaqin asrlar kengroq ko‘rsatilgan.',ru:'Шкала сжата: последние века показаны крупнее.',en:'Compressed scale: recent centuries are shown wider.'},
   kinds:{ eye:{uz:'Oddiy ko‘z',ru:'Невооружённый глаз',en:'Naked eye'}, optical:{uz:'Optik teleskop',ru:'Оптический телескоп',en:'Optical telescope'}, radio:{uz:'Radio-teleskop',ru:'Радиотелескоп',en:'Radio telescope'} },
@@ -388,19 +389,23 @@ function renderInfo(m){ const i=U.el.querySelector('.obsw-info'); U.itab=U.itab|
   const head='<div class="obsw-ihead"><h4>'+m.icon+' '+esc(T(m.name))+'</h4><div class="obsw-itabs">'+ITX.tabs.map((t,k)=>'<button class="sn-chip'+(k===U.itab?' on':'')+'" data-k="'+k+'">'+esc(T(t))+'</button>').join('')+'</div></div>';
   let body='';
   const ph=(window.OBS_PHOTOS||{})[m.id]||[];
-  if(U.itab===0){ body=(ph.length?heroHTML(ph,U.hero||0):'')+'<div class="obsw-kv"><div><span>'+esc(T(TX.place))+'</span><b>'+esc(T(m.place))+'</b></div><div><span>'+esc(T(TX.year))+'</span><b>'+esc(T(m.year))+'</b></div><div><span>'+esc(T(TX.coords))+'</span><b>'+esc(T(m.coords))+'</b></div><div><span>'+esc(T(TX.instr))+'</span><b>'+esc(T(m.instr))+'</b></div></div>'+
+  const at=(window.OBS_TEXT||{})[m.id]||{}, art=at[L()]||at.uz||[];
+  if(U.itab===0){ body=(ph.length?heroHTML(ph,U.hero||0):'')+(art.length?'<p class="obsw-lead">'+esc(art[0])+' <button class="ac-link obsw-read">'+esc(T(ITX.read))+'</button></p>':'')+'<div class="obsw-kv"><div><span>'+esc(T(TX.place))+'</span><b>'+esc(T(m.place))+'</b></div><div><span>'+esc(T(TX.year))+'</span><b>'+esc(T(m.year))+'</b></div><div><span>'+esc(T(TX.coords))+'</span><b>'+esc(T(m.coords))+'</b></div><div><span>'+esc(T(TX.instr))+'</span><b>'+esc(T(m.instr))+'</b></div></div>'+
       (m.stats?'<div class="obsw-stats">'+m.stats.map(s=>'<div class="obsw-stat"><b>'+esc(s[0])+'</b><span>'+esc(T(s[1]))+'</span></div>').join('')+'</div>':'')+
       '<h5>'+esc(T(TX.facts))+'</h5><ul>'+m.facts.map(f=>'<li>'+esc(T(f))+'</li>').join('')+'</ul>'+
       (m.link==='ulugbek'?'<button class="auth-btn obsw-more" id="obswMore"><span class="auth-btn-tx">'+esc(T(m.linkText))+'</span></button>':'')+'<p class="obsw-hint">'+esc(T(TX.hint))+'</p>'; }
-  else if(U.itab===1){ body=ph.length?'<div class="obsw-gal">'+ph.map((p,k)=>'<button class="obsw-gi" data-ph="'+k+'" style="--i:'+k+'"><img src="'+p.src+'" alt="'+esc(p.title)+'" loading="lazy"><span>'+esc(p.title)+'</span></button>').join('')+'</div><p class="obsw-src">'+esc(T(PTX.src))+'</p>':'<p class="obsw-hint">'+esc(T(PTX.none))+'</p>'; }
-  else if(U.itab===2){ body='<ol class="obsw-tl">'+(m.hist||[]).map((h,k)=>'<li style="--i:'+k+'"><b>'+esc(h[0])+'</b><span>'+esc(T(h[1]))+'</span></li>').join('')+'</ol>'; }
-  else if(U.itab===3){ body='<div class="obsw-ach">'+(m.ach||[]).map((a,k)=>'<div class="obsw-acard" style="--i:'+k+'"><div class="ic">'+a[0]+'</div><div><b>'+esc(T(a[1]))+'</b><p>'+esc(T(a[2]))+'</p></div></div>').join('')+'</div>'; }
+  else if(U.itab===1){ body=art.length?'<article class="obsw-art">'+art.map((p,k)=>{ const sc=(window.OBS_TEXT_SECS||[])[k]||{};
+      return '<section style="--i:'+k+'"><h5><span>'+(sc.ico||'')+'</span>'+esc(T(sc.t))+'</h5><p>'+esc(p)+'</p></section>'; }).join('')+'</article>':''; }
+  else if(U.itab===2){ body=ph.length?'<div class="obsw-gal">'+ph.map((p,k)=>'<button class="obsw-gi" data-ph="'+k+'" style="--i:'+k+'"><img src="'+p.src+'" alt="'+esc(p.title)+'" loading="lazy"><span>'+esc(p.title)+'</span></button>').join('')+'</div><p class="obsw-src">'+esc(T(PTX.src))+'</p>':'<p class="obsw-hint">'+esc(T(PTX.none))+'</p>'; }
+  else if(U.itab===3){ body='<ol class="obsw-tl">'+(m.hist||[]).map((h,k)=>'<li style="--i:'+k+'"><b>'+esc(h[0])+'</b><span>'+esc(T(h[1]))+'</span></li>').join('')+'</ol>'; }
+  else if(U.itab===4){ body='<div class="obsw-ach">'+(m.ach||[]).map((a,k)=>'<div class="obsw-acard" style="--i:'+k+'"><div class="ic">'+a[0]+'</div><div><b>'+esc(T(a[1]))+'</b><p>'+esc(T(a[2]))+'</p></div></div>').join('')+'</div>'; }
   else { body=U.tableView?'<button class="ac-link obsw-tv">'+esc(T(ITX.chart))+'</button>'+tableView(m):
       '<button class="ac-link obsw-tv">'+esc(T(ITX.table))+'</button><div class="obsw-chart"><h5>'+esc(T(ITX.timeT))+'</h5><p class="sub">'+esc(T(ITX.timeS))+'</p>'+legend()+chartTime(m)+'</div>'+
       '<div class="obsw-chart"><h5>'+esc(T(ITX.apT))+'</h5><p class="sub">'+esc(T(ITX.apS))+'</p>'+legend()+chartAp(m)+'</div>'+
       '<div class="obsw-chart"><h5>'+esc(T(ITX.altT))+'</h5><p class="sub">'+esc(T(ITX.altS))+'</p>'+chartAlt(m)+'</div>'; }
   i.innerHTML=head+'<div class="obsw-ibody">'+body+'</div><div class="obsw-tip" role="tooltip"></div>';
   i.querySelectorAll('.obsw-itabs button').forEach(b=>b.addEventListener('click',()=>{ click(620); U.itab=+b.dataset.k; renderInfo(m); i.scrollTop=0; }));
+  const rd=i.querySelector('.obsw-read'); if(rd) rd.addEventListener('click',()=>{ click(620); U.itab=1; renderInfo(m); i.scrollTop=0; });
   const tv=i.querySelector('.obsw-tv'); if(tv) tv.addEventListener('click',()=>{ click(620); U.tableView=!U.tableView; renderInfo(m); });
   // grafik ustida izoh (tooltip) — nishon belgining o'zidan kattaroq (butun qator)
   const tip=i.querySelector('.obsw-tip');

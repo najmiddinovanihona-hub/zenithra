@@ -2216,6 +2216,12 @@ body.obswmode .ui-toggle{ display:none !important; }
 .obsw-gi:hover img{ transform:scale(1.05); }
 .obsw-gi span{ position:absolute; left:0; right:0; bottom:0; padding:18px 10px 7px; font-size:11px; color:#fff; text-align:left; background:linear-gradient(transparent,rgba(0,0,0,.8)); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .obsw-src{ margin:10px 0 0; font-size:11px; color:#7d89b0; }
+.obsw-lead{ margin:12px 0 4px; font-size:13.5px; line-height:1.6; color:#cfd7f0; }
+.obsw-lead .obsw-read{ display:inline; margin-left:4px; font-size:12.5px; }
+.obsw-art{ display:flex; flex-direction:column; gap:12px; }
+.obsw-art section{ padding:12px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.07); animation:obswIn .4s both; animation-delay:calc(var(--i)*80ms); }
+.obsw-art h5{ display:flex; align-items:center; gap:8px; margin:0 0 6px; font-size:13px; color:var(--neon); letter-spacing:.02em; }
+.obsw-art p{ margin:0; font-size:13.5px; line-height:1.65; color:#d4dbf2; text-wrap:pretty; }
 .obsw-lb{ position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; gap:10px; padding:20px; background:rgba(2,4,10,.92); }
 .obsw-lb.on{ display:flex; }
 .obsw-lb figure{ margin:0; max-width:min(1200px,88vw); display:flex; flex-direction:column; align-items:center; }
