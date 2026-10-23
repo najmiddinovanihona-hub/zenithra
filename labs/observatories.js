@@ -320,11 +320,70 @@ function renderList(){ const box=U.el.querySelector('.obsw-items'), items=list()
   box.innerHTML=items.map(m=>'<button class="obsw-it'+(U.sel===m.id?' on':'')+'" data-id="'+m.id+'"><span class="obsw-ic">'+m.icon+'</span><span class="obsw-tx"><b>'+esc(T(m.name))+'</b><small>'+esc(T(m.place))+'</small></span><span class="obsw-yr">'+esc(T(m.year))+'</span></button>').join('');
   box.querySelectorAll('.obsw-it').forEach(b=>b.addEventListener('click',()=>{ click(700); select(b.dataset.id); }));
   U.el.querySelector('.obsw-count').textContent=list().length+T(TX.count); }
-function renderInfo(m){ const i=U.el.querySelector('.obsw-info');
-  i.innerHTML='<h4>'+m.icon+' '+esc(T(m.name))+'</h4><div class="obsw-kv"><div><span>'+esc(T(TX.place))+'</span><b>'+esc(T(m.place))+'</b></div><div><span>'+esc(T(TX.year))+'</span><b>'+esc(T(m.year))+'</b></div>'+
-    '<div><span>'+esc(T(TX.coords))+'</span><b>'+esc(T(m.coords))+'</b></div><div><span>'+esc(T(TX.instr))+'</span><b>'+esc(T(m.instr))+'</b></div></div>'+
-    '<h5>'+esc(T(TX.facts))+'</h5><ul>'+m.facts.map(f=>'<li>'+esc(T(f))+'</li>').join('')+'</ul>'+
-    (m.link==='ulugbek'?'<button class="auth-btn obsw-more" id="obswMore"><span class="auth-btn-tx">'+esc(T(m.linkText))+'</span></button>':'')+'<p class="obsw-hint">'+esc(T(TX.hint))+'</p>';
+/* --- Ma'lumot paneli: 4 bo'lim — Umumiy · Tarix · Kashfiyotlar · Taqqoslash (grafiklar) --- */
+const ITX={ tabs:[{uz:'📊 Umumiy',ru:'📊 Обзор',en:'📊 Overview'},{uz:'📜 Tarix',ru:'📜 История',en:'📜 History'},{uz:'🔬 Kashfiyotlar',ru:'🔬 Открытия',en:'🔬 Discoveries'},{uz:'📈 Taqqoslash',ru:'📈 Сравнение',en:'📈 Compare'}],
+  apT:{uz:'Asosiy asbob o‘lchami (logarifmik shkala)',ru:'Размер главного инструмента (логарифмическая шкала)',en:'Size of the main instrument (log scale)'},
+  apS:{uz:'Teleskopsiz davrda — inson ko‘z qorachig‘i (~7 mm). Har bir bo‘linma 10 baravar katta.',ru:'До телескопа — зрачок человека (~7 мм). Каждое деление в 10 раз больше.',en:'Before telescopes — the human pupil (~7 mm). Each step is 10× larger.'},
+  altT:{uz:'Joylashuv balandligi (dengiz sathidan)',ru:'Высота над уровнем моря',en:'Altitude above sea level'},
+  altS:{uz:'Baland tog‘da havo yupqa va quruq — tasvir tiniqroq.',ru:'Высоко в горах воздух тонкий и сухой — изображение чётче.',en:'High on mountains the air is thin and dry — images are sharper.'},
+  timeT:{uz:'Vaqt chizig‘i: 5000 yillik kuzatuvlar',ru:'Шкала времени: 5000 лет наблюдений',en:'Timeline: 5,000 years of observing'},
+  timeS:{uz:'Shkala siqilgan: yaqin asrlar kengroq ko‘rsatilgan.',ru:'Шкала сжата: последние века показаны крупнее.',en:'Compressed scale: recent centuries are shown wider.'},
+  kinds:{ eye:{uz:'Oddiy ko‘z',ru:'Невооружённый глаз',en:'Naked eye'}, optical:{uz:'Optik teleskop',ru:'Оптический телескоп',en:'Optical telescope'}, radio:{uz:'Radio-teleskop',ru:'Радиотелескоп',en:'Radio telescope'} },
+  space:{uz:'kosmosda',ru:'в космосе',en:'in space'}, nd:{uz:'ma’lumot yo‘q',ru:'нет данных',en:'no data'},
+  table:{uz:'📋 Jadval ko‘rinishi',ru:'📋 Таблица',en:'📋 Table view'}, chart:{uz:'📈 Grafiklar',ru:'📈 Графики',en:'📈 Charts'},
+  cols:[{uz:'Rasadxona',ru:'Обсерватория',en:'Observatory'},{uz:'Yil',ru:'Год',en:'Year'},{uz:'Asbob',ru:'Инструмент',en:'Instrument'},{uz:'Turi',ru:'Тип',en:'Type'},{uz:'Balandlik',ru:'Высота',en:'Altitude'}] };
+const CM=()=>({uz:'sm',ru:'см',en:'cm'})[L()];
+const fmtAp=v=>v<0.1?(v*1000).toFixed(0)+' mm':v<1?(v*100).toFixed(0)+' '+CM():(v%1?(L()==='en'?v.toFixed(1):v.toFixed(1).replace('.',',')):v)+' m';
+const fmtAlt=m=>m.space?T(ITX.space):m.alt==null?'—':m.alt.toLocaleString(L()==='en'?'en-US':'ru-RU')+' m';
+const KC={ eye:'var(--k-eye)', optical:'var(--k-opt)', radio:'var(--k-radio)' };
+function chartAp(cur){ const ms=list(), W=640, lw=172, rowH=22, top=8, H=top+ms.length*rowH+28, x0=lw+8, x1=W-58, lo=Math.log10(0.005), hi=Math.log10(700), X=v=>x0+(Math.log10(v)-lo)/(hi-lo)*(x1-x0);
+  let g='<svg class="obsw-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(T(ITX.apT))+'">';
+  [[0.01,'1 '+CM()],[0.1,'10 '+CM()],[1,'1 m'],[10,'10 m'],[100,'100 m']].forEach(([v,l])=>{ const x=X(v); g+='<line class="grid" x1="'+x+'" x2="'+x+'" y1="'+top+'" y2="'+(H-22)+'"/><text class="ax" x="'+x+'" y="'+(H-6)+'" text-anchor="middle">'+l+'</text>'; });
+  ms.forEach((m,i)=>{ if(m.ap==null) return; const y=top+i*rowH, on=m.id===cur.id, w=Math.max(3,X(m.ap)-x0);
+    g+='<g class="row'+(on?' on':'')+'" data-tip="'+esc(T(m.name)+' — '+fmtAp(m.ap)+' · '+T(ITX.kinds[m.kind]))+'"><rect class="hit" x="0" y="'+y+'" width="'+W+'" height="'+rowH+'"/>'+
+      '<text class="lbl" x="'+lw+'" y="'+(y+15)+'" text-anchor="end">'+esc(T(m.name))+'</text><rect class="bar" x="'+x0+'" y="'+(y+5)+'" width="'+w+'" height="12" rx="3" fill="'+KC[m.kind]+'"/>'+
+      (on?'<text class="val" x="'+(x0+w+6)+'" y="'+(y+15)+'">'+esc(fmtAp(m.ap))+'</text>':'')+'</g>'; });
+  return g+'</svg>'; }
+function chartAlt(cur){ const ms=list(), W=640, lw=172, rowH=22, top=8, H=top+ms.length*rowH+28, x0=lw+8, x1=W-72, mx=5200, X=v=>x0+v/mx*(x1-x0);
+  let g='<svg class="obsw-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(T(ITX.altT))+'">';
+  [0,1000,2000,3000,4000,5000].forEach(v=>{ const x=X(v); g+='<line class="grid" x1="'+x+'" x2="'+x+'" y1="'+top+'" y2="'+(H-22)+'"/><text class="ax" x="'+x+'" y="'+(H-6)+'" text-anchor="middle">'+(v?(v/1000)+' km':'0')+'</text>'; });
+  ms.forEach((m,i)=>{ const y=top+i*rowH, on=m.id===cur.id;
+    g+='<g class="row'+(on?' on':'')+'" data-tip="'+esc(T(m.name)+' — '+fmtAlt(m))+'"><rect class="hit" x="0" y="'+y+'" width="'+W+'" height="'+rowH+'"/><text class="lbl" x="'+lw+'" y="'+(y+15)+'" text-anchor="end">'+esc(T(m.name))+'</text>';
+    if(m.space) g+='<text class="note" x="'+(x0+4)+'" y="'+(y+15)+'">🚀 '+esc(T(ITX.space))+' · 1 500 000 km</text>';
+    else if(m.alt==null) g+='<text class="note" x="'+(x0+4)+'" y="'+(y+15)+'">— '+esc(T(ITX.nd))+'</text>';
+    else { const w=Math.max(3,X(m.alt)-x0); g+='<rect class="bar" x="'+x0+'" y="'+(y+5)+'" width="'+w+'" height="12" rx="3" fill="var(--k-opt)"/>'+(on?'<text class="val" x="'+(x0+w+6)+'" y="'+(y+15)+'">'+esc(fmtAlt(m))+'</text>':''); }
+    g+='</g>'; });
+  return g+'</svg>'; }
+function chartTime(cur){ const ms=list(), W=640, H=118, x0=24, x1=W-24, f=y=>-Math.log10(2030-y), lo=f(-3200), hi=f(2025), X=y=>x0+(f(y)-lo)/(hi-lo)*(x1-x0), cy=58;
+  let g='<svg class="obsw-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(T(ITX.timeT))+'"><line class="axis" x1="'+x0+'" x2="'+x1+'" y1="'+cy+'" y2="'+cy+'"/>';
+  [[-3000,'−3000'],[0,'0'],[1000,'1000'],[1500,'1500'],[1800,'1800'],[1900,'1900'],[1950,'1950'],[2000,'2000']].forEach(([y,l])=>{ const x=X(y); g+='<line class="tick" x1="'+x+'" x2="'+x+'" y1="'+(cy-4)+'" y2="'+(cy+4)+'"/><text class="ax" x="'+x+'" y="'+(H-8)+'" text-anchor="middle">'+l+'</text>'; });
+  ms.forEach((m,i)=>{ const x=X(m.yearN), on=m.id===cur.id;
+    g+='<g class="dot'+(on?' on':'')+'" data-tip="'+esc(T(m.name)+' — '+T(m.year))+'"><circle class="hit" cx="'+x+'" cy="'+cy+'" r="12"/><circle class="mk" cx="'+x+'" cy="'+cy+'" r="'+(on?7:5)+'" fill="'+KC[m.kind]+'"/>'+
+      (on?'<text class="val" x="'+Math.max(60,Math.min(W-60,x))+'" y="'+(cy-20)+'" text-anchor="middle">'+esc(T(m.name))+'</text>':'')+'</g>'; });
+  return g+'</svg>'; }
+function legend(){ return '<div class="obsw-legend">'+['eye','optical','radio'].map(k=>'<span><i style="background:'+KC[k]+'"></i>'+esc(T(ITX.kinds[k]))+'</span>').join('')+'</div>'; }
+function tableView(cur){ return '<table class="obsw-table"><tr>'+ITX.cols.map(c=>'<th>'+esc(T(c))+'</th>').join('')+'</tr>'+list().map(m=>'<tr'+(m.id===cur.id?' class="on"':'')+'><td>'+m.icon+' '+esc(T(m.name))+'</td><td>'+esc(T(m.year))+'</td><td>'+(m.ap!=null?esc(fmtAp(m.ap)):'—')+'</td><td>'+esc(m.kind?T(ITX.kinds[m.kind]):'—')+'</td><td>'+esc(fmtAlt(m))+'</td></tr>').join('')+'</table>'; }
+function renderInfo(m){ const i=U.el.querySelector('.obsw-info'); U.itab=U.itab||0;
+  const head='<div class="obsw-ihead"><h4>'+m.icon+' '+esc(T(m.name))+'</h4><div class="obsw-itabs">'+ITX.tabs.map((t,k)=>'<button class="sn-chip'+(k===U.itab?' on':'')+'" data-k="'+k+'">'+esc(T(t))+'</button>').join('')+'</div></div>';
+  let body='';
+  if(U.itab===0){ body='<div class="obsw-kv"><div><span>'+esc(T(TX.place))+'</span><b>'+esc(T(m.place))+'</b></div><div><span>'+esc(T(TX.year))+'</span><b>'+esc(T(m.year))+'</b></div><div><span>'+esc(T(TX.coords))+'</span><b>'+esc(T(m.coords))+'</b></div><div><span>'+esc(T(TX.instr))+'</span><b>'+esc(T(m.instr))+'</b></div></div>'+
+      (m.stats?'<div class="obsw-stats">'+m.stats.map(s=>'<div class="obsw-stat"><b>'+esc(s[0])+'</b><span>'+esc(T(s[1]))+'</span></div>').join('')+'</div>':'')+
+      '<h5>'+esc(T(TX.facts))+'</h5><ul>'+m.facts.map(f=>'<li>'+esc(T(f))+'</li>').join('')+'</ul>'+
+      (m.link==='ulugbek'?'<button class="auth-btn obsw-more" id="obswMore"><span class="auth-btn-tx">'+esc(T(m.linkText))+'</span></button>':'')+'<p class="obsw-hint">'+esc(T(TX.hint))+'</p>'; }
+  else if(U.itab===1){ body='<ol class="obsw-tl">'+(m.hist||[]).map((h,k)=>'<li style="--i:'+k+'"><b>'+esc(h[0])+'</b><span>'+esc(T(h[1]))+'</span></li>').join('')+'</ol>'; }
+  else if(U.itab===2){ body='<div class="obsw-ach">'+(m.ach||[]).map((a,k)=>'<div class="obsw-acard" style="--i:'+k+'"><div class="ic">'+a[0]+'</div><div><b>'+esc(T(a[1]))+'</b><p>'+esc(T(a[2]))+'</p></div></div>').join('')+'</div>'; }
+  else { body=U.tableView?'<button class="ac-link obsw-tv">'+esc(T(ITX.chart))+'</button>'+tableView(m):
+      '<button class="ac-link obsw-tv">'+esc(T(ITX.table))+'</button><div class="obsw-chart"><h5>'+esc(T(ITX.timeT))+'</h5><p class="sub">'+esc(T(ITX.timeS))+'</p>'+legend()+chartTime(m)+'</div>'+
+      '<div class="obsw-chart"><h5>'+esc(T(ITX.apT))+'</h5><p class="sub">'+esc(T(ITX.apS))+'</p>'+legend()+chartAp(m)+'</div>'+
+      '<div class="obsw-chart"><h5>'+esc(T(ITX.altT))+'</h5><p class="sub">'+esc(T(ITX.altS))+'</p>'+chartAlt(m)+'</div>'; }
+  i.innerHTML=head+'<div class="obsw-ibody">'+body+'</div><div class="obsw-tip" role="tooltip"></div>';
+  i.querySelectorAll('.obsw-itabs button').forEach(b=>b.addEventListener('click',()=>{ click(620); U.itab=+b.dataset.k; renderInfo(m); i.scrollTop=0; }));
+  const tv=i.querySelector('.obsw-tv'); if(tv) tv.addEventListener('click',()=>{ click(620); U.tableView=!U.tableView; renderInfo(m); });
+  // grafik ustida izoh (tooltip) — nishon belgining o'zidan kattaroq (butun qator)
+  const tip=i.querySelector('.obsw-tip');
+  i.querySelectorAll('[data-tip]').forEach(el=>{ el.addEventListener('pointerenter',()=>{ tip.textContent=el.dataset.tip; tip.classList.add('on'); });
+    el.addEventListener('pointermove',e=>{ const r=i.getBoundingClientRect(); tip.style.transform='translate('+(e.clientX-r.left+i.scrollLeft+12)+'px,'+(e.clientY-r.top+i.scrollTop-34)+'px)'; });
+    el.addEventListener('pointerleave',()=>tip.classList.remove('on')); });
   const mb=i.querySelector('#obswMore'); if(mb) mb.addEventListener('click',()=>{ click(760); close(); const ub=document.getElementById('ubBtn'); if(ub) setTimeout(()=>ub.click(),60); }); }
 function select(id){ const m=list().find(x=>x.id===id); if(!m) return; U.sel=id; U.el.classList.add('viewing');
   U.el.querySelectorAll('.obsw-it').forEach(b=>b.classList.toggle('on',b.dataset.id===id)); renderInfo(m);
