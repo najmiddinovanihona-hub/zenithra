@@ -72,6 +72,14 @@ const X={
   ground(base,amt,rep){ const b=rgb(base), a=amt||0.18; return texB(512,512,(x,w,h)=>{ paint(x,w,[[0,...shade(b,1-a*2.2)],[0.4,...shade(b,0.94)],[0.7,...b],[1,...shade(b,1+a*0.9)]],{ oct:7, persist:0.6, speck:24, patch:true });
     for(let i=0;i<2600;i++){ const r=0.6+rnd()*1.8, cx=rnd()*w, cy=rnd()*h; x.fillStyle='rgba(0,0,0,'+(0.12+rnd()*0.18)+')'; x.beginPath(); x.arc(cx+0.6,cy+0.6,r,0,7); x.fill(); x.fillStyle='rgba('+shade(b,1.15+rnd()*0.2).join(',')+',0.7)'; x.beginPath(); x.arc(cx,cy,r*0.85,0,7); x.fill(); } },rep||[40,40]); },
   bark(){ return texB(128,256,(x,w,h)=>{ paint(x,128,[[0,40,30,22],[0.5,74,58,42],[1,104,88,66]],{ oct:5, speck:20 }); x.drawImage(x.canvas,0,0,128,128,0,128,128,128); for(let i=0;i<40;i++){ x.strokeStyle='rgba(20,14,8,.45)'; x.lineWidth=1+rnd()*2; const xx=rnd()*w; x.beginPath(); x.moveTo(xx,0); x.bezierCurveTo(xx+rnd()*8-4,h/3,xx+rnd()*8-4,h*0.66,xx+rnd()*6-3,h); x.stroke(); } },[1,2]); },
+  // yog'och: cho'zilgan tolalar, yillik halqa chiziqlari, lak yaltirashi uchun relyef
+  wood(c,rep){ const b=rgb(c||'#6b4426'); return texB(512,512,(x,w,h)=>{ const t=document.createElement('canvas'); t.width=t.height=128; paint(t.getContext('2d'),128,[[0,...shade(b,0.62)],[0.5,...b],[1,...shade(b,1.28)]],{ oct:5, persist:0.62, contrast:2.2 });
+    x.drawImage(t,0,0,128,128,0,0,w*6,h); x.drawImage(t,0,0,128,128,-w*2,0,w*6,h);
+    for(let i=0;i<46;i++){ const y=rnd()*h, a=0.03+rnd()*0.08; x.strokeStyle=rnd()<0.6?'rgba(30,16,6,'+a+')':'rgba(255,220,170,'+a*0.6+')'; x.lineWidth=0.6+rnd()*2.2; x.beginPath(); x.moveTo(0,y); for(let k=1;k<=8;k++) x.lineTo(k*w/8,y+Math.sin(k*0.9+i)*(1+rnd()*2)); x.stroke(); } },rep||[1,1]); },
+  // metall: mayda cho'tka izlari va (ixtiyoriy) qorayish/patina dog'lari — guruch, bronza, po'lat
+  metal(c,patina,rep){ const b=rgb(c||'#b38a4a'); return texB(256,256,(x,w,h)=>{ paint(x,w,[[0,...shade(b,0.82)],[0.5,...b],[1,...shade(b,1.1)]],{ oct:5, persist:0.5, speck:10 });
+    for(let i=0;i<260;i++){ x.fillStyle=rnd()<0.5?'rgba(255,255,255,.025)':'rgba(0,0,0,.03)'; x.fillRect(0,rnd()*h,w,0.6+rnd()); }
+    if(patina){ const p=rgb(patina); for(let i=0;i<60;i++){ x.globalAlpha=0.06+rnd()*0.18; x.fillStyle='rgb('+p.join(',')+')'; const cx=rnd()*w, cy=rnd()*h; for(let k=0;k<5;k++){ x.beginPath(); x.arc(cx+(rnd()-0.5)*20,cy+(rnd()-0.5)*20,2+rnd()*9,0,7); x.fill(); } } x.globalAlpha=1; } },rep||[1,1]); },
   leaves(c){ const b=rgb(c); return texB(256,256,(x,w)=>{ paint(x,w,[[0,...shade(b,0.45)],[0.5,...b],[1,...shade(b,1.35)]],{ oct:6, persist:0.65, speck:40, contrast:2.2 }); },[2,2]); },
 };
 // Teksturasiz sirtlarga yengil eskirish/chang qatlami — "plastik", multfilmdek tekislik yo'qoladi
@@ -82,7 +90,7 @@ function M(o){ const THREE=window.THREE; o=o||{};
     side:o.side||THREE.FrontSide, transparent:!!o.transparent, opacity:o.opacity!=null?o.opacity:1, emissive:o.emissive!=null?o.emissive:0x000000, emissiveIntensity:o.ei!=null?o.ei:1, flatShading:!!o.flat, vertexColors:!!o.vc });
   // r128: hex ranglar chiziqli deb olinadi va oqarib chiqadi — sRGB dan o'tkazamiz (rang yozilganidek ko'rinsin)
   m.color.convertSRGBToLinear(); m.emissive.convertSRGBToLinear();
-  if(m.map&&m.map.userData&&m.map.userData.bump&&o.bump!==0){ m.bumpMap=m.map; m.bumpScale=o.bump!=null?o.bump:0.45; }
+  if(m.map&&m.map.userData&&m.map.userData.bump&&o.bump!==0){ m.bumpMap=m.map; m.bumpScale=(o.bump!=null?o.bump:0.45)*(E.bumpK||1); }
   if(o.env!=null) m.envMapIntensity=o.env;
   if(o.clip){ m.clippingPlanes=[E.clip]; m.clipShadows=true; } return m; }
 function mesh(geo,mat,pos,rot,parent,noShadow){ const THREE=window.THREE, m=new THREE.Mesh(geo,mat); if(pos) m.position.set(pos[0],pos[1],pos[2]); if(rot) m.rotation.set(rot[0]||0,rot[1]||0,rot[2]||0);
@@ -189,11 +197,11 @@ function buildEnv(env){ const THREE=window.THREE, sc=E.sc;
   const kind=env.sky||'day', sunDir=new THREE.Vector3().setFromSphericalCoords(1,(90-(env.sunAlt!=null?env.sunAlt:45))*D2R,(env.sunAz!=null?env.sunAz:135)*D2R);
   // setFromSphericalCoords: theta — y o'qi atrofida, +z dan +x ga. Azimut: 0 — shimol (−z), 90 — sharq (+x)
   sunDir.set(Math.sin((env.sunAz!=null?env.sunAz:135)*D2R)*Math.cos((env.sunAlt!=null?env.sunAlt:45)*D2R), Math.sin((env.sunAlt!=null?env.sunAlt:45)*D2R), -Math.cos((env.sunAz!=null?env.sunAz:135)*D2R)*Math.cos((env.sunAlt!=null?env.sunAlt:45)*D2R));
-  E.skyU={ uSun:{ value:sunDir.clone() }, uDay:{ value:kind==='day'?1:kind==='dusk'?0.45:0 }, uSpace:{ value:kind==='space'?1:0 } };
+  E.skyU={ uSun:{ value:sunDir.clone() }, uDay:{ value:kind==='day'?1:kind==='dusk'?0.45:0 }, uSpace:{ value:kind==='space'?1:0 }, uStudio:{ value:kind==='studio'?1:0 } };
   E.sky=add(new THREE.Mesh(new THREE.SphereGeometry(4000,48,24),new THREE.ShaderMaterial({ uniforms:E.skyU, side:THREE.BackSide, depthWrite:false,
     vertexShader:'varying vec3 vD; void main(){ vD=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
     fragmentShader:[
-      'uniform vec3 uSun; uniform float uDay; uniform float uSpace; varying vec3 vD;',
+      'uniform vec3 uSun; uniform float uDay; uniform float uSpace; uniform float uStudio; varying vec3 vD;',
       'float hs(vec3 p){ return fract(sin(dot(p,vec3(12.9898,78.233,45.164)))*43758.5453); }',
       'void main(){ vec3 d=normalize(vD); vec3 s=normalize(uSun); float up=clamp(d.y,0.0,1.0);',
       ' vec3 zen=mix(vec3(0.008,0.012,0.04),vec3(0.10,0.27,0.62),uDay);',
@@ -204,13 +212,16 @@ function buildEnv(env){ const THREE=window.THREE, sc=E.sc;
       ' float sd=max(dot(d,s),0.0); c+=vec3(1.0,0.92,0.75)*(smoothstep(0.9994,0.9997,sd)*5.0*(1.0-uSpace*0.2)+pow(sd,30.0)*0.25*uDay+pow(sd,6.0)*0.12*dusk);',
       ' float st=step(0.9975-0.0015*uSpace,hs(floor(d*360.0)))*(1.0-uDay); if(uSpace<0.5) st*=up; c+=vec3(st)*(0.6+0.4*hs(floor(d*361.0)));',
       ' float mw=exp(-pow(dot(d,normalize(vec3(0.3,0.6,-0.74)))*5.0,2.0))*(1.0-uDay)*0.09; c+=vec3(0.55,0.6,0.8)*mw*(uSpace>0.5?1.0:up);',
-      ' if(uSpace>0.5) c=mix(vec3(0.0),c,1.0)*vec3(1.0) + vec3(0.0); gl_FragColor=vec4(c,1.0); }'].join('\n') })));
+      ' if(uStudio>0.5){ float v=smoothstep(-0.3,0.9,d.y); c=mix(vec3(0.045,0.05,0.06),vec3(0.13,0.14,0.16),v)+vec3(0.05,0.045,0.04)*exp(-pow(d.y*3.0,2.0)); }',
+      ' gl_FragColor=vec4(c,1.0); }'].join('\n') })));
   E.sky.renderOrder=-1;
+  E.bumpK=kind==='studio'?0.2:1;
+  if(kind==='studio'){ studioEnv(env,add); return; }
   E.hemi=add(new THREE.HemisphereLight(env.hemiSky!=null?env.hemiSky:0xbfd6ff, env.hemiGround!=null?env.hemiGround:0x5b4b38, kind==='day'?0.32:kind==='dusk'?0.26:kind==='space'?0.12:0.22));
   const sun=new THREE.DirectionalLight(kind==='dusk'?0xffc58a:0xfff0dc, kind==='day'?1.8:kind==='dusk'?1.4:kind==='space'?2.2:0.55);
   if(kind==='night'){ sun.color.set(0x9fb4ff); }
   sun.position.copy(sunDir).multiplyScalar(env.shadow?env.shadow*2.2:220); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
-  const ss=env.shadow||90, c=sun.shadow.camera; c.left=-ss; c.right=ss; c.top=ss; c.bottom=-ss; c.near=1; c.far=ss*5; sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.04*Math.max(1,ss/45);   // katta sahnada soya "nuqtalari" chiqmasin
+  const ss=env.shadow||90, c=sun.shadow.camera; c.left=-ss; c.right=ss; c.top=ss; c.bottom=-ss; c.near=1; c.far=ss*5; sun.shadow.bias=-0.0006; sun.shadow.normalBias=env.nb!=null?env.nb:0.04*Math.max(1,ss/45);   // katta sahnada soya "nuqtalari" chiqmasin
   add(sun); add(sun.target); E.sun=sun; E.sunBase=sun.intensity;
   E.r.toneMappingExposure=kind==='night'?1.2:kind==='space'?1.05:0.95;
   if(kind!=='space'){ // yer yoki relyef
@@ -240,6 +251,26 @@ function buildEnv(env){ const THREE=window.THREE, sc=E.sc;
   if(env.fog===false||kind==='space'||!fogCol) sc.fog=null;
   else { const size=env.size||900; sc.fog=new THREE.Fog(new THREE.Color(env.fogColor||fogCol).convertSRGBToLinear(), size*(env.fogNear!=null?env.fogNear:0.06), size*(env.fogFar!=null?env.fogFar:0.47)); }
 }
+function studioEnv(env,add){ const THREE=window.THREE, sc=E.sc, ss=env.shadow||2, size=env.size||12;
+  E.hemi=add(new THREE.HemisphereLight(0xdfe6ff,0x2a2420,0.22));
+  const key=new THREE.DirectionalLight(0xfff1de,2.1); key.position.set(ss*1.6,ss*2.6,ss*1.9); key.castShadow=true; key.shadow.mapSize.set(2048,2048);
+  const c=key.shadow.camera; c.left=-ss; c.right=ss; c.top=ss; c.bottom=-ss; c.near=ss*0.1; c.far=ss*8; key.shadow.bias=-0.0004; key.shadow.normalBias=ss*0.004; key.shadow.radius=4;
+  add(key); add(key.target); E.sun=key; E.sunBase=key.intensity;
+  const rim=new THREE.DirectionalLight(0xbcd2ff,0.9); rim.position.set(-ss*2,ss*1.4,-ss*2.2); add(rim);
+  const fill=new THREE.DirectionalLight(0xffe4c8,0.35); fill.position.set(-ss*2.4,ss*0.6,ss*1.5); add(fill);
+  E.r.toneMappingExposure=1.0; sc.fog=null;
+  // pol: yog'och yoki tosh, chekkalari fonga singib ketadi (alpha gradient)
+  const a=document.createElement('canvas'); a.width=a.height=256; const ax=a.getContext('2d'), g=ax.createRadialGradient(128,128,10,128,128,128); g.addColorStop(0,'#fff'); g.addColorStop(0.55,'#fff'); g.addColorStop(1,'#000'); ax.fillStyle=g; ax.fillRect(0,0,256,256);
+  const am=new THREE.CanvasTexture(a); E.disp.push(am);
+  const fm=env.floor==='stone'?X.noise('#4a4c50',0.16,[size/3,size/3]):X.wood(env.floorColor||'#3a2618',[size/2.5,size/2.5]);
+  const mat=M({ map:fm, rough:env.floor==='stone'?0.85:0.55, env:0.6, bump:0.25 }); mat.alphaMap=am; mat.transparent=true; mat.depthWrite=false;
+  const fl=add(new THREE.Mesh(new THREE.CircleGeometry(size/2,96).rotateX(-Math.PI/2),mat)); fl.receiveShadow=true; fl.renderOrder=-0.5;
+  // atrof yoritilishi: qorong'i xona, bir nechta yumshoq yorug'lik qutisi — guruch va shisha chiroyli yaltiraydi
+  if(E.envRT){ E.envRT.dispose(); E.envRT=null; }
+  try{ const W=512, H=256, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d'), gg=x.createLinearGradient(0,0,0,H); gg.addColorStop(0,'#1a1c22'); gg.addColorStop(0.5,'#2a2a2e'); gg.addColorStop(1,'#120e0b'); x.fillStyle=gg; x.fillRect(0,0,W,H);
+    [[0.12,0.18,0.16,0.16,'#fff6e8'],[0.55,0.22,0.12,0.12,'#e6eeff'],[0.82,0.3,0.1,0.18,'#ffe9d0'],[0.35,0.05,0.3,0.06,'#ffffff']].forEach(([px,py,pw,ph,col])=>{ const rg=x.createRadialGradient((px+pw/2)*W,(py+ph/2)*H,2,(px+pw/2)*W,(py+ph/2)*H,Math.max(pw*W,ph*H)*0.8); rg.addColorStop(0,col); rg.addColorStop(0.5,col); rg.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=rg; x.fillRect(px*W-20,py*H-20,pw*W+40,ph*H+40); });
+    const et=new THREE.CanvasTexture(cv); et.mapping=THREE.EquirectangularReflectionMapping; et.encoding=THREE.sRGBEncoding;
+    const pm=new THREE.PMREMGenerator(E.r); E.envRT=pm.fromEquirectangular(et); pm.dispose(); et.dispose(); sc.environment=E.envRT.texture; }catch(e){ sc.environment=null; } }
 // Daraxtlar: tabiiy, notekis shakl (barglar to'dasi / qarag'ay qatlamlari); geometriya va materiallar bir sahnada umumiy
 function treeKit(){ if(E.tkit) return E.tkit; const THREE=window.THREE;
   E.tkit={ bark:M({ map:X.bark(), rough:0.95, bump:0.8 }),
@@ -284,17 +315,18 @@ function loadModel(m){ const THREE=window.THREE; clearModel(); seed=11;
   E.root=new THREE.Group(); E.sc.add(E.root);
   E.clip.constant=1e5; buildEnv(m.env||{});
   const ctx={ THREE, root:E.root, M, X, mesh, jitter, lbl, D2R, rnd, domeHouse, refractor, reflector, hexMirror, dish, terrain,
-    anim:fn=>E.anims.push(fn), onDome:fn=>E.domeFns.push(fn), sun:setSun, tex, tree };
-  const res=m.build(ctx)||{};
+    anim:fn=>E.anims.push(fn), onDome:fn=>E.domeFns.push(fn), sun:setSun, tex, tree, texB, paint, fbm, rgb, shade };
+  Object.assign(ctx,E.ctxExt||{});
+  const res=m.build.call(m,ctx)||{};
   E.home={ pos:new THREE.Vector3().fromArray(res.cam||[60,30,60]), tgt:new THREE.Vector3().fromArray(res.tgt||[0,5,0]) };
   E.cam.position.copy(E.home.pos); E.ctl.target.copy(E.home.tgt); E.ctl.maxDistance=res.maxDist||E.home.pos.length()*3; E.ctl.minDistance=res.minDist||2;
   E.ctl.maxPolarAngle=res.below?Math.PI:Math.PI*0.495; E.cam.near=res.near||0.2; E.cam.far=res.far||12000; E.cam.updateProjectionMatrix();
-  E.cutAt=res.cutAt!=null?res.cutAt:0; E.clip.normal.fromArray(res.cutN||[-1,0,0]); E.domeFns.forEach(f=>f(0));
+  E.cutAt=res.cutAt!=null?res.cutAt:0; E.cutFrom=Math.min(60,E.home.pos.distanceTo(E.home.tgt)*0.6); E.clip.normal.fromArray(res.cutN||[-1,0,0]); E.domeFns.forEach(f=>f(0));
   syncTools(); }
 function frame(t){ E.raf=requestAnimationFrame(frame); if(!E.ok||!E.root||document.hidden) return;
   const dt=Math.min(0.25,(t-(E.last||t))/1000); E.last=t; E.t+=dt;
   const dg=E.domeOpen?1:0; if(Math.abs(E.domeK-dg)>0.001){ E.domeK+=Math.sign(dg-E.domeK)*Math.min(Math.abs(dg-E.domeK),dt*0.5); E.domeFns.forEach(f=>f(E.domeK)); }
-  const cg=E.cut?E.cutAt:1e5; E.clip.constant=E.cut?(E.clip.constant>1e4?60:E.clip.constant+(cg-E.clip.constant)*Math.min(1,dt*3.5)):1e5;
+  const cg=E.cut?E.cutAt:1e5; E.clip.constant=E.cut?(E.clip.constant>1e4?(E.cutFrom||60):E.clip.constant+(cg-E.clip.constant)*Math.min(1,dt*3.5)):1e5;
   if(E.camGoal){ E.cam.position.lerp(E.camGoal.pos,Math.min(1,dt*2.4)); E.ctl.target.lerp(E.camGoal.tgt,Math.min(1,dt*2.4)); if(E.cam.position.distanceTo(E.camGoal.pos)<0.1) E.camGoal=null; }
   E.anims.forEach(f=>f(E.t,dt));
   E.ctl.update(); if(E.sky) E.sky.position.copy(E.cam.position);
@@ -312,7 +344,7 @@ function engineDispose(){ engineStop(); clearModel(); if(E.envRT){ E.envRT.dispo
 /* ======================= Ekran (UI) ======================= */
 const U={ el:null, open:false, cat:'all', sel:null };
 const list=()=>(window.OBS_MODELS||[]).slice().sort((a,b)=>a.yearN-b.yearN);
-function syncTools(){ if(!U.el) return; const m=E.cur, q=s=>U.el.querySelector(s);
+function syncTools(){ if(!U.el||!U.open) return; const m=E.cur, q=s=>U.el.querySelector(s);
   q('#obswCut').style.display=m&&m.feat&&m.feat.cut?'':'none'; q('#obswCut').classList.toggle('on',E.cut);
   q('#obswDome').style.display=m&&m.feat&&m.feat.dome?'':'none'; q('#obswDome').textContent=T(E.domeOpen?TX.domeC:TX.domeO);
   q('#obswSpin').classList.toggle('on',E.spin); }
@@ -444,7 +476,7 @@ function texts(){ if(!U.el) return; const q=s=>U.el.querySelector(s);
   q('.obsw-cats').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ click(620); U.cat=b.dataset.c; texts(); }));
   renderList(); const m=list().find(x=>x.id===U.sel); if(m){ renderInfo(m); E.labels.forEach(l=>{ l.el.textContent=T(l.t); }); } syncTools();
   const b=document.getElementById('obsWorldBtn'); if(b) b.title=T(TX.title); }
-function open(){ if(U.open) return; if(!U.el) build(); const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
+function open(){ if(U.open) return; if(window.INS_WORLD) window.INS_WORLD.close(); if(!U.el) build(); const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
   U.open=true; U.el.classList.add('on'); document.body.classList.add('obswmode'); window.__labCover=true; texts(); click(760);
   const first=U.sel||(list()[0]&&list()[0].id); if(window.innerWidth>760&&first) select(first); }
 function close(){ if(!U.open) return; U.open=false; U.el.classList.remove('on','viewing'); document.body.classList.remove('obswmode'); engineDispose(); window.__labCover=false; click(440); }
@@ -453,4 +485,6 @@ new MutationObserver(()=>{ texts(); }).observe(document.documentElement,{ attrib
 function wireBtn(){ const b=document.getElementById('obsWorldBtn'); if(b&&!b._obs){ b._obs=1; b.title=T(TX.title); b.addEventListener('click',()=>{ U.open?close():open(); }); } }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',wireBtn); else wireBtn();
 window.OBS_WORLD={ open, close, select, _E:E };
+// Umumiy 3D dvigatel — boshqa ekranlar (masalan, 🧭 Astronomik asboblar) ham shundan foydalanadi; bir vaqtda bitta ekran ochiq bo'ladi
+window.OBS_ENGINE={ E, init:engineInit, load:loadModel, start:engineStart, stop:engineStop, dispose:engineDispose, setSun, X, M };
 })();
