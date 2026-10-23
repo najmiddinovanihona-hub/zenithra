@@ -492,7 +492,7 @@ function texts(){ if(!U.el) return; const q=s=>U.el.querySelector(s);
   q('.obsw-cats').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ click(620); U.cat=b.dataset.c; texts(); }));
   renderList(); const m=list().find(x=>x.id===U.sel); if(m){ renderInfo(m); E.labels.forEach(l=>{ l.el.textContent=T(l.t); }); } syncTools();
   const b=document.getElementById('obsWorldBtn'); if(b) b.title=T(TX.title); }
-function open(){ if(U.open) return; if(window.INS_WORLD) window.INS_WORLD.close(); if(!U.el) build(); const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
+function open(){ if(U.open) return; if(window.INS_WORLD) window.INS_WORLD.close(); if(window.SCI_WORLD) window.SCI_WORLD.close(); if(!U.el) build(); const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
   U.open=true; U.el.classList.add('on'); document.body.classList.add('obswmode'); window.__labCover=true; texts(); click(760);
   const first=U.sel||(list()[0]&&list()[0].id); if(window.innerWidth>760&&first) select(first); }
 function close(){ if(!U.open) return; U.open=false; U.el.classList.remove('on','viewing'); document.body.classList.remove('obswmode'); engineDispose(); window.__labCover=false; click(440); }
