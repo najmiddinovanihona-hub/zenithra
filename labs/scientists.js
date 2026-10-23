@@ -175,7 +175,7 @@ function texts(){ if(!S.el) return; const q=s=>S.el.querySelector(s);
   q('.insw-q').placeholder=T(TX.search); q('.t1').textContent=T(TX.eraT); q('.t2').textContent=T(TX.fieldT); q('.t3').textContent=T(TX.regT); syncHead();
   renderFilters(); renderList(); if(S.cmp) renderCompare(); else { const s=all().find(x=>x.id===S.sel); if(s) renderPerson(s); }
   const b=document.getElementById('sciBtn'); if(b) b.title=T(TX.title); }
-function open(){ if(S.open) return; if(window.OBS_WORLD) window.OBS_WORLD.close(); if(window.INS_WORLD) window.INS_WORLD.close();
+function open(){ if(S.open) return; if(window.OBS_WORLD) window.OBS_WORLD.close(); if(window.INS_WORLD) window.INS_WORLD.close(); if(window.AST_WORLD) window.AST_WORLD.close();
   if(!S.el) build(); S.open=true; S.el.classList.add('on'); document.body.classList.add('obswmode'); window.__labCover=true; texts(); click(760);
   const first=S.sel||(all().find(x=>x.id==='ulugbek')||all()[0]||{}).id; if(window.innerWidth>760&&first&&!S.cmp) select(first); }
 function close(){ if(!S.open) return; S.open=false; S.el.classList.remove('on','viewing'); document.body.classList.remove('obswmode'); window.__labCover=false; click(440); }

@@ -31,7 +31,7 @@
   /* ---------- Guruhlar ---------- */
   const GROUPS=[
     { key:'tour',  ico:'🚀', items:['toursBtn','discBtn','rtBtn'] },
-    { key:'learn', ico:'📖', items:['darsBtn','quizBtn2','ilmiyBtn','sciBtn'] },
+    { key:'learn', ico:'📖', items:['darsBtn','quizBtn2','ilmiyBtn','sciBtn','astBtn'] },
     { key:'lab',   ico:'🔬', items:[labsWrap,'lsBtn','seasonsBtn','ubBtn','obsWorldBtn','insBtn','skyBtn','weatherBtn','gridBtn','conBtn'] },
   ];
   const groupsEl=document.createElement('div'); groupsEl.className='tb-groups';
