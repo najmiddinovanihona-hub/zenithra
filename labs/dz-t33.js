@@ -48,7 +48,7 @@ function build(el, api){
   const K=K0.kit(el,api), {T,click,$,fmtN,C,fit,sec,chips,mark,on,kv}=K;
   const dot=(x,px,py,r,col)=>{ x.fillStyle=col; x.beginPath(); x.arc(px,py,r,0,TAU); x.fill(); };
   const lbl=(x,s,px,py,col,al)=>{ x.fillStyle=col; x.font='600 11px system-ui,sans-serif'; x.textAlign=al||'center'; x.fillText(s,px,py); };
-  const hm=s=>s<3600?fmtN(s/60,1)+' min':s<86400*3?fmtN(s/3600,2)+' soat':fmtN(s/86400,1)+' sutka';
+  const hm=s=>s<3600?fmtN(s/60,1)+' '+T(X('min','мин','min')):s<86400*3?fmtN(s/3600,2)+' '+T(X('soat','ч','h')):fmtN(s/86400,1)+' '+T(X('sutka','сут','days'));
   el.innerHTML=`
   <section class="dz-sec dz-card t1-hero"><p class="t1-def t2-intro">${T(TX.intro)}</p></section>
   ${sec('01',TX.s1,`<p class="t1-p">${T(TX.s1D)}</p><div class="t1-formula">υ_r² = υ₀² − (2K / r₀) · (1 − r₀ / r)</div>

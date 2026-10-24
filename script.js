@@ -2892,6 +2892,13 @@ function applyLanguage(lang){
   if(typeof huntActive!=='undefined' && huntActive && hList.length && hIdx<hList.length){
     renderHuntQ();
   }
+  // HTML'da bir marta yozilgan sarlavhalar (title) — yangi tilda
+  const PB={uz:'To‘xtatish / davom ettirish',ru:'Пауза / продолжить',en:'Pause / resume'}, PX={uz:'Yangi oynada ochish',ru:'Открыть в новом окне',en:'Open in a new window'};
+  const pbt=document.getElementById('pauseBtn'); if(pbt) pbt.title=PB[lang]||PB.uz;
+  const pfx=document.getElementById('pfExternal'); if(pfx) pfx.title=PX[lang]||PX.uz;
+  const uit=document.getElementById('uiToggle'); if(uit) uit.title = document.body.classList.contains('clean') ? tUI('showUI') : tUI('hideUI');
+  // «Kashf etish» menyusi — ochilishini kutmasdan darhol yangi tilda
+  if(typeof XT!=='undefined' && XT._rebuild){ XT._lang=LANG; XT._rebuild(); }
   if(typeof updateTourBtn==='function') updateTourBtn();
   if(typeof cosmos!=='undefined' && cosmos.classList.contains('open')) showCosmos();
   if(typeof tourCaption!=='undefined' && tourCaption.classList.contains('show') && currentTourKey) showTourCaption(currentTourKey);

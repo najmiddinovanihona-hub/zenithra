@@ -131,6 +131,8 @@
     b.title=(UI[L()]||UI.uz).help;
     b.addEventListener('click',()=>{ click(700); start(); });
     reset.parentNode.insertBefore(b,reset);
+    // til almashsa: tugma sarlavhasi va ochiq yo'riqnoma kartasi darhol yangi tilda
+    new MutationObserver(()=>{ b.title=(UI[L()]||UI.uz).help; if(root&&root.classList.contains('open')) render(); }).observe(document.documentElement,{ attributes:true, attributeFilter:['lang'] });
   }
   function init(){
     addHelpBtn();

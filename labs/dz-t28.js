@@ -81,7 +81,7 @@ function build(el, api){
   $('#t28EP').onclick=()=>{ eRun=!eRun; $('#t28EP').textContent=eRun?'⏸':'▶'; click(700); if(eRun){ eL=performance.now(); K.rafs.e=requestAnimationFrame(eStep); } };
 
   /* 02 · Xabbl vaqti */
-  const age=()=>{ const H=+$('#t28H').value, t=977.8/H; $('#t28HV').textContent=fmtN(H,1)+' km/s/Mpk'; $('#t28HKv').innerHTML=kv(T(TX.age),fmtN(t,1)+' '+T(TX.gyr),true)+kv('1 Mpk / H',fmtN(3.086e19/H/3.156e16,2)+' mlrd yil')+kv('2/3 · 1/H',fmtN(t*2/3,1)+' '+T(TX.gyr)); };
+  const age=()=>{ const H=+$('#t28H').value, t=977.8/H; $('#t28HV').textContent=fmtN(H,1)+' '+T(X('km/s/Mpk','км/с/Мпк','km/s/Mpc')); $('#t28HKv').innerHTML=kv(T(TX.age),fmtN(t,1)+' '+T(TX.gyr),true)+kv(T(X('1 Mpk / H','1 Мпк / H','1 Mpc / H')),fmtN(3.086e19/H/3.156e16,2)+' '+T(TX.gyr))+kv('2/3 · 1/H',fmtN(t*2/3,1)+' '+T(TX.gyr)); };
   $('#t28H').oninput=age; age();
 
   /* 03 · Fridman modellari */

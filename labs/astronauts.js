@@ -139,7 +139,7 @@ function syncHead(){ const b=S.el.querySelector('.sciw-cmp'); b.textContent=T(TX
 
 /* ---------- Katta ko'rinish (suratlar) ---------- */
 function lightbox(ph,k){ let lb=document.getElementById('astwLb');
-  if(!lb){ lb=document.createElement('div'); lb.id='astwLb'; lb.className='obsw-lb'; lb.innerHTML='<button class="obsw-lbx" aria-label="close">✕</button><button class="obsw-lbn prev" aria-label="prev">‹</button><figure><img alt=""><figcaption></figcaption></figure><button class="obsw-lbn next" aria-label="next">›</button>';
+  if(!lb){ lb=document.createElement('div'); lb.id='astwLb'; lb.className='obsw-lb'; lb.innerHTML='<button class="obsw-lbx">✕</button><button class="obsw-lbn prev">‹</button><figure><img alt=""><figcaption></figcaption></figure><button class="obsw-lbn next">›</button>';
     document.body.appendChild(lb); const go=d=>{ lb._k=(lb._k+d+lb._ph.length)%lb._ph.length; show(); };
     lb.addEventListener('click',e=>{ if(e.target===lb||e.target.classList.contains('obsw-lbx')) lb.classList.remove('on'); });
     lb.querySelector('.prev').addEventListener('click',()=>go(-1)); lb.querySelector('.next').addEventListener('click',()=>go(1));
@@ -150,7 +150,7 @@ function lightbox(ph,k){ let lb=document.getElementById('astwLb');
 /* ---------- Ekran ---------- */
 function build(){
   const el=document.createElement('div'); el.id='astWorld'; el.className='obsw sciw astw'; el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
-  el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><button class="sn-chip sciw-cmp" type="button"></button><span class="obsw-count"></span><button class="panel-close obsw-x" type="button" aria-label="close">✕</button></div>'+
+  el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><button class="sn-chip sciw-cmp" type="button"></button><span class="obsw-count"></span><button class="panel-close obsw-x" type="button">✕</button></div>'+
     '<div class="obsw-main"><aside class="obsw-list"><label class="insw-search"><span aria-hidden="true">🔍</span><input class="insw-q" type="search" autocomplete="off"></label>'+
     '<div class="insw-flt"><small class="t1"></small><div class="obsw-cats astw-eras"></div><small class="t2"></small><div class="obsw-cats astw-grps"></div><small class="t3"></small><div class="obsw-cats astw-tags"></div></div><div class="obsw-items"></div></aside>'+
     '<section class="obsw-view sciw-view"></section></div></div>';
@@ -162,7 +162,7 @@ function build(){
   qi.addEventListener('keydown',e=>{ if(e.key==='Escape'&&qi.value){ e.stopPropagation(); qi.value=''; S.q=''; renderList(); } if(e.key==='Enter'){ const f=list()[0]; if(f) select(f.id); } });
   el.addEventListener('pointerdown',e=>{ if(e.target===el) close(); });
   texts(); }
-function texts(){ if(!S.el) return; const q=s=>S.el.querySelector(s);
+function texts(){ const b0=document.getElementById('astBtn'); if(b0) b0.title=T(TX.title); if(!S.el) return; const q=s=>S.el.querySelector(s);
   q('h3').textContent='🧑‍🚀 '+T(TX.title); q('.obsw-head p').textContent=T(TX.sub); q('.obsw-back').textContent=T(TX.back);
   q('.insw-q').placeholder=T(TX.search); q('.t1').textContent=T(TX.eraT); q('.t2').textContent=T(TX.grpT); q('.t3').textContent=T(TX.tagT); syncHead();
   renderFilters(); renderList(); if(S.cmp) renderCompare(); else { const s=all().find(x=>x.id===S.sel); if(s) renderPerson(s); }

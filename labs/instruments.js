@@ -88,7 +88,7 @@ function select(id){ const m=all().find(x=>x.id===id), en=EN(); if(!m||!en) retu
     try{ en.load(m); }catch(e){ console.error('[ins]',m.id,e); } ld.classList.remove('on'); syncTools(); en.start(); },30); }
 function build(){
   const el=document.createElement('div'); el.id='insWorld'; el.className='obsw insw'; el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
-  el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><span class="obsw-count"></span><button class="panel-close obsw-x" type="button" aria-label="close">✕</button></div>'+
+  el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><span class="obsw-count"></span><button class="panel-close obsw-x" type="button">✕</button></div>'+
     '<div class="obsw-main"><aside class="obsw-list"><label class="insw-search"><span aria-hidden="true">🔍</span><input class="insw-q" type="search" autocomplete="off"></label>'+
     '<div class="insw-flt"><small class="insw-ft1"></small><div class="obsw-cats insw-uses"></div><small class="insw-ft2"></small><div class="obsw-cats insw-eras"></div></div><div class="obsw-items"></div></aside>'+
     '<section class="obsw-view"><div class="obsw-3d"><canvas></canvas><div class="obsw-lbls"></div><div class="obsw-msg"></div><div class="obsw-load"><i></i><span></span></div>'+
@@ -106,7 +106,7 @@ function build(){
   qi.addEventListener('keydown',e=>{ if(e.key==='Escape'&&qi.value){ e.stopPropagation(); qi.value=''; I.q=''; renderList(); } if(e.key==='Enter'){ const f=list()[0]; if(f) select(f.id); } });
   el.addEventListener('pointerdown',e=>{ if(e.target===el) close(); });
   texts(); }
-function texts(){ if(!I.el) return; const q=s=>I.el.querySelector(s);
+function texts(){ const b0=document.getElementById('insBtn'); if(b0) b0.title=T(TX.title); if(!I.el) return; const q=s=>I.el.querySelector(s);
   q('h3').textContent='🧭 '+T(TX.title); q('.obsw-head p').textContent=T(TX.sub); q('.obsw-back').textContent=T(TX.back); q('.obsw-load span').textContent=T(TX.loading);
   q('.insw-q').placeholder=T(TX.search); q('.insw-ft1').textContent=T(TX.useT); q('.insw-ft2').textContent=T(TX.eraT);
   q('#inswCut').textContent=T(TX.cut); q('#inswSpin').textContent=T(TX.spin); q('#inswHome').textContent=T(TX.view);

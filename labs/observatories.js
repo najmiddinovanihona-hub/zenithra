@@ -421,7 +421,7 @@ function heroHTML(ph,k){ k=Math.min(k,ph.length-1); const p=ph[k];
 function wirePhotos(i,ph){ i.querySelectorAll('.obsw-hbig,.obsw-gi').forEach(b=>{ if(b._w) return; b._w=1; b.addEventListener('click',()=>{ click(760); lightbox(ph,+b.dataset.ph); }); }); }
 // Katta ko'rinish: ← → klavishlari, Esc, fonni bosish — yopiladi
 function lightbox(ph,k){ let lb=document.getElementById('obswLb');
-  if(!lb){ lb=document.createElement('div'); lb.id='obswLb'; lb.className='obsw-lb'; lb.innerHTML='<button class="obsw-lbx" aria-label="close">✕</button><button class="obsw-lbn prev" aria-label="prev">‹</button><figure><img alt=""><figcaption></figcaption></figure><button class="obsw-lbn next" aria-label="next">›</button>';
+  if(!lb){ lb=document.createElement('div'); lb.id='obswLb'; lb.className='obsw-lb'; lb.innerHTML='<button class="obsw-lbx">✕</button><button class="obsw-lbn prev">‹</button><figure><img alt=""><figcaption></figcaption></figure><button class="obsw-lbn next">›</button>';
     document.body.appendChild(lb);
     lb.addEventListener('click',e=>{ if(e.target===lb||e.target.classList.contains('obsw-lbx')) lbClose(); });
     lb.querySelector('.prev').addEventListener('click',()=>lbGo(-1)); lb.querySelector('.next').addEventListener('click',()=>lbGo(1));
@@ -470,7 +470,7 @@ function select(id){ const m=list().find(x=>x.id===id); if(!m) return; U.sel=id;
   setTimeout(()=>{ try{ loadModel(m); }catch(e){ console.error('[obs]',m.id,e); } ld.classList.remove('on'); engineStart(); },30); }
 function build(){
   const el=document.createElement('div'); el.id='obsWorld'; el.className='obsw'; el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true');
-  el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><span class="obsw-count"></span><button class="panel-close obsw-x" type="button" aria-label="close">✕</button></div>'+
+  el.innerHTML='<div class="obsw-card glass"><div class="obsw-head"><button class="ac-link obsw-back" type="button"></button><div><h3></h3><p></p></div><span class="obsw-count"></span><button class="panel-close obsw-x" type="button">✕</button></div>'+
     '<div class="obsw-main"><aside class="obsw-list"><div class="obsw-cats"></div><div class="obsw-items"></div></aside>'+
     '<section class="obsw-view"><div class="obsw-3d"><canvas></canvas><div class="obsw-lbls"></div><div class="obsw-msg"></div><div class="obsw-load"><i></i><span></span></div>'+
     '<div class="obsw-tools"><button class="sn-chip" id="obswCut"></button><button class="sn-chip" id="obswDome"></button><button class="sn-chip" id="obswSpin"></button><button class="sn-chip" id="obswHome"></button><button class="sn-chip obsw-fs"></button></div></div>'+
@@ -485,7 +485,7 @@ function build(){
   el.querySelector('#obswHome').addEventListener('click',()=>{ click(620); if(E.home) E.camGoal={ pos:E.home.pos.clone(), tgt:E.home.tgt.clone() }; });
   el.addEventListener('pointerdown',e=>{ if(e.target===el) close(); });
   texts(); }
-function texts(){ if(!U.el) return; const q=s=>U.el.querySelector(s);
+function texts(){ const b0=document.getElementById('obsWorldBtn'); if(b0) b0.title=T(TX.title); if(!U.el) return; const q=s=>U.el.querySelector(s);
   q('h3').textContent='🌍 '+T(TX.title); q('.obsw-head p').textContent=T(TX.sub); q('.obsw-back').textContent=T(TX.back); q('.obsw-load span').textContent=T(TX.loading);
   q('#obswCut').textContent=T(TX.cut); q('#obswSpin').textContent=T(TX.spin); q('#obswHome').textContent=T(TX.view);
   q('.obsw-cats').innerHTML=['all','naked','classic','modern','space'].map(c=>'<button class="sn-chip'+(U.cat===c?' on':'')+'" data-c="'+c+'">'+esc(T(TX.cats[c]))+'</button>').join('');

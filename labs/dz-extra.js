@@ -45,7 +45,7 @@ function buildSheet(el,api){
   function render(){ const D=data(), n=D.reduce((s,g)=>s+g.f.length,0); $('#dxN').textContent=n+' '+T(U.forms);
     $('#dxOut').innerHTML=D.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(${cols===1?'100%':cols===2?'320px':'240px'},1fr));gap:12px">${D.map(g=>`<div class="dz-card" style="padding:14px;display:grid;gap:8px;align-content:start">
       <button data-go="${g.t.id}" style="all:unset;cursor:pointer;font-weight:700;font-size:13.5px;line-height:1.35;text-wrap:pretty">${g.n}. ${g.t.ico||''} ${T(g.t.title)}</button>
-      ${g.f.map(f=>`<div class="t1-formula" style="margin:0">${f.replace(/</g,'&lt;')}</div>`).join('')}</div>`).join('')}</div>`:`<p class="t1-p">${T(U.none)}</p>`;
+      ${g.f.map(f=>`<div class="t1-formula" style="margin:0">${(window.DZF_L?window.DZF_L(f,window.LAB.L()):f).replace(/</g,'&lt;')}</div>`).join('')}</div>`).join('')}</div>`:`<p class="t1-p">${T(U.none)}</p>`;
     $$('[data-go]').forEach(b=>b.onclick=()=>{ K.click(720); api.open&&api.open(b.dataset.go); }); }
   $('#dxQ').oninput=()=>{ q=$('#dxQ').value; render(); };
   on('sc',v=>{ sc=v; mark('sc',v); render(); }); mark('sc','all');
@@ -56,7 +56,7 @@ function buildSheet(el,api){
       .g{columns:${Math.max(1,Math.min(3,cols))};column-gap:7mm}.c{break-inside:avoid;margin:0 0 4mm;padding:0 0 3mm;border-bottom:.3mm solid #ccc}.c b{display:block;font-size:10pt;margin:0 0 1.5mm}
       .f{font-family:"Cambria Math","Times New Roman",serif;font-size:11pt;padding:1mm 0}</style></head><body>
       <h1>${e(T(U.sheet))}</h1><p class="s">${e(T(window.DARSLIK.list().length?{uz:'Astronomiya · Darslik',ru:'Астрономия · Учебник',en:'Astronomy · Textbook'}:U.sheet))}</p>
-      <div class="g">${D.map(g=>`<div class="c"><b>${g.n}. ${e(T(g.t.title))}</b>${g.f.map(f=>`<div class="f">${e(f)}</div>`).join('')}</div>`).join('')}</div>
+      <div class="g">${D.map(g=>`<div class="c"><b>${g.n}. ${e(T(g.t.title))}</b>${g.f.map(f=>`<div class="f">${e(window.DZF_L?window.DZF_L(f,window.LAB.L()):f)}</div>`).join('')}</div>`).join('')}</div>
       <script>window.onload=()=>{ setTimeout(()=>window.print(),250); };<\/script></body></html>`;
     const w=window.open('','_blank'); if(!w){ alert(T(U.popup)); return; } w.document.open(); w.document.write(html); w.document.close(); };
   render();

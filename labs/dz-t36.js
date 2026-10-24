@@ -64,7 +64,7 @@ function build(el, api){
       <div class="t1-p" style="font-size:12px;margin:6px 0 0;display:flex;gap:16px;flex-wrap:wrap"><span style="color:#3f7fe0">━ ${T(TX.m1)}</span><span style="color:#d0861f">━ ${T(TX.m2)}</span></div><div class="lab-kv" id="t36CKv"></div></div>`)}
   ${sec('03',TX.s3,`<p class="t1-p">${T(TX.s3D)}</p>
     <div class="dz-card t4-m">${rng('t36B',TX.db,20,600,5,200)}${rng('t36O',TX.h0,200,600,10,300)}<canvas class="t1-cv" id="t36D"></canvas><div class="lab-kv" id="t36DKv"></div></div>`)}
-  ${sec('04',TX.s4,`<p class="t1-p">${T(TX.s4D)}</p><div class="t1-formula">k = F_ko‘tar / F_qarsh = c_y / c_x</div>
+  ${sec('04',TX.s4,`<p class="t1-p">${T(TX.s4D)}</p><div class="t1-formula">${(window.DZF_L||(f=>f))('k = F_ko‘tar / F_qarsh = c_y / c_x',window.LAB.L())}</div>
     <div class="t1-split"><div class="dz-card t4-m">${rng('t36X',TX.cx,.5,2,.05,1.3)}${rng('t36Y',TX.cy,0,.6,.01,.3)}<div class="lab-kv" id="t36KKv"></div></div>
       <div class="t1-side"><ol style="margin:0;padding-left:20px;display:grid;gap:8px" class="t1-p">${TX.st.map(s=>`<li>${T(s)}</li>`).join('')}</ol></div></div>`)}
   ${sec('05',K.U.gl,K.glHTML(GL))}

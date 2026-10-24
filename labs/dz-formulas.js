@@ -29,3 +29,8 @@ window.DZF={"t01":["C = 360° / φ × d"],
 "t38":["V = 29,785 · √(2/r − 1/a)  [r, a — a.b.]","υ²_chiq = υ₀² − υ²_par (1 − r₀/r_Yts) ≈ υ₀² − 2K⊕/R⊕","V_chiq = V⊕ + υ_chiq · tashqi: V⊕ + υ · ichki: V⊕ − υ"],
 "t39":["V_chiq = 42,122 √(R / (1 + R)) · υ_chiq = |V_chiq − V⊕| · υ₀² = υ²_chiq + υ²_erk","t_gom = 64,569 (1 + R)^3/2 sut · ψ = 180° − ω_pl t_gom · τ = ψ / (ω⊕ − ω_pl) · P_sin = P_pl P⊕ / |P_pl − P⊕|"],
 "t40":["υ_kir = V_kir − V_pl · tashqi: V_pl − V_kir · ichki: V_kir − V_pl","r²_ef = R²_pl (1 + 2K_pl / (R_pl υ²_kir)) · υ = √(K_pl / (R_pl + h))"]};
+// Formulalardagi so'zli belgilar joriy tilda ko'rsatiladi (h_y, h_q kabi standart belgilashlar o'zgarmaydi)
+window.DZF_L=(f,l)=>{ const M={ uz:[['Ichki / Внутр. / Inner','Ichki'],['Tashqi / Внешн. / Outer','Tashqi']],
+  ru:[['(a.b., yil, M☉)','(а.е., годы, M☉)'],['F_ko‘tar','F_под'],['F_qarsh','F_сопр'],['Ichki / Внутр. / Inner','Внутр.'],['Tashqi / Внешн. / Outer','Внешн.']],
+  en:[['(a.b., yil, M☉)','(AU, years, M☉)'],['F_ko‘tar','F_lift'],['F_qarsh','F_drag'],['Ichki / Внутр. / Inner','Inner'],['Tashqi / Внешн. / Outer','Outer']] }[l];
+  if(M) M.forEach(([a,b])=>{ f=f.split(a).join(b); }); return f; };

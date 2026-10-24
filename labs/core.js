@@ -16,9 +16,9 @@ const LABS={}, ORDER=[];
 function register(id, def){ LABS[id]=def; ORDER.push(id); }
 function build(id){
   const lab=LABS[id];
-  if(lab.root){ lab.close&&lab.close(); try{ lab.destroy&&lab.destroy(); }catch(e){} lab.root.remove(); }   // destroy: WebGL konteksti, taymerlar — aks holda har qayta qurishda oqib, brauzer chegarasiga (≈16 kontekst) yetadi
+  if(lab.root){ const old=lab.root; lab.close&&lab.close(); try{ lab.destroy&&lab.destroy(); }catch(e){} if(old.parentNode) old.remove(); }   // close() root'ni o'zi o'chirib qo'yishi mumkin (darslik)   // destroy: WebGL konteksti, taymerlar — aks holda har qayta qurishda oqib, brauzer chegarasiga (≈16 kontekst) yetadi
   const root=document.createElement('div'); root.className='lab'+(lab.bare?' lab-bare':''); root.id='lab-'+id;
-  root.innerHTML=lab.bare?'<div class="lab-body"></div>':`<div class="lab-card glass"><button class="panel-close lab-x" aria-label="close">✕</button>
+  root.innerHTML=lab.bare?'<div class="lab-body"></div>':`<div class="lab-card glass"><button class="panel-close lab-x" aria-label="${esc(T({uz:'Yopish',ru:'Закрыть',en:'Close'}))}">✕</button>
     <div class="lab-head"><h3>${esc(T(lab.name))}</h3><span class="lab-sub">${esc(T(lab.sub))}</span></div><div class="lab-body"></div></div>`;
   document.body.appendChild(root);
   const x=root.querySelector('.lab-x'); if(x) x.addEventListener('click',()=>closeLab(id));
@@ -37,6 +37,11 @@ function openLab(id){
 }
 function closeLab(id){ const lab=LABS[id]; if(!lab||!lab.root) return; lab.root.classList.remove('open'); lab.isOpen=false; window.__labCover=false; lab.close&&lab.close(); click(440); }
 window.addEventListener('keydown',e=>{ if(e.key==='Escape') ORDER.forEach(k=>{ if(LABS[k].isOpen) closeLab(k); }); });
+// Til almashganda ochiq oyna darhol yangi tilda qayta quriladi (aks holda faqat keyingi ochilishda yangilanardi)
+new MutationObserver(()=>{ ORDER.forEach(id=>{ const lab=LABS[id];
+  if(!lab.isOpen||!lab.root||lab.lang===L()) return;
+  build(id); lab.root.classList.add('open'); lab.isOpen=true; window.__labCover=!lab.bare; lab.open&&lab.open(); }); })
+  .observe(document.documentElement,{ attributes:true, attributeFilter:['lang'] });
 const MENU_T={uz:'Laboratoriya',ru:'Лаборатория',en:'Laboratory'};
 window.LABS_MENU=function(menu){
   const head=t=>{ const h=document.createElement('div');

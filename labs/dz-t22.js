@@ -74,7 +74,7 @@ function build(el, api){
   ${sec('03',TX.s3,`<p class="t1-p">${T(TX.s3D)}</p><div class="dz-card t1-chart"><canvas class="t1-cv" id="t22E"></canvas>
     <div class="lab-row"><button class="lab-chip" id="t22EP">▶</button><span class="t1-lab">${T(TX.inc)}: <b id="t22IV"></b></span><input type="range" class="lab-range" id="t22I" min="60" max="90" step="0.5" value="82" style="flex:1"></div></div>`)}
   ${sec('04',TX.s4,`<p class="t1-p">${T(TX.s4D)}</p><div class="dz-card t1-chart"><canvas class="t1-cv" id="t22S"></canvas><div class="lab-row"><button class="lab-chip" id="t22SP">▶</button></div></div>`)}
-  ${sec('05',TX.s5,`<p class="t1-p">${T(TX.s5D)}</p><div class="t1-formula">M_a + m_y = A³ / T²  (a.b., yil, M☉) · M_a / m_y = a_y / a_a</div>
+  ${sec('05',TX.s5,`<p class="t1-p">${T(TX.s5D)}</p><div class="t1-formula">${(window.DZF_L||(f=>f))('M_a + m_y = A³ / T²  (a.b., yil, M☉) · M_a / m_y = a_y / a_a',window.LAB.L())}</div>
     <div class="lab-row" style="margin:0">${chips('bn',BIN.map((b,i)=>[i,T(b[0])]))}</div>
     <div class="t1-split"><div class="dz-card t1-chart"><canvas class="t1-cv" id="t22K"></canvas></div>
       <div class="t1-side"><label class="t1-ctl"><span>${T(TX.A)}: <b id="t22AV"></b></span><input type="range" class="lab-range" id="t22A" min="1" max="60" step="0.1" value="20"></label>
