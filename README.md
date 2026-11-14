@@ -56,6 +56,16 @@ hostingga qo'ysangiz, 👤 tugma ko'rinmaydi va hamma narsa avvalgidek localStor
 so'ng haqiqiy xaritalar fonda navbat bilan yuklanib almashtiriladi (`script.js` → 26b-bo'lim). Server bo'lmasa
 (`index.html` to'g'ridan-to'g'ri ochilsa) protsedural teksturalar qoladi. Solishtirish uchun: `http://localhost:3000/?notex`.
 
+## Grafika darajasi (tezlik)
+
+`quality.js` qurilmaga qarab darajani o'zi tanlaydi: **low** (telefon, ≤4 yadro yoki ≤4 GB xotira), **mid**, **high**.
+Daraja sfera segmentlari, zarralar soni, galaktika teksturalari, `devicePixelRatio` chegarasi va sayyora xaritalari
+o'lchamini (low — `textures/1k_*`, ~1,2 MB; aks holda 2K, ~7,3 MB) belgilaydi. Qo'lda tanlash: `?q=low|mid|high`
+yoki konsolda `QUALITY.set('low')` (localStorage'da saqlanadi).
+
+Katta ma'lumot fayllari (rasadxonalar, asboblar, olimlar, kosmonavtlar, ilmiy bo'lim — `labs/lazy.js`) va darslik
+mavzulari (`labs/dz-load.js`) sahifa ochilganda emas, tegishli bo'lim birinchi ochilganda yuklanadi.
+
 ## API
 
 Barcha javoblar JSON. Xatolarda `{ "error": "KOD" }` qaytadi (`VALIDATION`, `UNAUTHORIZED`, `FORBIDDEN`,

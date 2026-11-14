@@ -310,7 +310,8 @@ function clearModel(){ const THREE=window.THREE; if(!E.sc) return;
   E.envObjs.forEach(o=>{ E.sc.remove(o); if(o.geometry) o.geometry.dispose(); if(o.material){ if(o.material.map&&E.disp.indexOf(o.material.map)<0) o.material.map.dispose(); o.material.dispose(); } }); E.envObjs=[];
   E.disp.forEach(t=>t.dispose()); E.disp=[];
   E.labels.forEach(l=>l.el.remove()); E.labels=[]; E.anims=[]; E.domeFns=[]; E.root=null; E.tkit=null; E.grime=null; }
-function loadModel(m){ const THREE=window.THREE; clearModel(); seed=11;
+function loadModel(m){ const THREE=window.THREE; if(!E.sc) return;   // oyna model yuklanguncha yopilgan bo'lsa
+  clearModel(); seed=11;
   E.cur=m; E.domeK=0; E.domeOpen=false; E.cut=false; E.clip.constant=1e5; E.t=0;
   E.root=new THREE.Group(); E.sc.add(E.root);
   E.clip.constant=1e5; buildEnv(m.env||{});
@@ -349,7 +350,7 @@ document.addEventListener('fullscreenchange',()=>{ const fe=document.fullscreenE
 // Esc avval to'liq ekrandan chiqaradi (ekranning o'zi yopilmaydi)
 window.addEventListener('keydown',e=>{ if(e.key!=='Escape') return; const h=document.querySelector('.obsw-3d.full'); if(h){ e.stopImmediatePropagation(); fullToggle(h,false); } },true);
 new MutationObserver(syncFull).observe(document.documentElement,{ attributes:true, attributeFilter:['lang'] });
-function engineStart(){ if(!E.raf){ E.last=0; E.raf=requestAnimationFrame(frame); } }
+function engineStart(){ if(!E.ok) return; if(!E.raf){ E.last=0; E.raf=requestAnimationFrame(frame); } }
 function engineStop(){ if(E.raf){ cancelAnimationFrame(E.raf); E.raf=0; } }
 function engineDispose(){ engineStop(); if(E.host) fullToggle(E.host,false); clearModel(); if(E.envRT){ E.envRT.dispose(); E.envRT=null; } if(!E.r) return; if(E.ro) E.ro.disconnect(); E.ctl.dispose(); E.r.dispose(); try{ E.r.forceContextLoss(); }catch(e){}
   // majburan o'chirilgan kontekstli canvasda yangi WebGL ochilmaydi — keyingi ochilish uchun yangi canvas qo'yamiz
@@ -462,7 +463,7 @@ function renderInfo(m){ const i=U.el.querySelector('.obsw-info'); U.itab=U.itab|
   i.querySelectorAll('.obsw-thumb').forEach(b=>b.addEventListener('click',()=>{ click(700); U.hero=+b.dataset.ph; const h=i.querySelector('.obsw-hero'); if(h) h.outerHTML=heroHTML(ph,U.hero); wirePhotos(i,ph); }));
   wirePhotos(i,ph);
   const mb=i.querySelector('#obswMore'); if(mb) mb.addEventListener('click',()=>{ click(760); close(); const ub=document.getElementById('ubBtn'); if(ub) setTimeout(()=>ub.click(),60); }); }
-function select(id){ const m=list().find(x=>x.id===id); if(!m) return; U.sel=id; U.hero=0; U.el.classList.add('viewing');
+function selectNow(id){ const m=list().find(x=>x.id===id); if(!m) return; U.sel=id; U.hero=0; U.el.classList.add('viewing');
   U.el.querySelectorAll('.obsw-it').forEach(b=>b.classList.toggle('on',b.dataset.id===id)); renderInfo(m);
   const host=U.el.querySelector('.obsw-3d');
   if(!E.ok && !engineInit(host)){ host.classList.add('nogl'); host.querySelector('.obsw-msg').textContent=T(TX.noGl); return; }
@@ -492,7 +493,10 @@ function texts(){ const b0=document.getElementById('obsWorldBtn'); if(b0) b0.tit
   q('.obsw-cats').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ click(620); U.cat=b.dataset.c; texts(); }));
   renderList(); const m=list().find(x=>x.id===U.sel); if(m){ renderInfo(m); E.labels.forEach(l=>{ l.el.textContent=T(l.t); }); } syncTools();
   const b=document.getElementById('obsWorldBtn'); if(b) b.title=T(TX.title); }
-function open(){ if(U.open) return; if(window.INS_WORLD) window.INS_WORLD.close(); if(window.SCI_WORLD) window.SCI_WORLD.close(); if(window.AST_WORLD) window.AST_WORLD.close(); if(!U.el) build(); const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
+const lazy=k=>(window.LAZY?window.LAZY.load(k):Promise.resolve());   // ma'lumot fayllari birinchi ochilishda yuklanadi (labs/lazy.js)
+function open(){ return lazy('obs').then(openNow); }
+function select(id){ return lazy('obs').then(()=>selectNow(id)); }
+function openNow(){ if(U.open) return; if(window.INS_WORLD) window.INS_WORLD.close(); if(window.SCI_WORLD) window.SCI_WORLD.close(); if(window.AST_WORLD) window.AST_WORLD.close(); if(!U.el) build(); const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
   U.open=true; U.el.classList.add('on'); document.body.classList.add('obswmode'); window.__labCover=true; texts(); click(760);
   const first=U.sel||(list()[0]&&list()[0].id); if(window.innerWidth>760&&first) select(first); }
 function close(){ if(!U.open) return; U.open=false; U.el.classList.remove('on','viewing'); document.body.classList.remove('obswmode'); engineDispose(); window.__labCover=false; click(440); }

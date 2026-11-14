@@ -16,6 +16,9 @@ const FILES={
   saturnRing:'2k_saturn_ring_alpha.png', uranus:'2k_uranus.jpg', neptune:'2k_neptune.jpg', ceres:'2k_ceres_fictional.jpg',
 };
 const DIR='textures/', V='?v=1';
+// Kuchsiz qurilmada (QUALITY.tier==='low') yarim o'lchamli 1k_*.jpg (~1.2 MB) — 2k to'plam (~7.3 MB) o'rniga
+const PREFIX=(window.QUALITY&&window.QUALITY.realtex)||'2k';
+const fileOf=key=>FILES[key].replace(/^2k_/, PREFIX+'_');
 const ok = typeof THREE!=='undefined' && /^https?:$/.test(location.protocol)
   && typeof createImageBitmap==='function' && !/[?&]notex\b/.test(location.search);
 
@@ -25,8 +28,8 @@ function bitmap(key){
   if(!ok || !FILES[key]) return Promise.reject(new Error('no-realtex'));
   if(!bitmaps[key]){
     bitmaps[key]=queue=queue.catch(()=>{}).then(async()=>{
-      const r=await fetch(DIR+FILES[key]+V);
-      if(!r.ok) throw new Error(FILES[key]+' '+r.status);
+      const r=await fetch(DIR+fileOf(key)+V);
+      if(!r.ok) throw new Error(fileOf(key)+' '+r.status);
       return createImageBitmap(await r.blob(), { imageOrientation:'flipY' });
     });
     bitmaps[key].catch(e=>console.warn('[tekstura]', e.message||e));

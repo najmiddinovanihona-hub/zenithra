@@ -11,6 +11,9 @@
    0. ASOSIY O‘RNATISH (renderer, sahna, kamera, boshqaruv)
    -------------------------------------------------------------------------- */
 const canvas   = document.getElementById('scene');
+// Grafika darajasi (quality.js): telefon/kuchsiz qurilmada kam segment, kam zarra, past pixelRatio
+const Q = window.QUALITY || { tier:'high', dpr:2, seg:n=>n, pts:n=>n, texSize:n=>n };
+const SEG = n => Q.seg(n);
 // WebGL ishlamasa foydalanuvchiga xabar ko‘rsatamiz (bo‘sh oq ekran o‘rniga)
 let renderer;
 try{
@@ -20,7 +23,7 @@ try{
   if(ld) ld.innerHTML = '<p style="max-width:420px;text-align:center;line-height:1.7">⚠️ 3D grafika (WebGL) ishga tushmadi.<br>Sahifani yangilang (Ctrl+F5) yoki boshqa brauzerda oching.</p>';
   throw err;
 }
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, Q.dpr));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding   = THREE.sRGBEncoding;
 renderer.toneMapping      = THREE.ACESFilmicToneMapping;
@@ -626,7 +629,7 @@ function buildStarLayer(count, radius, size, opacity){
 }
 // Parallaks uchun ikki qatlam (turli tezlikda aylanadi)
 const starsFar  = buildStarLayer(6000, 3000, 6, 0.9);
-const starsNear = buildStarLayer(3000, 1800, 9, 0.8);
+const starsNear = buildStarLayer(Q.pts(3000), 1800, 9, 0.8);
 scene.add(starsFar, starsNear);
 
 // Tumanliklar (nebula) — katta shaffof tekisliklar
@@ -676,7 +679,7 @@ for(let i=0;i<4;i++){
 
 // Harakatlanuvchi kosmik chang
 const dustGeo=new THREE.BufferGeometry();
-const dustN=900, dpos=new Float32Array(dustN*3);
+const dustN=Q.pts(900), dpos=new Float32Array(dustN*3);
 for(let i=0;i<dustN;i++){
   dpos[i*3]=(Math.random()-0.5)*900;
   dpos[i*3+1]=(Math.random()-0.5)*500;
@@ -754,7 +757,7 @@ const sunMat = new THREE.ShaderMaterial({
       gl_FragColor=vec4(col,1.0);
     }`
 });
-const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_RADIUS, 128, 128), sunMat);
+const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_RADIUS, SEG(128), SEG(128)), sunMat);
 sun.userData = solarData('Quyosh');
 sun.userData.key = 'sun';
 scene.add(sun);
@@ -893,7 +896,7 @@ function makeOrbitRing(radius){
 // Sayyora atrofidagi atmosfera/haze halqasi (fresnel, additiv)
 function addHaze(mesh, radius, colorHex, power, scale){
   const haze = new THREE.Mesh(
-    new THREE.SphereGeometry(radius*scale, 72, 48),
+    new THREE.SphereGeometry(radius*scale, SEG(72), SEG(48)),
     new THREE.ShaderMaterial({
       transparent:true, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false,
       uniforms:{ uColor:{value:new THREE.Color(colorHex)}, uPow:{value:power} },
@@ -1017,7 +1020,7 @@ PLANETS.forEach(p=>{
     material = stdFromTex(tex, gassy ? { roughness:0.82, metalness:0.0 } : { roughness:0.94, metalness:0.04 });
   }
 
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(p.radius, 128, 96), material);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(p.radius, SEG(128), SEG(96)), material);
   mesh.position.x = p.orbit;
   mesh.rotation.z = THREE.MathUtils.degToRad(p.tilt);
   mesh.userData = p;
@@ -1043,7 +1046,7 @@ PLANETS.forEach(p=>{
       mp.rotation.y = Math.random()*Math.PI*2;
       mp.rotation.x = (Math.random()-0.5)*0.25;
       mesh.add(mp);
-      const mm = new THREE.Mesh(new THREE.SphereGeometry(m.r, 48, 32),
+      const mm = new THREE.Mesh(new THREE.SphereGeometry(m.r, SEG(48), SEG(32)),
         stdFromTex(rockyTexture(m.c, [shadeColor(m.c,-28), shadeColor(m.c,22)], 26, 256), { roughness:0.98, metalness:0.0 }));
       mm.position.x = p.radius * m.d;
       mp.add(mm);
@@ -1055,12 +1058,12 @@ PLANETS.forEach(p=>{
   if (p.special==='earth'){
     // Bulutlar
     const clouds = new THREE.Mesh(
-      new THREE.SphereGeometry(p.radius*1.02, 96, 64),
+      new THREE.SphereGeometry(p.radius*1.02, SEG(96), SEG(64)),
       new THREE.MeshStandardMaterial({ map:RT_ON?null:cloudTexture(), transparent:true, opacity:RT_ON?0:0.55, depthWrite:false }));
     mesh.add(clouds); rec.extras.clouds = clouds;
     // Atmosfera — haqiqiy ko'rish yo'nalishiga bog'langan fresnel, quyosh tomonida yorqinroq
     const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(p.radius*1.22, 96, 64),
+      new THREE.SphereGeometry(p.radius*1.22, SEG(96), SEG(64)),
       new THREE.ShaderMaterial({
         transparent:true, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false,
         uniforms:{ sunDir:material.uniforms.sunDir },
@@ -1080,7 +1083,7 @@ PLANETS.forEach(p=>{
     mesh.add(atmo);
     // Oy
     const moonPivot = new THREE.Object3D(); mesh.add(moonPivot);
-    const moon = new THREE.Mesh(new THREE.SphereGeometry(p.radius*0.27,96,64),
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(p.radius*0.27,SEG(96),SEG(64)),
       stdFromTex(RT_ON?flatTexture('#8a8a8a'):rockyTexture('#9a9a9a',['#6e6e6e','#b9b9b9','#8a8a8a'],130,768), { roughness:1.0, metalness:0.0 }));
     moon.position.x = p.radius*3.2; moonPivot.add(moon);
     rec.extras.moonPivot = moonPivot;
@@ -1136,8 +1139,8 @@ PLANETS.forEach(p=>{
 /* --------------------------------------------------------------------------
    6. ASTEROIDLAR KAMARI (Mars va Yupiter orasida)
    -------------------------------------------------------------------------- */
-const beltCount = 1400;
-const astGeo = displace(new THREE.IcosahedronGeometry(0.35, 3), v=>{
+const beltCount = Q.pts(1400);
+const astGeo = displace(new THREE.IcosahedronGeometry(0.35, Q.tier==='low'?2:3), v=>{   // low: 320 ta uchburchak (1280 o'rniga)
   // notekis tosh shakli: yo'nalishga bog'liq siqilish + mayda o'ydim-chuqur
   const n = 0.72 + fbm3(v.x*7.5+3.1, v.y*7.5-1.4, v.z*7.5+8.8, 3, 0.5, 2.1)*0.56;
   v.multiplyScalar(n);
@@ -1222,7 +1225,7 @@ const EXTRA_BODIES = [];
   const pivot = new THREE.Object3D();
   pivot.rotation.y = Math.random()*Math.PI*2;
   scene.add(pivot);
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.radius, 96, 64),
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.radius, SEG(96), SEG(64)),
     stdFromTex(d.tex(), { roughness:0.96, metalness:0.03 }));
   mesh.position.x = d.orbit;
   pivot.add(mesh);
@@ -1230,7 +1233,7 @@ const EXTRA_BODIES = [];
 });
 
 // Koyper kamari — Neptundan naridagi muzli jismlar halqasi
-const kuiperCount = 1600;
+const kuiperCount = Q.pts(1600);
 const kuiperGeo = displace(new THREE.IcosahedronGeometry(0.3, 1), v=>{ v.multiplyScalar(0.75+fbm3(v.x*9+2.2, v.y*9, v.z*9-5.1, 3, 0.5, 2.1)*0.5); v.y*=0.8; });
 const kuiperMat = stdFromTex(rockyTexture('#a9b8c9',['#7f8ea3','#d3dde8'],0,128), { roughness:0.82, metalness:0.02 });
 const kuiper = new THREE.InstancedMesh(kuiperGeo, kuiperMat, kuiperCount);
@@ -2088,7 +2091,7 @@ const CON_BTN_T={ uz:'Yulduz turkumlari (88)', ru:'Созвездия (88)', en:
 
 // Osmondagi Somon yo'li tasmasi — haqiqiy galaktik tekislik bo'ylab, markazi Qavs turkumida,
 // Oqqushdan Qavsgacha "Buyuk yoriq" chang lentasi bilan
-const mwBand = new THREE.Mesh(new THREE.SphereGeometry(2950, 64, 32), new THREE.ShaderMaterial({
+const mwBand = new THREE.Mesh(new THREE.SphereGeometry(2950, SEG(64), SEG(32)), new THREE.ShaderMaterial({
   transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.BackSide,
   uniforms:{ uOpacity:{value:0.3}, uNGP:{value:GAL_NGP}, uGC:{value:GAL_GC} },
   vertexShader:'varying vec3 vD; void main(){ vD=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
@@ -2117,7 +2120,7 @@ const mwBand = new THREE.Mesh(new THREE.SphereGeometry(2950, 64, 32), new THREE.
 mwBand.renderOrder=-2; skyRoot.add(mwBand);
 // Tasma bo'ylab zich xira yulduzlar
 {
-  const N=26000, pos=new Float32Array(N*3), col=new Float32Array(N*3);
+  const N=Q.pts(26000), pos=new Float32Array(N*3), col=new Float32Array(N*3);
   const e2=new THREE.Vector3().crossVectors(GAL_NGP,GAL_GC).normalize(), v=new THREE.Vector3();
   for(let i=0;i<N;i++){
     const l = Math.random()<0.5 ? (Math.random()*2-1)*Math.PI : Math.max(-Math.PI,Math.min(Math.PI,gRand()*0.9));
@@ -2179,7 +2182,7 @@ function galaxyPlaneMat(tex, isDust, n0, n1){
   });
 }
 function buildGalaxy(g){
-  const R=g.R, n=g.n, grp=new THREE.Group();
+  const R=g.R, n=Q.pts(g.n), grp=new THREE.Group();
   const pos=new Float32Array(n*3), col=new Float32Array(n*3), siz=new Float32Array(n);
   const base=R*0.0035, clumps=[];
   if(g.type==='irr') for(let c=0;c<14;c++) clumps.push([gRand()*0.42, gRand()*0.1, gRand()*0.3]);
@@ -2224,7 +2227,7 @@ function buildGalaxy(g){
   pts.renderOrder=1; grp.add(pts);
   const rec={ grp, pts, R };
   if(g.type!=='irr'){
-    const tx=galaxyDiskTextures(g, g.tex||512), pg=new THREE.PlaneGeometry(2*R,2*R);
+    const tx=galaxyDiskTextures(g, Q.texSize(g.tex||512)), pg=new THREE.PlaneGeometry(2*R,2*R);
     rec.glow=new THREE.Mesh(pg, galaxyPlaneMat(tx.glow,false,g.pn0||0,g.pn1||0.001));
     rec.dust=new THREE.Mesh(pg, galaxyPlaneMat(tx.dust,true,g.pn0||0,g.pn1||0.001));
     rec.glow.rotation.x=rec.dust.rotation.x=-Math.PI/2;
@@ -2364,11 +2367,14 @@ COSMO.build=function(){ if(COSMO.started) return; COSMO.started=true;
   const next=()=>{ if(i>=steps.length) return; try{ steps[i++](); }catch(e){ console.error('cosmos', e); } ch.port2.postMessage(0); };
   ch.port1.onmessage=next; next();
 };
-setTimeout(COSMO.build, 800);
+// Qurilish asosiy sahna ochilib bo'lgach, brauzer bo'sh paytida (yoki kamera uzoqlashsa — darhol)
+const idleRun=window.requestIdleCallback||((f,o)=>setTimeout(f,(o&&o.timeout)||500));
+COSMO.schedule=function(ms){ setTimeout(()=>idleRun(()=>COSMO.build(),{timeout:4000}), ms||0); };
+COSMO.schedule(6000);
 
 function cosmicStep(dt){
-  if(!COSMO.started && ++COSMO.frames>20) COSMO.build();
   const camD=camera.position.length(); COSMO.camD=camD;
+  if(!COSMO.started && camD>900) COSMO.build();   // galaktikalar ko'rina boshlashidan (2200) oldin
   const tD=camera.position.distanceTo(controls.target);
   const nr=Math.max(0.1, tD*0.0006);
   if(Math.abs(nr-camera.near)/camera.near>0.08){ camera.near=nr; camera.updateProjectionMatrix(); }
@@ -4621,11 +4627,14 @@ const intro  = document.getElementById('intro');
 const topbar = document.getElementById('topbar');
 
 // Yuklanish ekranini yashirish — 'load' allaqachon bo‘lib o‘tgan bo‘lsa ham ishlaydi
-const SPLASH_T0 = performance.now(), SPLASH_MIN = 6000;
+const SPLASH_T0 = performance.now(), SPLASH_MIN = 1200;
+let FRAMES = 0;   // chizilgan kadrlar soni — splash faqat sahna chizila boshlagach yopiladi
 (function(){ const tg=document.getElementById('spTag'); try{ const L=localStorage.getItem('solar_lang')||'uz'; if(tg) tg.textContent={uz:'Koinot yuklanmoqda…',ru:'Загрузка вселенной…',en:'Loading the universe…'}[L]||tg.textContent; }catch(e){} })();
 function revealIntro(){
   const wait = Math.max(300, SPLASH_MIN - (performance.now() - SPLASH_T0));
-  setTimeout(()=>{ if(loader.classList.contains('hidden')) return; loader.classList.add('sp-out'); intro.classList.remove('hidden'); setTimeout(()=>loader.classList.add('hidden'),1050); }, wait);
+  setTimeout(function go(){ if(loader.classList.contains('hidden')) return;
+    if(FRAMES<2){ setTimeout(go,80); return; }                       // sahna hali chizilmagan — kutamiz
+    loader.classList.add('sp-out'); intro.classList.remove('hidden'); setTimeout(()=>loader.classList.add('hidden'),1050); }, wait);
 }
 if(document.readyState==='complete') revealIntro();
 else window.addEventListener('load', revealIntro);
@@ -4635,7 +4644,7 @@ setTimeout(()=>{
     loader.classList.add('hidden');
     if(topbar.classList.contains('hidden')) intro.classList.remove('hidden');
   }
-}, 9000);
+}, 12000);
 
 // Tilni va dock/UI ni dastlabki holatda o‘rnatish
 buildLangSwitch(document.getElementById('introLang'));
@@ -4658,6 +4667,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   topbar.classList.remove('hidden');
   dock.classList.remove('hidden');
   uiToggle.classList.remove('hidden');
+  COSMO.schedule(2500);   // galaktikalar — kirish animatsiyasi tugagach, bo'sh vaqtda
   // kinematik kirish: uzoqdan tizimga uchib kirish
   camera.position.set(0, 420, 900);
   flight={ fromCam:camera.position.clone(), toCamFixed:new THREE.Vector3(0,90,320),
@@ -5670,6 +5680,7 @@ function animate(){
   controls.update();
   cosmicStep(dt);
   renderer.render(scene, camera);
+  FRAMES++;
 }
 
 /* --------------------------------------------------------------------------

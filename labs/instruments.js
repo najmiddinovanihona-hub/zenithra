@@ -79,7 +79,7 @@ function renderInfo(m){ const i=I.el.querySelector('.obsw-info');
   i.querySelectorAll('.insw-part').forEach(b=>b.addEventListener('click',()=>{ click(700); flyTo(m,+b.dataset.k); }));
   const p2=i.querySelector('#inswPlay2'); if(p2) p2.addEventListener('click',togglePlay); }
 function togglePlay(){ click(700); I.play=!I.play; syncTools(); const m=all().find(x=>x.id===I.sel); if(m&&I.itab===1) renderInfo(m); }
-function select(id){ const m=all().find(x=>x.id===id), en=EN(); if(!m||!en) return; I.sel=id; I.play=false; I.el.classList.add('viewing');
+function selectNow(id){ const m=all().find(x=>x.id===id), en=EN(); if(!m||!en) return; I.sel=id; I.play=false; I.el.classList.add('viewing');
   I.el.querySelectorAll('.obsw-it').forEach(b=>b.classList.toggle('on',b.dataset.id===id)); renderInfo(m);
   const E=en.E, host=I.el.querySelector('.obsw-3d');
   if(!E.ok && !en.init(host)){ host.classList.add('nogl'); host.querySelector('.obsw-msg').textContent=T(TX.noGl); return; }
@@ -112,7 +112,10 @@ function texts(){ const b0=document.getElementById('insBtn'); if(b0) b0.title=T(
   q('#inswCut').textContent=T(TX.cut); q('#inswSpin').textContent=T(TX.spin); q('#inswHome').textContent=T(TX.view);
   renderFilters(); renderList(); const m=all().find(x=>x.id===I.sel); if(m){ renderInfo(m); const E=Eg(); if(E) E.labels.forEach(l=>{ l.el.textContent=T(l.t); }); } syncTools();
   const b=document.getElementById('insBtn'); if(b) b.title=T(TX.title); }
-function open(){ if(I.open) return; if(!EN()) return; if(window.OBS_WORLD) window.OBS_WORLD.close(); if(window.SCI_WORLD) window.SCI_WORLD.close(); if(window.AST_WORLD) window.AST_WORLD.close();
+const lazy=k=>(window.LAZY?window.LAZY.load(k):Promise.resolve());   // ma'lumot fayllari birinchi ochilishda yuklanadi (labs/lazy.js)
+function open(){ return lazy('ins').then(openNow); }
+function select(id){ return lazy('ins').then(()=>selectNow(id)); }
+function openNow(){ if(I.open) return; if(!EN()) return; if(window.OBS_WORLD) window.OBS_WORLD.close(); if(window.SCI_WORLD) window.SCI_WORLD.close(); if(window.AST_WORLD) window.AST_WORLD.close();
   const ubv=document.getElementById('ubView'); if(ubv&&ubv.classList.contains('on')){ const c=document.getElementById('ubClose'); if(c) c.click(); }
   if(!I.el) build(); I.open=true; I.el.classList.add('on'); document.body.classList.add('obswmode'); window.__labCover=true; texts(); click(760);
   const first=I.sel||(list()[0]&&list()[0].id); if(window.innerWidth>760&&first) select(first); }

@@ -99,7 +99,9 @@ const close=()=>{ov.classList.remove('open');window.__labCover=false;};   // aso
 $('ilmBack').onclick=close;
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&ov.classList.contains('open'))close();});
 // Avval ochiladi, keyin chiziladi — 3D ko'rgazma faqat ochiq oynada quriladi; orqadagi asosiy sahna pauza
-btn.onclick=()=>{ov.classList.add('open');window.__labCover=true;render();};
+btn.onclick=()=>{ov.classList.add('open');window.__labCover=true;
+ if(!(window.ILMIY||[]).length){$('ilmArt').innerHTML='<p style="opacity:.6;padding:24px">…</p>';}
+ (window.LAZY?window.LAZY.load('ilmiy'):Promise.resolve()).then(render);};   // ma'lumot fayllari birinchi ochilishda (labs/lazy.js)
 const ub=document.getElementById('ubBtn');
 if(ub)ub.after(btn);else document.querySelector('#topbar .controls')?.prepend(btn);
 render();

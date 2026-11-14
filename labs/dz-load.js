@@ -59,6 +59,8 @@ function start(){ if(started) return; started=true;
   FILES.forEach(f=>{ const s=document.createElement('script'); s.src=f; s.async=false; s.onload=s.onerror=()=>{ done++; if(done===FILES.length){ window.DZLOAD.ready=true; cbs.splice(0).forEach(c=>{ try{ c(); }catch(e){} }); } }; document.body.appendChild(s); }); }
 window.DZLOAD={ now:start, ready:false, progress:()=>done/FILES.length, onReady(c){ if(this.ready) c(); else cbs.push(c); } };
 const idle=window.requestIdleCallback||(f=>setTimeout(f,300));
-if(document.readyState==='complete') idle(start,{timeout:1500}); else window.addEventListener('load',()=>idle(start,{timeout:1500}));
+// Asosiy sahna, teksturalar va shaderlar bilan raqobatlashmaslik uchun — sahifa ochilgandan 10 s keyin, bo'sh vaqtda
+const later=()=>setTimeout(()=>idle(start,{timeout:8000}),10000);
+if(document.readyState==='complete') later(); else window.addEventListener('load',later);
 document.addEventListener('pointerdown',e=>{ if(e.target.closest&&e.target.closest('#darsBtn,#quizBtn2')) start(); },true);
 })();

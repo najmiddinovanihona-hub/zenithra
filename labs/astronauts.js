@@ -104,7 +104,7 @@ function renderPerson(s){ const v=S.el.querySelector('.sciw-view'), ph=photos(s.
 function step(d){ const l=list(); if(!l.length) return; const i=l.findIndex(x=>x.id===S.sel); const n=l[(i+d+l.length)%l.length]; click(620); select(n.id); }
 function openRef(ref){ const [kind,id]=String(ref).split(':'); close();
   setTimeout(()=>{ if(kind==='ins'&&window.INS_WORLD){ window.INS_WORLD.open(); window.INS_WORLD.select(id); } else if(kind==='obs'&&window.OBS_WORLD){ window.OBS_WORLD.open(); window.OBS_WORLD.select(id); } },80); }
-function select(id){ const s=all().find(x=>x.id===id); if(!s) return; if(S.sel!==id) S.tab='over'; S.sel=id; S.cmp=false; S.el.classList.add('viewing'); syncHead();
+function selectNow(id){ const s=all().find(x=>x.id===id); if(!s) return; if(S.sel!==id) S.tab='over'; S.sel=id; S.cmp=false; S.el.classList.add('viewing'); syncHead();
   S.el.querySelectorAll('.obsw-it').forEach(b=>b.classList.toggle('on',b.dataset.id===id)); renderPerson(s); S.el.querySelector('.sciw-view').scrollTop=0; }
 
 /* ---------- Taqqoslash: kosmosdagi vaqt (gorizontal ustunlar) va jadval ---------- */
@@ -167,7 +167,10 @@ function texts(){ const b0=document.getElementById('astBtn'); if(b0) b0.title=T(
   q('.insw-q').placeholder=T(TX.search); q('.t1').textContent=T(TX.eraT); q('.t2').textContent=T(TX.grpT); q('.t3').textContent=T(TX.tagT); syncHead();
   renderFilters(); renderList(); if(S.cmp) renderCompare(); else { const s=all().find(x=>x.id===S.sel); if(s) renderPerson(s); }
   const b=document.getElementById('astBtn'); if(b) b.title=T(TX.title); }
-function open(){ if(S.open) return; ['OBS_WORLD','INS_WORLD','SCI_WORLD'].forEach(k=>{ if(window[k]) window[k].close(); });
+const lazy=k=>(window.LAZY?window.LAZY.load(k):Promise.resolve());   // ma'lumot fayllari birinchi ochilishda yuklanadi (labs/lazy.js)
+function open(){ return lazy('ast').then(openNow); }
+function select(id){ return lazy('ast').then(()=>selectNow(id)); }
+function openNow(){ if(S.open) return; ['OBS_WORLD','INS_WORLD','SCI_WORLD'].forEach(k=>{ if(window[k]) window[k].close(); });
   if(!S.el) build(); S.open=true; S.el.classList.add('on'); document.body.classList.add('obswmode'); window.__labCover=true; texts(); click(760);
   const first=S.sel||(all().find(x=>x.id==='gagarin')||all()[0]||{}).id; if(window.innerWidth>760&&first&&!S.cmp) select(first); }
 function close(){ if(!S.open) return; S.open=false; S.el.classList.remove('on','viewing'); document.body.classList.remove('obswmode'); window.__labCover=false; click(440); }
