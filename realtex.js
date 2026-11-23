@@ -32,7 +32,8 @@ function bitmap(key){
       if(!r.ok) throw new Error(fileOf(key)+' '+r.status);
       return createImageBitmap(await r.blob(), { imageOrientation:'flipY' });
     });
-    bitmaps[key].catch(e=>console.warn('[tekstura]', e.message||e));
+    // Xato keshda qolmasin — keyingi chaqiruvda (masalan, boshqa sahna ochilganda) qayta yuklashga urinadi
+    bitmaps[key].catch(e=>{ console.warn('[tekstura]', e.message||e); delete bitmaps[key]; delete texCache[key+'|s']; delete texCache[key+'|l']; });
   }
   return bitmaps[key];
 }

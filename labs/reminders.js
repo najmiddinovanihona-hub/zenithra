@@ -44,6 +44,7 @@ function loadSat(){ return new Promise((res,rej)=>{ if(window.satellite) return 
   const s=document.createElement('script'); s.src='labs/satellite.min.js'; s.onload=()=>window.satellite?res(window.satellite):rej(); s.onerror=rej; document.head.appendChild(s); }); }
 async function getTLE(){
   let c=null; try{ c=JSON.parse(localStorage.getItem('iss_tle')||'null'); }catch(e){}
+  if(c && !(Array.isArray(c.l)&&/^1 /.test(c.l[0])&&/^2 /.test(c.l[1]))) c=null;   // buzilgan kesh (iss.js bilan umumiy)
   if(c && Date.now()-c.t<3*3600000) return c.l;
   try{ const r=await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE',{signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined});
     const l=(await r.text()).split(/\r?\n/).filter(s=>/^[12] /.test(s)); if(l.length===2){ localStorage.setItem('iss_tle',JSON.stringify({l,t:Date.now(),src:'CelesTrak'})); return l; } }catch(e){}

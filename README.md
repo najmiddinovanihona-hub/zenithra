@@ -114,4 +114,4 @@ Kod o'zgarmaydi (qidiruvdagi katta-kichik harf farqi avtomatik hisobga olinadi).
 
 - `NODE_ENV=production` (cookie faqat HTTPS orqali), nginx/Caddy orqasida bo'lsa `TRUST_PROXY=1`.
 - Serverni `pm2` yoki systemd bilan ishga tushiring: `node server/index.js`.
-- `single/` va `uploads/` deployga kirmaydi (server ularni bermaydi).
+- `uploads/` deployga kirmaydi (server uni bermaydi).

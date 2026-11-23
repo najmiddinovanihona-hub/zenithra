@@ -113,7 +113,8 @@ function show(tab){
   load(tab);
 }
 document.querySelectorAll('.ad-tab').forEach(b => b.onclick = () => show(b.dataset.tab));
-const load = tab => ({ stats:loadStats, users:loadUsers, quiz:loadQuiz })[tab]().catch(fail);
+// ME (joriy admin) hali yuklanmagan bo'lsa yuklamaymiz — ishga tushish oxirida show() joriy tabni o'zi yuklaydi
+const load = tab => ME ? ({ stats:loadStats, users:loadUsers, quiz:loadQuiz })[tab]().catch(fail) : Promise.resolve();
 
 /* ---------------- statistika ---------------- */
 async function loadStats(){
@@ -146,7 +147,7 @@ async function loadStats(){
 }
 
 /* ---------------- foydalanuvchilar ---------------- */
-const U = { page:1, pageSize:20 };
+const U = { page:1, pageSize:20, seq:0 };
 function debounce(fn, ms){ let t; return () => { clearTimeout(t); t=setTimeout(fn, ms); }; }
 $('uQ').oninput = debounce(() => { U.page=1; loadUsers().catch(fail); }, 300);
 $('uRole').onchange = $('uBlocked').onchange = () => { U.page=1; loadUsers().catch(fail); };
@@ -160,16 +161,21 @@ function pager(el, st, total, reload){
   // Yuklanayotganda tugmalar o'chiriladi — tez ikki marta bosish mavjud bo'lmagan sahifaga o'tkazib yubormaydi
   el.querySelectorAll('button').forEach(b => b.onclick = () => {
     el.querySelectorAll('button').forEach(x => x.disabled = true);
-    st.page += +b.dataset.p; reload().catch(fail);
+    // Xato bo'lsa sahifa raqami qaytariladi va tugmalar qayta yoqiladi (jadval eski sahifada qolgani uchun)
+    const prev = st.page; st.page += +b.dataset.p;
+    reload().catch(e => { st.page = prev; pager(el, st, total, reload); fail(e); });
   });
 }
 
 async function loadUsers(){
+  if(!ME) return;
+  const seq = ++U.seq;   // eskiroq (sekinroq) javob yangi filtr natijasini bosib ketmasin
   const qs = new URLSearchParams({ page:U.page, pageSize:U.pageSize });
   if($('uQ').value.trim()) qs.set('q', $('uQ').value.trim());
   if($('uRole').value) qs.set('role', $('uRole').value);
   if($('uBlocked').value) qs.set('blocked', $('uBlocked').value);
   const r = await api('GET', '/api/admin/users?'+qs);
+  if(seq !== U.seq) return;
   $('uCount').textContent = `${num(r.total)} ${T(TX.shown)}`;
   const tb = $('uTable');
   // Oxirgi sahifadagi oxirgi qator o'chirilsa/bloklansa — bo'sh sahifada qotib qolmasdan oxirgi mavjud sahifaga o'tamiz
@@ -219,7 +225,7 @@ async function loadUsers(){
 }
 
 /* ---------------- test natijalari ---------------- */
-const Q = { page:1, pageSize:25, userId:null, userLabel:'' };
+const Q = { page:1, pageSize:25, userId:null, userLabel:'', seq:0 };
 $('qQ').oninput = $('qQuiz').oninput = debounce(() => { Q.page=1; loadQuiz().catch(fail); }, 300);
 function quizParams(){
   const qs = new URLSearchParams();
@@ -231,6 +237,8 @@ function quizParams(){
 $('qCsv').onclick = () => { location.href = '/api/admin/quiz.csv?' + quizParams(); };
 
 async function loadQuiz(){
+  if(!ME) return;
+  const seq = ++Q.seq;
   const chip = $('qUserChip');
   chip.hidden = !Q.userId;
   if(Q.userId){
@@ -239,6 +247,7 @@ async function loadQuiz(){
   }
   const qs = quizParams(); qs.set('page', Q.page); qs.set('pageSize', Q.pageSize);
   const r = await api('GET', '/api/admin/quiz?'+qs);
+  if(seq !== Q.seq) return;
   $('qCount').textContent = `${num(r.total)} ${T(TX.shown)}`;
   $('qTable').innerHTML = r.items.length
     ? `<tr><th>${esc(T(TX.user))}</th><th>${esc(T(TX.quiz))}</th><th class="num">${esc(T(TX.result))}</th><th class="num">%</th><th>${esc(T(TX.date))}</th></tr>` +

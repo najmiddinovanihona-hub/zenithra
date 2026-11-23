@@ -80,7 +80,19 @@
     });
   }
   const click=f=>{ try{ window.LAB&&window.LAB.click&&window.LAB.click(f); }catch(e){} };
-  const visible=s=>{ if(!s) return true; const el=document.querySelector(s); if(!el) return false; const r=el.getBoundingClientRect(); return r.width>0&&r.height>0; };
+  // Yopiq guruh paneli (toolbar.js) ichidagi tugmalar visibility:hidden — o'lchami bor, lekin ko'rinmaydi.
+  // Ularni reveal() shu qadam davomida ochib ko'rsatadi; boshqa sabab bilan yashiringanlari o'tkazib yuboriladi.
+  const visible=s=>{ if(!s) return true; const el=document.querySelector(s); if(!el) return false; const r=el.getBoundingClientRect();
+    if(!(r.width>0&&r.height>0)) return false;
+    return !!el.closest('.tb-panel') || getComputedStyle(el).visibility!=='hidden'; };
+  // Guruh panelini inline uslub bilan ochish: toolbar.js dagi "tashqariga bosilsa yopish" (sinf) unga tegmaydi
+  const RV=['visibility','opacity','transform','transition'];
+  let shown=null;
+  function reveal(el){
+    const p=el&&el.closest('.tb-panel');
+    if(shown&&shown!==p){ RV.forEach(k=>{ shown.style[k]=''; }); shown=null; }
+    if(p&&p!==shown&&getComputedStyle(p).visibility==='hidden'){ Object.assign(p.style,{visibility:'visible',opacity:'1',transform:'none',transition:'none'}); shown=p; }
+  }
 
   function render(){
     const s=list[i], u=UI[L()]||UI.uz, last=i===list.length-1;
@@ -97,6 +109,7 @@
   }
   function place(){
     const s=list[i], W=innerWidth, H=innerHeight, el=s.sel&&document.querySelector(s.sel);
+    reveal(el);
     card.style.visibility='hidden'; card.className='gd-card glass';
     if(!el){
       root.classList.add('center'); spot.style.opacity=0;
@@ -123,7 +136,7 @@
     if(!list.length) return;
     i=0; root.classList.add('open'); render(); card.classList.add('in');
   }
-  function finish(){ if(!root) return; root.classList.remove('open'); try{ localStorage.setItem(KEY,'1'); }catch(e){} }
+  function finish(){ if(!root) return; root.classList.remove('open'); reveal(null); try{ localStorage.setItem(KEY,'1'); }catch(e){} }
 
   function addHelpBtn(){
     const reset=document.getElementById('resetBtn'); if(!reset||document.getElementById('guideBtn')) return;

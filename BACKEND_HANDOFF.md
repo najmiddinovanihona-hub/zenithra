@@ -16,7 +16,7 @@
 - `labs/darslik.js` + `labs/dz-*.js` — Darslik (40 mavzu), progress `window.DZP`.
 - `labs/ilmiy*.js`, `labs/ilm3d-*.js` — Ilmiy bo'lim (8 mavzu, 3D sahnalar).
 - `labs/weather.js` — ob-havo (Open-Meteo), `labs/leaflet/` — xarita.
-- `photos/` — rasmlar. `single/index.html` — eski bir faylli nusxa (backend uchun kerak emas, o'chirsa bo'ladi). `uploads/` — ishchi materiallar (deployga kirmaydi).
+- `photos/` — rasmlar. `uploads/` — ishchi materiallar (deployga kirmaydi).
 
 ## Hozir localStorage'da saqlanayotganlar (serverga ko'chiriladi)
 - `st_users`, `st_session` — **demo auth** (parol djb2 hash bilan — xavfsiz emas, almashtirilishi kerak).

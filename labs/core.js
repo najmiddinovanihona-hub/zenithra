@@ -6,9 +6,12 @@
 (function(){
 'use strict';
 const LANGS=['uz','ru','en'];
-const L=()=>{ const l=localStorage.getItem('solar_lang'); return LANGS.includes(l)?l:'uz'; };
+// Brauzer xotirasi bloklangan bo'lsa (localStorage o'qishda xato) — laboratoriyalar xotiradagi o'rinbosar bilan ishlaydi
+const LS=(()=>{ try{ const s=window.localStorage; s.getItem('solar_lang'); return s; }catch(e){ const m=new Map();
+  return { getItem:k=>m.has(k)?m.get(k):null, setItem:(k,v)=>{ m.set(k,String(v)); }, removeItem:k=>{ m.delete(k); } }; } })();
+const L=()=>{ const l=LS.getItem('solar_lang'); return LANGS.includes(l)?l:'uz'; };
 const T=o=>o?(o[L()]!=null?o[L()]:o.uz):'';
-const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const click=f=>{ try{ window.__solar&&window.__solar.click&&window.__solar.click(f); }catch(e){} };
 const fmt=(x,d)=>{ const l=L(); const o={maximumFractionDigits:d==null?1:d, minimumFractionDigits:0};
   const s=Number(x).toLocaleString('en-US',o); return l==='en'?s:s.replace(/,/g,'\u202f').replace('.',','); };
@@ -92,7 +95,7 @@ const CITIES=[
 ].map(c=>({k:c[0],n:{uz:c[1],ru:c[2],en:c[3]},lat:c[4],lon:c[5],tz:c[6]}));
 const GEO_T={uz:'Mening joylashuvim',ru:'Моё местоположение',en:'My location'}, GEO_ERR={uz:'Joylashuvni aniqlab bo‘lmadi',ru:'Не удалось определить местоположение',en:'Could not get your location'},
   GEO_HELP={uz:'Brauzer sozlamalarida bu sayt uchun joylashuvga ruxsat bering yoki ro‘yxatdan shaharni tanlang',ru:'Разрешите доступ к геолокации в настройках браузера или выберите город из списка',en:'Allow location for this site in browser settings, or pick a city from the list'};
-function loc(){ try{ const o=JSON.parse(localStorage.getItem('sky_loc')||'null'); if(o && isFinite(o.lat) && isFinite(o.lon)) return o; }catch(e){} return {k:'tashkent',lat:41.2995,lon:69.2401,tz:5}; }
+function loc(){ try{ const o=JSON.parse(LS.getItem('sky_loc')||'null'); if(o && isFinite(o.lat) && isFinite(o.lon)) return o; }catch(e){} return {k:'tashkent',lat:41.2995,lon:69.2401,tz:5}; }
 function placeOf(o){ const p=o&&o.place; return p?(p[L()]||p.uz||p.en):null; }
 function locName(o){ o=o||loc(); const c=CITIES.find(c=>c.k===o.k); if(c) return T(c.n); const p=placeOf(o);
   if(p){ const a=[p.loc,p.city].filter((v,i,s)=>v&&s.indexOf(v)===i); if(a.length) return a.join(', '); }
@@ -102,8 +105,8 @@ function locName(o){ o=o||loc(); const c=CITIES.find(c=>c.k===o.k); if(c) return
 function fetchT(u,ms){ const c=new AbortController(), t=setTimeout(()=>c.abort(),ms||8000); return fetch(u,{signal:c.signal}).finally(()=>clearTimeout(t)); }
 // Joy nomi ~100 m aniqlikda keshlanadi (30 kun) — har GPS aniqlashda tashqi xizmatlarga qayta so'rov ketmaydi
 const GEO_KEY=o=>'geoc_'+(+o.lat).toFixed(3)+','+(+o.lon).toFixed(3)+(o.src==='gps'?'g':'');
-async function geocode(o){ try{ const c=JSON.parse(localStorage.getItem(GEO_KEY(o))||'null'); if(c&&Date.now()-c.t<30*864e5) return c.v; }catch(e){}
-  const v=await geocodeNow(o); if(v) try{ localStorage.setItem(GEO_KEY(o),JSON.stringify({t:Date.now(),v})); }catch(e){} return v; }
+async function geocode(o){ try{ const c=JSON.parse(LS.getItem(GEO_KEY(o))||'null'); if(c&&Date.now()-c.t<30*864e5) return c.v; }catch(e){}
+  const v=await geocodeNow(o); if(v) try{ LS.setItem(GEO_KEY(o),JSON.stringify({t:Date.now(),v})); }catch(e){} return v; }
 async function geocodeNow(o){ const out={};
   await Promise.all(['uz','ru','en'].map(async lg=>{ try{ const j=await (await fetchT('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+o.lat+'&longitude='+o.lon+'&localityLanguage='+lg)).json();
     const adm=(j.localityInfo&&j.localityInfo.administrative)||[]; const dist=adm.filter(a=>a.adminLevel>=6).map(a=>a.name).filter(n=>n!==j.locality&&n!==j.city);
@@ -115,7 +118,7 @@ const HERE_T={ title:{uz:'Siz turgan joy',ru:'Вы находитесь здес
   city:{uz:'Shahar',ru:'Город',en:'City'}, region:{uz:'Viloyat',ru:'Область',en:'Region'}, country:{uz:'Davlat',ru:'Страна',en:'Country'}, coord:{uz:'Koordinatalar',ru:'Координаты',en:'Coordinates'},
   acc:{uz:'Aniqlik',ru:'Точность',en:'Accuracy'}, tz:{uz:'Vaqt zonasi',ru:'Часовой пояс',en:'Time zone'}, gps:{uz:'GPS',ru:'GPS',en:'GPS'}, ip:{uz:'internet manzili bo‘yicha, taxminan',ru:'по IP-адресу, примерно',en:'by IP address, approximate'},
   look:{uz:'Joy nomi aniqlanmoqda…',ru:'Определяем название места…',en:'Looking up the place name…'}, map:{uz:'Xaritada ochish',ru:'Открыть на карте',en:'Open on map'} };
-function setLoc(o){ localStorage.setItem('sky_loc',JSON.stringify(o)); window.dispatchEvent(new CustomEvent('lab-loc',{detail:o})); }
+function setLoc(o){ LS.setItem('sky_loc',JSON.stringify(o)); window.dispatchEvent(new CustomEvent('lab-loc',{detail:o})); }
 // GPS shu oynada ruxsat etilganmi (ichki oyna/iframe'da brauzer uni bloklaydi)
 function geoAllowed(){ if(!navigator.geolocation||!window.isSecureContext&&location.protocol!=='file:') return false; const p=document.permissionsPolicy||document.featurePolicy; try{ return p&&p.allowsFeature?p.allowsFeature('geolocation'):true; }catch(e){ return true; } }
 const LOC_T={ src:{uz:'Manba',ru:'Источник',en:'Source'}, gps:{uz:'GPS (qurilma)',ru:'GPS (устройство)',en:'GPS (device)'}, ip:{uz:'Internet manzili (IP) — taxminiy',ru:'IP-адрес — приблизительно',en:'IP address — approximate'},
@@ -133,14 +136,14 @@ async function byIP(){ for(const [u,f] of [['https://ipwho.is/',j=>[+j.latitude,
 function locate(manual){ if(locBusy) return locBusy; window.dispatchEvent(new CustomEvent('lab-locating',{detail:true}));
   locBusy=(async()=>{ let res='fail';
     if(geoAllowed()){ const r=await new Promise(ok=>navigator.geolocation.getCurrentPosition(p=>ok({p}),e=>ok({e}),{enableHighAccuracy:true,timeout:15000,maximumAge:120000}));
-      if(r.p){ await applyLoc(r.p.coords.latitude,r.p.coords.longitude,'gps',r.p.coords.accuracy); res='gps'; } else sessionStorage.setItem('loc_err',r.e&&r.e.code===1?'denied':'timeout'); }
+      if(r.p){ sessionStorage.removeItem('loc_err'); await applyLoc(r.p.coords.latitude,r.p.coords.longitude,'gps',r.p.coords.accuracy); res='gps'; } else sessionStorage.setItem('loc_err',r.e&&r.e.code===1?'denied':'timeout'); }
     if(res==='fail' && (manual || loc().src!=='gps')){ if(await byIP()) res='ip'; }
     locBusy=null; window.dispatchEvent(new CustomEvent('lab-locating',{detail:false})); if(res==='fail') window.dispatchEvent(new CustomEvent('lab-loc',{detail:loc()})); return res; })();
   return locBusy; }
 // Joylashuvga oid oyna birinchi ochilganda — avtomatik aniq joy
 async function autoLocate(){ if(sessionStorage.getItem('loc_auto')) return; sessionStorage.setItem('loc_auto','1');
   const cur=loc(); if(cur.src==='gps' && Date.now()-(cur.at||0)<30*60000) return;
-  if(cur.k!=='geo' && localStorage.getItem('sky_loc') && !cur.src && localStorage.getItem('loc_manual')==='1') return;   // foydalanuvchi shaharni o'zi tanlagan
+  if(cur.k!=='geo' && LS.getItem('sky_loc') && !cur.src && LS.getItem('loc_manual')==='1') return;   // foydalanuvchi shaharni o'zi tanlagan
   if(geoAllowed()){ let st='prompt'; try{ st=(await navigator.permissions.query({name:'geolocation'})).state; }catch(e){} if(st!=='denied'){ locate(false); return; } }
   if(cur.k!=='geo') locate(false); }
 function locPicker(host){
@@ -161,9 +164,9 @@ function locPicker(host){
   else if(allowed && err==='denied' && cur.src!=='gps') warn='<div class="lab-here-w">⚠ '+esc(T(LOC_T.denied))+'</div>';
   if(cur.k==='geo'||warn){ box.insertAdjacentHTML('beforeend',warn); host.appendChild(box); }
   const ot=box.querySelector('[data-open-tab]'); if(ot) ot.onclick=()=>{ click(760); window.open(location.href.split('#')[0],'_blank','noopener'); };
-  host.querySelector('select').onchange=e=>{ const c=CITIES.find(c=>c.k===e.target.value); if(c){ click(760); localStorage.setItem('loc_manual','1'); setLoc({k:c.k,lat:c.lat,lon:c.lon,tz:c.tz}); } };
+  host.querySelector('select').onchange=e=>{ const c=CITIES.find(c=>c.k===e.target.value); if(c){ click(760); LS.setItem('loc_manual','1'); setLoc({k:c.k,lat:c.lat,lon:c.lon,tz:c.tz}); } };
   const gb=host.querySelector('.lab-geo');
-  gb.onclick=async()=>{ click(780); localStorage.removeItem('loc_manual'); gb.disabled=true; gb.textContent='📍 …'; const r=await locate(true);
+  gb.onclick=async()=>{ click(780); LS.removeItem('loc_manual'); gb.disabled=true; gb.textContent='📍 …'; const r=await locate(true);
     if(r==='fail'){ gb.disabled=false; gb.textContent='⚠ '+T(GEO_ERR); gb.title=T(GEO_HELP); } };
 }
 const PICKERS=new Set();

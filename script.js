@@ -52,7 +52,10 @@ window.__solar = { camera, controls, scene, renderer, get COSMO(){ return COSMO;
 /* --------------------------------------------------------------------------
    I18N — til holati (UZ / RU / EN) va yordamchilar
    -------------------------------------------------------------------------- */
-let LANG = localStorage.getItem('solar_lang') || 'uz';
+// Brauzer xotirasi bloklangan bo'lsa (cookie/sayt ma'lumotlari taqiqlangan) localStorage xato otadi — sayt to'xtamasin
+const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+let LANG = lsGet('solar_lang') || 'uz';
 if(!window.LOC[LANG]) LANG = 'uz';
 const tUI = (k) => (window.LOC[LANG].ui[k] ?? k);
 const bodyData = (key) => window.LOC[LANG].bodies[key];
@@ -2847,7 +2850,7 @@ if(phBox){
 window.applyLanguage=(l)=>applyLanguage(l);   // Darslik ekranidagi til tugmasi uchun
 function applyLanguage(lang){
   if(lang==='uz' && typeof narrateStop==='function') narrateStop();
-  LANG = lang; localStorage.setItem('solar_lang', lang);
+  LANG = lang; lsSet('solar_lang', lang);
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     el.textContent = tUI(el.getAttribute('data-i18n'));
@@ -2895,9 +2898,8 @@ function applyLanguage(lang){
   const gpt=document.getElementById('gamePickTitle'); if(gpt) gpt.textContent = tUI('huntPickTitle');
   const pc=document.getElementById('pickClassic'); if(pc) pc.textContent = tUI('huntClassic');
   const ph=document.getElementById('pickHunt'); if(ph) ph.textContent = tUI('huntGame');
-  if(typeof huntActive!=='undefined' && huntActive && hList.length && hIdx<hList.length){
-    renderHuntQ();
-  }
+  // Faqat matnlar yangilanadi: savolni qayta chizish hLocked/hTries ni tiklab, qayta ball olishga yo'l ochardi
+  if(typeof huntActive!=='undefined' && huntActive) huntRelabel();
   // HTML'da bir marta yozilgan sarlavhalar (title) — yangi tilda
   const PB={uz:'To‘xtatish / davom ettirish',ru:'Пауза / продолжить',en:'Pause / resume'}, PX={uz:'Yangi oynada ochish',ru:'Открыть в новом окне',en:'Open in a new window'};
   const pbt=document.getElementById('pauseBtn'); if(pbt) pbt.title=PB[lang]||PB.uz;
@@ -3113,7 +3115,7 @@ const xt = k => (XT[LANG]||XT.uz)[k];
 const xinfo = key => { const L=(window.EXTRA_INFO||{})[key]; return L ? (L[LANG]||L.uz) : null; };
 
 // ---------- Ovozli hikoya (Web Speech) ----------
-const VOICE = { on: localStorage.getItem('solar_voice')==='1', len:0, speaking:false, tok:0, onDone:null, male:false };
+const VOICE = { on: lsGet('solar_voice')==='1', len:0, speaking:false, tok:0, onDone:null, male:false };
 // Erkak ovozlar nomlari (Edge Natural, Windows, macOS, Google)
 const MALE_RX=/\b(male|sardor|ahmet|tolga|dmitry|dmitriy|pavel|maxim|yuri|daulet|guy|andrew|brian|christopher|davis|eric|roger|steffan|tony|ryan|thomas|george|daniel|alex|fred|aaron|arthur|oliver|rishi|mark|david|james|liam|brandon|jacob|jason|kai|luke|gordon|lee|reed|evan|nathan|tom|william|matthew|joey|justin|russell|ravi|prabhat|connor|mitchell|sam|neil|wayne)\b/i;
 const FEMALE_RX=/\b(female|madina|emel|seda|filiz|svetlana|dariya|irina|milena|katya|aigul|aria|jenny|michelle|ava|emma|sonia|libby|zira|hazel|susan|samantha|karen|moira|tessa|victoria|allison)\b/i;
@@ -4236,7 +4238,7 @@ function voyagerTrailStep(dt){
   btn.addEventListener('click',e=>{ e.stopPropagation(); playClick(660); menu.classList.toggle('open'); if(typeof toursMenu!=='undefined') toursMenu.classList.remove('open'); });
   document.addEventListener('click',e=>{ if(!menu.contains(e.target) && e.target!==btn) menu.classList.remove('open'); });
   vbtn.addEventListener('click',e=>{ e.stopPropagation();
-    VOICE.on=!VOICE.on; localStorage.setItem('solar_voice',VOICE.on?'1':'0');
+    VOICE.on=!VOICE.on; lsSet('solar_voice',VOICE.on?'1':'0');
     vbtn.classList.toggle('active',VOICE.on); build();
     playClick(VOICE.on?760:420);
     if(!VOICE.on) narrateStop();
@@ -4393,6 +4395,9 @@ document.getElementById('pickHunt').addEventListener('click', ()=>{
    16b. "SAYYORANI TOP" O'YINI — savol beriladi, javob 3D sahnada bosiladi
    -------------------------------------------------------------------------- */
 let huntActive=false, hList=[], hIdx=0, hScore=0, hTries=0, hLocked=false;
+// hOrd — tanlangan savollar indeksi (til almashganda shu savollar yangi tilda olinadi), hDone — natija ekrani,
+// hGen — o'yin raqami: to'xtatib qayta boshlanganda eski o'yinning taymerlari yangi o'yinga aralashmaydi
+let hOrd=[], hDone=false, hGen=0;
 const huntCard = document.getElementById('huntCard');
 const hProg = document.getElementById('huntProg');
 const hScoreEl = document.getElementById('huntScore');
@@ -4423,7 +4428,11 @@ function planetThumb(key, size){
       const tex = m.map || (m.uniforms && m.uniforms.dayTex && m.uniforms.dayTex.value);
       if(tex && tex.image) img = tex.image;
     }
-    if(img) ctx.drawImage(img, img.width*0.25, 0, img.height, img.height, R-R*0.62, R-R*0.62, R*1.24, R*1.24);
+    // REALTEX rasmi (ImageBitmap) yuklanishda vertikal aylantirilgan (flipY) — nusxa-rasmda qaytarib to'g'rilaymiz
+    const flip = typeof ImageBitmap!=='undefined' && img instanceof ImageBitmap;
+    if(img){ if(flip){ ctx.translate(0,size); ctx.scale(1,-1); }
+      ctx.drawImage(img, img.width*0.25, 0, img.height, img.height, R-R*0.62, R-R*0.62, R*1.24, R*1.24);
+      if(flip) ctx.setTransform(1,0,0,1,0,0); }
     else { ctx.fillStyle='#888'; ctx.fillRect(0,0,size,size); }
     // yoritish: yuqori-chapdan yorug', pastki-o'ngdan soya
     const sh=ctx.createRadialGradient(R*0.72,R*0.72,R*0.1,R,R,R*0.75);
@@ -4459,10 +4468,10 @@ function flashBody(obj, color){
 }
 
 function startHunt(){
-  const all = (window.LOC[LANG].hunt||[]).slice();
+  const src = window.LOC[LANG].hunt||[], all = src.map((_,i)=>i);
   for(let i=all.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [all[i],all[j]]=[all[j],all[i]]; }
-  hList = all.slice(0,10);
-  hIdx=0; hScore=0; hTries=0; hLocked=false; huntActive=true;
+  hOrd = all.slice(0,10); hList = hOrd.map(i=>src[i]);
+  hIdx=0; hScore=0; hTries=0; hLocked=false; hDone=false; hGen++; huntActive=true;
   document.body.classList.add('hunting');
   closePanel(); flyToOverview();
   renderHuntQ();
@@ -4496,10 +4505,20 @@ function renderHuntQ(){
     hOpts.appendChild(b);
   });
 }
+// Til almashganda: o'sha savol va variantlar yangi tilda, holat (urinishlar, qulf, ball) o'zgarmaydi
+function huntRelabel(){
+  const src = window.LOC[LANG].hunt||[];
+  hList = hOrd.map((i,k)=>src[i]||hList[k]);
+  if(hDone || !hList[hIdx]) return;   // natija ekrani — keyingi o'yingacha shunday qoladi
+  hQ.textContent = hList[hIdx].q;
+  if(!hLocked) hMsg.textContent = hTries ? window.LOC[LANG].ui.huntWrong : window.LOC[LANG].ui.huntHint;
+  hOpts.querySelectorAll('.hunt-opt').forEach(b=>{ const nm=b.querySelector('.ho-name'); if(nm) nm.textContent=(bodyData(b.dataset.key)||{}).name||b.dataset.key; });
+}
 function answerHunt(key, btn){
   if(hLocked) return;
   const ui = window.LOC[LANG].ui;
   const item = hList[hIdx];
+  const g = hGen, live = ()=>huntActive && g===hGen;   // taymerlar faqat shu o'yinga tegishli
   if(key===item.a){
     hLocked=true;
     hScore += hTries===0 ? 2 : 1;   // 2-urinishda yarim ball
@@ -4509,13 +4528,13 @@ function answerHunt(key, btn){
     hMsg.className='hunt-msg ok';
     hMsg.textContent = ui.huntCorrect+' '+item.e;
     // Javob ko'rsatilgach karta BUTUNLAY yashirinadi — sayyora to'liq ko'rinadi
-    setTimeout(()=>{ if(huntActive) huntCard.classList.remove('show'); }, 900);
+    setTimeout(()=>{ if(live()) huntCard.classList.remove('show'); }, 900);
     // Sahnada ham ko'rsatamiz: kamera o'sha jismga uchadi + yashil flash
     const rec = orbitObjects.find(r=>r.key===key);
     const obj = key==='sun' ? sun : (rec||{}).mesh;
     if(obj) flashBody(obj, 0x66ff99);
     if(key==='sun') flightToSun(); else if(rec) flyTo(rec);
-    setTimeout(()=>{ if(!huntActive) return; nextHunt(); }, 4800);
+    setTimeout(()=>{ if(live()) nextHunt(); }, 4800);
   } else {
     hTries++;
     playClick(300);
@@ -4528,8 +4547,8 @@ function answerHunt(key, btn){
       hMsg.className='hunt-msg bad';
       hMsg.textContent = ui.huntReveal+' '+nm+'. '+item.e;
       // To'g'ri javob bilan tanishgach karta yashirinadi
-      setTimeout(()=>{ if(huntActive) huntCard.classList.remove('show'); }, 1800);
-      setTimeout(()=>{ if(!huntActive) return; nextHunt(); }, 5000);
+      setTimeout(()=>{ if(live()) huntCard.classList.remove('show'); }, 1800);
+      setTimeout(()=>{ if(live()) nextHunt(); }, 5000);
     } else {
       hMsg.className='hunt-msg bad';
       hMsg.textContent = ui.huntWrong;
@@ -4542,6 +4561,7 @@ function nextHunt(){
 }
 function showHuntResult(){
   const ui = window.LOC[LANG].ui;
+  hDone = true;
   huntCard.classList.add('show');
   hOpts.innerHTML='';
   hProg.textContent = hList.length+'/'+hList.length;
@@ -4565,7 +4585,7 @@ function showHuntResult(){
   flyToOverview();
 }
 function stopHunt(){
-  huntActive=false; hLocked=false;
+  huntActive=false; hLocked=false; hGen++;
   document.body.classList.remove('hunting');
   huntCard.classList.remove('show');
   huntFlash.visible=false;
@@ -4778,18 +4798,22 @@ document.getElementById('rtBtn').addEventListener('click', ()=>{
   if(typeof lsActive!=='undefined' && lsActive) stopLightSpeed();
   setRealTime(!realTimeMode);
 });
+// Sana oralig'i (input min/max bilan bir xil): 1800–2050 — Kepler jadvali shu davr uchun
+const RT_MIN = new Date(1800,0,1,12).getTime(), RT_MAX = new Date(2050,11,31,12).getTime();
+const rtClamp = t => new Date(Math.min(RT_MAX, Math.max(RT_MIN, t)));
 document.getElementById('rtPrev').addEventListener('click', ()=>{
-  playClick(500); rtDate = new Date(rtDate.getTime() - 30*86400000); rtApply(rtDate,true); rtSyncUI();
+  playClick(500); rtDate = rtClamp(rtDate.getTime() - 30*86400000); rtApply(rtDate,true); rtSyncUI();
 });
 document.getElementById('rtNext').addEventListener('click', ()=>{
-  playClick(560); rtDate = new Date(rtDate.getTime() + 30*86400000); rtApply(rtDate,true); rtSyncUI();
+  playClick(560); rtDate = rtClamp(rtDate.getTime() + 30*86400000); rtApply(rtDate,true); rtSyncUI();
 });
 document.getElementById('rtToday').addEventListener('click', ()=>{
   playClick(640); rtDate = new Date(); rtApply(rtDate,true); rtSyncUI();
 });
 if(rtDateEl) rtDateEl.addEventListener('change', ()=>{
-  const v = rtDateEl.valueAsDate; if(!v) return;
-  playClick(600); rtDate = new Date(v.getTime()); rtApply(rtDate,true); rtSyncUI();
+  // valueAsDate UTC yarim tunini beradi — UTC dan orqadagi mintaqalarda bir kun oldingi sana chiqardi; mahalliy sana olinadi
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(rtDateEl.value); if(!m) return;
+  playClick(600); rtDate = rtClamp(new Date(+m[1], +m[2]-1, +m[3], 12).getTime()); rtApply(rtDate,true); rtSyncUI();
 });
 // Zodiak sektori: 0°=Hamal, har 30° — keyingi belgi
 function rtZodiacName(lambdaRad){
@@ -6231,8 +6255,16 @@ function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(aut
 function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false;
   if(authPrevFocus && authPrevFocus.focus && document.contains(authPrevFocus)) authPrevFocus.focus({preventScroll:true}); authPrevFocus=null; }
 // Server xato kodlari → 3 tilli matn
+// Server (bcrypt) parolning faqat 72 baytini qabul qiladi — kirill/emoji harflar 2–4 bayt, shuning uchun alohida xabar
+const PASS_MAX_BYTES=72;
+const passTooLong=p=>new TextEncoder().encode(p).length>PASS_MAX_BYTES;
+const PASS_LONG_TX={uz:'Parol juda uzun (ko‘pi bilan 72 bayt; kirill harflari 2 baytdan) — qisqaroq parol tanlang',
+  ru:'Пароль слишком длинный (не более 72 байт; кириллица — 2 байта на букву) — выберите короче',
+  en:'Password is too long (max 72 bytes; non-Latin letters take 2+ bytes) — choose a shorter one'};
+const passLongText=()=>PASS_LONG_TX[LANG]||PASS_LONG_TX.uz;
 function authErrText(e){
   const t=authT();
+  if(e&&e.code==='VALIDATION'&&Array.isArray(e.details)&&e.details.some(d=>/password/i.test(d.field||'')&&/72/.test(d.message||''))) return passLongText();
   return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, CONFLICT:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
     VALIDATION:t.errFill, MAIL_FAILED:t.errMail, MAIL_NOT_CONFIGURED:t.errMailCfg, CODE_EXPIRED:t.errCodeExpired, TOO_MANY_ATTEMPTS:t.errCodeMany })[e&&e.code] || t.errServer;
 }
@@ -6375,6 +6407,7 @@ authEl('pfPassSave').addEventListener('click',async()=>{
   const t=authT(), cur=authEl('pfCur').value, nw=authEl('pfNew').value, nw2=authEl('pfNew2').value, btn=authEl('pfPassSave');
   if(!cur||!nw||!nw2) return pfMsg(t.errFill,false);
   if(nw.length<8) return pfMsg(t.errPassLen,false);
+  if(passTooLong(nw)) return pfMsg(passLongText(),false);
   if(nw!==nw2) return pfMsg(t.errPass2,false);
   pfBusy(btn,true);
   try{
@@ -6403,6 +6436,7 @@ async function authSubmit(){
     if(!email||!pass||!pass2) return authShowErr(t.errFill);
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail);
     if(pass.length<8) return authShowErr(t.errPassLen);
+    if(passTooLong(pass)) return authShowErr(passLongText());
     if(pass!==pass2) return authShowErr(t.errPass2);
   } else if(!email||!pass) return authShowErr(t.errFill);
   authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');

@@ -22,12 +22,12 @@ const TX={ name:{uz:'Ob-havo',ru:'Погода',en:'Weather'},
   bases:{uz:'Xarita',ru:'Карта',en:'Map'}, bDark:{uz:'To‘q',ru:'Тёмная',en:'Dark'}, bColor:{uz:'Rangli',ru:'Цветная',en:'Colour'}, bPol:{uz:'Siyosiy',ru:'Политическая',en:'Political'}, bSat:{uz:'Sun’iy yo‘ldosh',ru:'Спутник',en:'Satellite'},
   zin:{uz:'Yaqinlashtirish',ru:'Приблизить',en:'Zoom in'}, zout:{uz:'Uzoqlashtirish',ru:'Отдалить',en:'Zoom out'}, zworld:{uz:'Butun dunyo',ru:'Весь мир',en:'Whole world'},
   hint:{uz:'Sichqoncha g‘ildiragi yoki ikki barmoq bilan yaqinlashtiring, sudrab suring — davlat va shahar nomlari chiqadi. Istalgan joyni bosing.',ru:'Приближайте колёсиком или двумя пальцами, перетаскивайте — появятся страны и города. Нажмите на любое место.',en:'Scroll or pinch to zoom, drag to pan — country and city names appear. Click anywhere.'},
-  rate:{uz:'Ob-havo serveri band. 1 daqiqadan so‘ng avtomatik qayta yuklanadi.',ru:'Сервер погоды перегружен. Повтор через минуту.',en:'Weather server is busy. Retrying automatically in a minute.'},
+  rate:{uz:'Ob-havo serveri band. Biroz vaqtdan so‘ng avtomatik qayta yuklanadi.',ru:'Сервер погоды перегружен. Повтор чуть позже автоматически.',en:'Weather server is busy. Retrying automatically shortly.'},
   retry:{uz:'Qayta urinish',ru:'Повторить',en:'Retry'}, upd:{uz:'yangilangan',ru:'обновлено',en:'updated'}, refresh:{uz:'Yangilash',ru:'Обновить',en:'Refresh'},
   ms:{uz:'m/s',ru:'м/с',en:'m/s'}, hpa:{uz:'gPa',ru:'гПа',en:'hPa'}, mm:{uz:'mm',ru:'мм',en:'mm'},
-  note:{uz:'Ma’lumot: Open-Meteo (milliy meteorologiya xizmatlari modellari asosida). Xarita 10° li to‘rda, shaharlar alohida nuqtalar bo‘yicha; har 15 daqiqada yangilanadi.',
-        ru:'Данные: Open-Meteo (на основе моделей национальных метеослужб). Карта — сетка 10°, города — отдельными точками; обновление каждые 15 минут.',
-        en:'Data: Open-Meteo (built on national weather-service models). The map uses a 10° grid, cities are sampled individually; refreshed every 15 minutes.'} };
+  note:{uz:'Ma’lumot: Open-Meteo (milliy meteorologiya xizmatlari modellari asosida). Xarita 20° li to‘rda (yaqinlashtirilganda batafsilroq), shaharlar alohida nuqtalar bo‘yicha; har 15 daqiqada yangilanadi.',
+        ru:'Данные: Open-Meteo (на основе моделей национальных метеослужб). Карта — сетка 20° (при приближении подробнее), города — отдельными точками; обновление каждые 15 минут.',
+        en:'Data: Open-Meteo (built on national weather-service models). The map uses a 20° grid (finer when zoomed in), cities are sampled individually; refreshed every 15 minutes.'} };
 const WMO={0:['☀','Ochiq osmon','Ясно','Clear sky'],1:['🌤','Asosan ochiq','Преимущественно ясно','Mainly clear'],2:['⛅','Qisman bulutli','Переменная облачность','Partly cloudy'],3:['☁','Bulutli','Пасмурно','Overcast'],
   45:['🌫','Tuman','Туман','Fog'],48:['🌫','Qirovli tuman','Изморозь, туман','Rime fog'],51:['🌦','Yengil shivalama','Слабая морось','Light drizzle'],53:['🌦','Shivalama','Морось','Drizzle'],55:['🌧','Kuchli shivalama','Сильная морось','Dense drizzle'],
   56:['🌧','Muzli shivalama','Ледяная морось','Freezing drizzle'],57:['🌧','Muzli shivalama','Ледяная морось','Freezing drizzle'],61:['🌦','Yengil yomg‘ir','Небольшой дождь','Light rain'],63:['🌧','Yomg‘ir','Дождь','Rain'],65:['🌧','Kuchli yomg‘ir','Сильный дождь','Heavy rain'],
@@ -62,20 +62,26 @@ const WC=[['Toshkent','Ташкент','Tashkent',41.30,69.24,1],['Samarqand','�
  ['Bogota','Богота','Bogotá',4.71,-74.07,0],['Lima','Лима','Lima',-12.05,-77.04,1],['San-Paulu','Сан-Паулу','São Paulo',-23.55,-46.63,1],['Buenos-Ayres','Буэнос-Айрес','Buenos Aires',-34.60,-58.38,1],
  ['Ankorij','Анкоридж','Anchorage',61.22,-149.90,1],['Reykyavik','Рейкьявик','Reykjavik',64.15,-21.94,1],['Yakutsk','Якутск','Yakutsk',62.03,129.73,1],['Novosibirsk','Новосибирск','Novosibirsk',55.01,82.93,0],
  ['Vostok stansiyasi','Станция Восток','Vostok Station',-78.46,106.84,1]].map(c=>({n:{uz:c[0],ru:c[1],en:c[2]},lat:c[3],lon:c[4],p:c[5]}));
-// To'r: 10° qadam, kenglik 75…−65
-const GLAT=[], GLON=[]; for(let y=75;y>=-65;y-=10) GLAT.push(y); for(let x=-175;x<=175;x+=10) GLON.push(x);
+// To'r: 20° qadam (8×18=144 nuqta), kenglik 75…−65. Open-Meteo har nuqtani alohida so'rov deb hisoblaydi (IP uchun 600/daq) —
+// avvalgi 10° to'r (540 nuqta) bitta sinf/maktab IP'sida limitni darhol tugatardi
+const GS=20, GLAT0=75, GLON0=-170, GLAT=[], GLON=[]; for(let y=GLAT0;y>=-65;y-=GS) GLAT.push(y); for(let x=GLON0;x<=170;x+=GS) GLON.push(x);
 async function getJSON(u,tries){ for(let i=0;i<(tries||3);i++){ try{ const c=new AbortController(), t=setTimeout(()=>c.abort(),15000); const r=await fetch(u,{signal:c.signal}); clearTimeout(t); if(r.status===429) throw new Error('rate'); if(r.ok) return await r.json(); }catch(e){ if(e.message==='rate') throw e; } await new Promise(r=>setTimeout(r,800*(i+1))); } throw new Error('net'); }
 const CACHE={}; const fresh=k=>CACHE[k]&&Date.now()-CACHE[k].t<15*60000;
 async function local(lat,lon,force){ const k='L'+lat.toFixed(2)+','+lon.toFixed(2); if(!force&&fresh(k)) return CACHE[k].d;
   const d=await getJSON(`${API}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=6&wind_speed_unit=ms`);
   CACHE[k]={t:Date.now(),d}; return d; }
-async function grid(force){ if(!force&&fresh('G')) return CACHE.G.d;
-  if(!force){ try{ const o=JSON.parse(localStorage.getItem('wx_grid')||'null'); if(o&&Date.now()-o.t<30*60000){ CACHE.G=o; return o.d; } }catch(e){} } const la=[], lo=[]; GLAT.forEach(y=>GLON.forEach(x=>{ la.push(y); lo.push(x); }));
+// Katta so'rovlar (to'r, shaharlar) localStorage'da ham saqlanadi; «Yangilash» 5 daqiqadan yangi ma'lumotni qayta so'ramaydi
+const lsGet=(k,ttl)=>{ try{ const o=JSON.parse(localStorage.getItem(k)||'null'); if(o&&Array.isArray(o.d)&&Date.now()-o.t<ttl) return o; }catch(e){} return null; };
+const lsSet=(k,o)=>{ try{ localStorage.setItem(k,JSON.stringify({t:o.t,d:o.d.map(p=>({current:p.current,daily:p.daily}))})); }catch(e){} };
+const young=k=>CACHE[k]&&Date.now()-CACHE[k].t<5*60000;
+async function grid(force){ if(force&&young('G')) force=false; if(!force&&fresh('G')) return CACHE.G.d;
+  if(!force){ const o=lsGet('wx_grid20',30*60000); if(o&&o.d.length===GLAT.length*GLON.length){ CACHE.G=o; return o.d; } } const la=[], lo=[]; GLAT.forEach(y=>GLON.forEach(x=>{ la.push(y); lo.push(x); }));
   const d=await getJSON(`${API}?latitude=${la.join(',')}&longitude=${lo.join(',')}&current=temperature_2m,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=5&wind_speed_unit=ms`);
-  CACHE.G={t:Date.now(),d}; try{ localStorage.setItem('wx_grid',JSON.stringify({t:CACHE.G.t,d:d.map(p=>({current:p.current,daily:p.daily}))})); }catch(e){} return d; }
-async function cities(force){ if(!force&&fresh('C')) return CACHE.C.d;
+  CACHE.G={t:Date.now(),d}; lsSet('wx_grid20',CACHE.G); try{ localStorage.removeItem('wx_grid'); }catch(e){} return d; }
+async function cities(force){ if(force&&young('C')) force=false; if(!force&&fresh('C')) return CACHE.C.d;
+  if(!force){ const o=lsGet('wx_cities',15*60000); if(o&&o.d.length===WC.length){ CACHE.C=o; return o.d; } }
   const d=await getJSON(`${API}?latitude=${WC.map(c=>c.lat).join(',')}&longitude=${WC.map(c=>c.lon).join(',')}&current=temperature_2m,weather_code,is_day,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=5&wind_speed_unit=ms`);
-  CACHE.C={t:Date.now(),d}; return d; }
+  CACHE.C={t:Date.now(),d}; lsSet('wx_cities',CACHE.C); return d; }
 const hm=s=>s?s.slice(11,16):'—';
 
 register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
@@ -162,8 +168,9 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
       try{ await loadLeaflet(); }catch(e){ msg('⚠ '+esc(T(TX.err)),true); return; }
       initMap();
       try{ C=await cities(force); G=await grid(force); }
-      catch(e){ if(e.message==='rate'){ msg('⏳ '+esc(T(TX.rate)),true); setTimeout(()=>{ if(lab.isOpen&&lab.tab==='world') loadWorld(false); },61000); } else msg('⚠ '+esc(T(TX.err)),true); if(!C) return; }
-      if(G) msg('',false); if(lab.tab==='world'){ if(CACHE.G) upd(CACHE.G.t); renderWorld(); }
+      // limit (429): bitta taymer, kutish har safar ikki barobar (1 → 2 → 4 → 5 daq) — so'rovlar ketma-ket qayta otilmasin
+      catch(e){ if(e.message==='rate'){ msg('⏳ '+esc(T(TX.rate)),true); if(!lab.wxRt){ lab.wxRd=Math.min(300000,lab.wxRd?lab.wxRd*2:61000); lab.wxRt=setTimeout(()=>{ lab.wxRt=0; if(lab.isOpen&&lab.tab==='world') loadWorld(false); },lab.wxRd); } } else msg('⚠ '+esc(T(TX.err)),true); if(!C) return; }
+      if(G){ msg('',false); lab.wxRd=0; } if(lab.tab==='world'){ if(CACHE.G) upd(CACHE.G.t); renderWorld(); }
     }
     function loadLeaflet(){ if(window.L&&window.L.GridLayer) return Promise.resolve(LF=window.L);
       if(!document.getElementById('lfCss')){ const l=document.createElement('link'); l.id='lfCss'; l.rel='stylesheet'; l.href='labs/leaflet/leaflet.css'; document.head.appendChild(l); }
@@ -172,7 +179,7 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
     const openCity=(c,from)=>{ lab.place={n:c.n,lat:c.lat,lon:c.lon}; lab.from=from||'world'; lab.tab='here'; click(800); show(); };
     lab.openCity=openCity;
     function initMap(){
-      if(M){ setTimeout(()=>M.invalidateSize(),60); return; }
+      if(M){ setTimeout(()=>M.invalidateSize(),60); return; } if(!body.isConnected) return;   // oyna qayta qurilgan (eski nusxa)
       const box=$('wxMap'); box.style.height=Math.round(Math.min(window.innerHeight*0.62,Math.max(300,box.clientWidth*0.56)))+'px';
       M=LF.map(box,{zoomControl:false,worldCopyJump:true,minZoom:1,maxZoom:11,zoomSnap:0.5,zoomDelta:1,wheelPxPerZoomLevel:100,maxBounds:[[-86,-400],[86,400]],maxBoundsViscosity:1,attributionControl:true});
       M.attributionControl.setPrefix(false);
@@ -189,7 +196,7 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
       $('wxZme').onclick=()=>{ click(800); const o=loc(); M.flyTo([o.lat,o.lon],8,{duration:1.2}); };
       let hintOff=false; M.on('zoomstart movestart',()=>{ if(!hintOff){ hintOff=true; $('wxHint').style.opacity=0; } });
       M.on('zoomend',()=>{ box.dataset.z=Math.floor(M.getZoom()); declutter(); detLabels(); });
-      M.on('moveend',()=>{ declutter(); detLabels(); clearTimeout(detT); detT=setTimeout(fetchDetail,700); });
+      M.on('moveend',()=>{ declutter(); detLabels(); clearTimeout(detT); detT=setTimeout(fetchDetail,1200); });
       const tip=$('wxTip');
       M.on('mousemove',e=>{ if(!G) return; const v=field(e.latlng.lat,e.latlng.lng); if(v==null){ tip.style.opacity=0; return; }
         tip.textContent=fmtV(v)+' · '+fmt(Math.abs(e.latlng.lat),1)+'°'+(e.latlng.lat>=0?'N':'S')+' '+fmt(Math.abs(wrap(e.latlng.lng)),1)+'°'+(wrap(e.latlng.lng)>=0?'E':'W');
@@ -197,7 +204,6 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
       M.on('mouseout',()=>tip.style.opacity=0);
       M.on('click',e=>pointPopup(e.latlng));
       box.dataset.z=Math.floor(M.getZoom());
-      window.addEventListener('resize',()=>{ if(M&&lab.isOpen&&lab.tab==='world'){ box.style.height=Math.round(Math.min(window.innerHeight*0.62,Math.max(300,box.clientWidth*0.56)))+'px'; M.invalidateSize(); } });
     }
     // Xarita asoslari: to'q, rangli, siyosiy (davlatlar rangda), sun'iy yo'ldosh
     const ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/', ATT='Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> · Open-Meteo';
@@ -226,12 +232,12 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
       return dly?null:p.current.cloud_cover; }
     const wdir=p=>lab.day>=0?p.daily.wind_direction_10m_dominant[lab.day]:p.current.wind_direction_10m;
     function fmtV(v){ const u={T:'°C',P:' '+T(TX.mm),W:' '+T(TX.ms),C:'%'}[lab.layer]; return (lab.layer==='T'?tC(v).replace('°',''):fmt(v,lab.layer==='P'?1:0))+u; }
-    // Ikki chiziqli interpolyatsiya: global 10° to'r + yaqinlashganda batafsil to'r (chetlari silliq qo'shiladi)
+    // Ikki chiziqli interpolyatsiya: global 20° to'r + yaqinlashganda batafsil to'r (chetlari silliq qo'shiladi)
     function bil(get,fx,fy,nx,ny,wrapX){ const x0=Math.floor(fx), y0=Math.floor(fy), kx=fx-x0, ky=fy-y0;
       const X=i=>wrapX?((i%nx)+nx)%nx:Math.max(0,Math.min(nx-1,i)), Y=j=>Math.max(0,Math.min(ny-1,j));
       const a=get(Y(y0),X(x0)), b=get(Y(y0),X(x0+1)), c=get(Y(y0+1),X(x0)), d=get(Y(y0+1),X(x0+1)); if(a==null||b==null||c==null||d==null) return null;
       return (a*(1-kx)+b*kx)*(1-ky)+(c*(1-kx)+d*kx)*ky; }
-    function gField(lat,lon,fn){ const gw=GLON.length, gh=GLAT.length; return bil((j,i)=>fn(G[j*gw+i]),(wrap(lon)+175)/10,(75-lat)/10,gw,gh,true); }
+    function gField(lat,lon,fn){ const gw=GLON.length, gh=GLAT.length; return bil((j,i)=>fn(G[j*gw+i]),(wrap(lon)-GLON0)/GS,(GLAT0-lat)/GS,gw,gh,true); }
     function field(lat,lon,fn){ fn=fn||val; if(!G) return null; let v=gField(lat,lon,fn); if(v==null) return null;
       if(DET&&M&&M.getZoom()>=4){ const D=DET, ln=wrap(lon); if(lat<=D.n&&lat>=D.s&&ln>=D.w&&ln<=D.e){
         const fx=(ln-D.w)/(D.e-D.w)*(D.nx-1), fy=(D.n-lat)/(D.n-D.s)*(D.ny-1), dv=bil((j,i)=>fn(D.p[j*D.nx+i]),fx,fy,D.nx,D.ny,false);
@@ -246,15 +252,16 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
         for(let py=oy;py<256;py+=g) for(let px=ox;px<256;px+=g){ const ll=M.unproject(LF.point(nw.x+px,nw.y+py),c.z), sp=field(ll.lat,ll.lng), dr=field(ll.lat,ll.lng,p=>p?wdir(p):null); if(sp==null||dr==null) continue;
           const Ln=Math.min(15,5+sp*0.8), a=(dr+180)*Math.PI/180, dx=Math.sin(a)*Ln, dy=-Math.cos(a)*Ln, hx=px+dx/2, hy=py+dy/2, aa=Math.atan2(dy,dx);
           ctx.beginPath(); ctx.moveTo(px-dx/2,py-dy/2); ctx.lineTo(hx,hy); ctx.moveTo(hx,hy); ctx.lineTo(hx-Math.cos(aa-0.5)*4.5,hy-Math.sin(aa-0.5)*4.5); ctx.moveTo(hx,hy); ctx.lineTo(hx-Math.cos(aa+0.5)*4.5,hy-Math.sin(aa+0.5)*4.5); ctx.stroke(); } } }
-    // Yaqinlashganda ko'rinayotgan hudud uchun batafsil to'r (9×7 nuqta)
-    const DETC={};
+    // Yaqinlashganda ko'rinayotgan hudud uchun batafsil to'r (7×5 nuqta); so'rovlar orasida ≥ 8 s, limitda 2 daq tanaffus
+    const DETC={}; let detLast=0, detOff=0;
     async function fetchDetail(){ if(!M||!G||M.getZoom()<4) return; const b=M.getBounds(), z=M.getZoom(), q=z>=7?0.5:(z>=5?2:4);
       const n=Math.min(80,Math.ceil((b.getNorth()+ (b.getNorth()-b.getSouth())*0.1)/q)*q), s=Math.max(-80,Math.floor((b.getSouth()-(b.getNorth()-b.getSouth())*0.1)/q)*q);
       let w=Math.floor((wrap(b.getWest())-(b.getEast()-b.getWest())*0.1)/q)*q, e=Math.ceil((wrap(b.getWest())+(b.getEast()-b.getWest())*1.1)/q)*q; if(e-w>170){ return; } w=Math.max(-180,w); e=Math.min(180,e);
       const key=[n,s,w,e].join(','); if(DETC[key]&&Date.now()-DETC[key].t<20*60000){ DET=DETC[key].d; wxLayer.redraw(); detLabels(); return; }
-      const nx=9, ny=7, la=[], lo=[]; for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ la.push(+(n-(n-s)*j/(ny-1)).toFixed(3)); lo.push(+(w+(e-w)*i/(nx-1)).toFixed(3)); }
+      const now=Date.now(); if(now<detOff) return; if(now-detLast<8000){ clearTimeout(detT); detT=setTimeout(fetchDetail,8000-(now-detLast)); return; } detLast=now;
+      const nx=7, ny=5, la=[], lo=[]; for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ la.push(+(n-(n-s)*j/(ny-1)).toFixed(3)); lo.push(+(w+(e-w)*i/(nx-1)).toFixed(3)); }
       try{ const p=await getJSON(`${API}?latitude=${la.join(',')}&longitude=${lo.join(',')}&current=temperature_2m,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=5&wind_speed_unit=ms`,1);
-        const d={n,s,w,e,nx,ny,p:Array.isArray(p)?p:[p],la,lo}; DETC[key]={t:Date.now(),d}; DET=d; wxLayer.redraw(); detLabels(); }catch(e){} }
+        const d={n,s,w,e,nx,ny,p:Array.isArray(p)?p:[p],la,lo}; DETC[key]={t:Date.now(),d}; DET=d; wxLayer.redraw(); detLabels(); }catch(e){ if(e.message==='rate') detOff=Date.now()+120000; } }
     // Batafsil to'r qiymatlari xaritada (zoom ≥ 5)
     function detLabels(){ if(!detLayer) return; detLayer.clearLayers(); if(!DET||M.getZoom()<5) return; const b=M.getBounds().pad(-0.04), placed=[];
       DET.p.forEach((p,i)=>{ const v=val(p); if(v==null) return; const ll=LF.latLng(DET.la[i],DET.lo[i]); if(!b.contains(ll)) return;
@@ -358,7 +365,11 @@ register('weather',{ ico:'⛅', nomenu:true, name:TX.name, sub:TX.sub,
         if(ri<0){ lab.uzR=A[i].k; click(760); loadUz(false); } else { const d=A[ri].d[i]; openCity({n:NM(d),lat:d[3],lon:d[4]},'uz'); } });
     }
     lab.resize=()=>{ if(lab.tab==='here'){ const p=lab.place||loc(), k='L'+p.lat.toFixed(2)+','+p.lon.toFixed(2); if(CACHE[k]) drawHourly(CACHE[k].d); } };
-    window.addEventListener('resize',()=>{ if(lab.isOpen) lab.resize(); });
+    const onResize=()=>{ if(!lab.isOpen) return; lab.resize();
+      if(M&&lab.tab==='world'){ const box=$('wxMap'); box.style.height=Math.round(Math.min(window.innerHeight*0.62,Math.max(300,box.clientWidth*0.56)))+'px'; M.invalidateSize(); } };
+    window.addEventListener('resize',onResize);
+    // Qayta qurishda (til almashganda) eski xarita va tinglovchilar bo'shatiladi — aks holda to'planib qolardi
+    lab.destroy=()=>{ window.removeEventListener('resize',onResize); clearTimeout(detT); clearTimeout(lab.wxRt); lab.wxRt=0; if(M){ try{ M.remove(); }catch(e){} M=null; } };
     lab.mapFix=()=>{ if(M) setTimeout(()=>M.invalidateSize(),80); };
     lab.show=show; show();
   },

@@ -130,8 +130,13 @@ test('email kodi: parol to\'g\'ri bo\'lsa ham kodsiz kirib bo\'lmaydi; xat to\'g
 
 test('email kodi: noto\'g\'ri kod — 5 urinishdan keyin bekor; eski kod yangisidan keyin ishlamaydi', async () => {
   const c = client();
+  await prisma.authCode.deleteMany({ where: { user: { email: 'alice@test.uz' } } });   // oldingi testdan qolgan kod
   const r1 = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
   const code1 = lastCode('alice@test.uz');
+  const again = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  assert.equal(again.status, 429, '60 s o\'tmay qayta kirish — yangi xat yuborilmaydi');
+  assert.equal(again.json.error, 'RATE_LIMIT');
+  await prisma.authCode.updateMany({ where: { user: { email: 'alice@test.uz' } }, data: { sentAt: new Date(Date.now() - 61000) } });
   const r2 = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
   assert.equal((await c('POST', '/api/auth/verify', { challenge: r1.json.challenge, code: code1 })).json.error, 'CODE_EXPIRED', 'yangi kod eskisini bekor qiladi');
   const good = lastCode('alice@test.uz'), bad = good === '000000' ? '111111' : '000000';
@@ -140,6 +145,35 @@ test('email kodi: noto\'g\'ri kod — 5 urinishdan keyin bekor; eski kod yangisi
   assert.equal((await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: bad })).json.error, 'TOO_MANY_ATTEMPTS');
   assert.equal((await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: good })).json.error, 'CODE_EXPIRED', 'to\'g\'ri kod ham endi ishlamaydi');
   assert.equal((await c('POST', '/api/auth/verify', { challenge: r2.json.challenge, code: '12ab56' })).status, 400);
+});
+
+test('email kodi: parallel noto\'g\'ri urinishlar 5 ta chegarani aylanib o\'ta olmaydi', async () => {
+  const c = client();
+  await prisma.authCode.deleteMany({ where: { user: { email: 'alice@test.uz' } } });
+  const r = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  const good = lastCode('alice@test.uz'), bad = good === '000000' ? '111111' : '000000';
+  const rs = await Promise.all(Array.from({ length: 12 }, () => c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: bad })));
+  assert.ok(rs.filter((x) => x.json.error === 'WRONG_CODE').length <= 4, 'ko\'pi bilan 4 ta "yana urinib ko\'ring"');
+  assert.equal((await c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: good })).json.error, 'CODE_EXPIRED');
+});
+
+test('email kodi: qayta ro\'yxatdan o\'tish orqali begona pochtaga xatlar oqimi cheklangan', async () => {
+  const c = client();
+  const body = { name: 'Spam', email: 'victim@test.uz', password: 'password-5' };
+  assert.equal((await c('POST', '/api/auth/register', body)).status, 202);
+  const n = outbox.length;
+  const again = await c('POST', '/api/auth/register', { ...body, password: 'password-6' });
+  assert.equal(again.status, 429);
+  assert.equal(outbox.length, n, 'yangi xat yuborilmadi');
+  const u = await prisma.user.findUnique({ where: { email: 'victim@test.uz' } });
+  assert.ok(await (await import('bcryptjs')).default.compare('password-5', u.passwordHash), 'parol rad etilgan so\'rov bilan o\'zgarmadi');
+  // 60 s kutib turilsa ham, faol zanjirda 5 tadan ortiq xat yo'q
+  for (let i = 0; i < 6; i++) {
+    await prisma.authCode.updateMany({ where: { userId: u.id }, data: { sentAt: new Date(Date.now() - 61000) } });
+    await c('POST', '/api/auth/register', body);
+  }
+  assert.equal(outbox.filter((m) => m.to === 'victim@test.uz').length, 5);
+  await prisma.user.delete({ where: { id: u.id } });
 });
 
 test('email kodi: muddati o\'tgan kod; qayta yuborish 60 s dan keyin', async () => {
@@ -161,6 +195,7 @@ test('email kodi: kod kiritilmay qolgan ro\'yxat qayta ochiladi, lekin tasdiqlan
   const c = client();
   assert.equal((await c('POST', '/api/auth/register', { name: 'Yarim', email: 'half@test.uz', password: 'password-5' })).status, 202);
   assert.equal((await prisma.user.findUnique({ where: { email: 'half@test.uz' } })).emailVerified, false);
+  await prisma.authCode.updateMany({ where: { user: { email: 'half@test.uz' } }, data: { sentAt: new Date(Date.now() - 61000) } });   // 60 s o'tdi
   // kod kelmadi / yo'qoldi — qayta ro'yxatdan o'tish mumkin (yangi parol bilan)
   const v = await signup(c, { name: 'Yarim2', email: 'half@test.uz', password: 'password-6' });
   assert.equal(v.status, 201);
@@ -371,8 +406,11 @@ test('admin: CSV eksport (formula-injection himoyasi bilan)', async () => {
 
 test('admin: foydalanuvchini o\'chirish — barcha ma\'lumotlari bilan', async () => {
   const id = (await admin('GET', '/api/admin/users?q=evil')).json.items[0].id;
+  await prisma.pushSub.create({ data: { endpoint: 'https://fcm.googleapis.com/fcm/send/evil', p256dh: 'k', auth: 'a', lat: 41.3, lon: 69.3,
+    tz: 5, prefs: { iss: true, showers: true }, sent: [], userId: id } });
   assert.equal((await admin('DELETE', `/api/admin/users/${id}`)).status, 200);
   assert.equal(await prisma.quizResult.count({ where: { userId: id } }), 0);
+  assert.equal(await prisma.pushSub.count({ where: { userId: id } }), 0, 'eslatma obunasi (joylashuv) ham o\'chdi');
   assert.equal((await admin('DELETE', `/api/admin/users/${id}`)).status, 404);
 });
 

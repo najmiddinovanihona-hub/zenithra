@@ -169,6 +169,7 @@ router.delete('/users/:id', async (req, res) => {
   notSelf(req, id);
   await prisma.$transaction(async (tx) => {
     await keepLastAdmin(tx, id, null);
+    await tx.pushSub.deleteMany({ where: { userId: id } });   // eslatma obunalari (taxminiy joylashuv bilan) ham o'chadi
     await tx.user.delete({ where: { id } });
   });
   res.json({ ok: true });

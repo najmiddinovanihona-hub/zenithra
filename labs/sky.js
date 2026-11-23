@@ -84,11 +84,12 @@ register('scope',{ ico:'🔭', bare:true, name:SX.name, sub:SX.sub,
       body.querySelectorAll('[data-t]').forEach(q=>q.classList.toggle('on',q===b)); upd(); window.LAB.click(760); });
     $('scM').oninput=e=>{ lab.mag=s2m(+e.target.value); upd(); };
     $('scX').onclick=()=>window.LAB.closeLab('scope');
-    let drag=null;
-    lab.root.addEventListener('pointerdown',e=>{ if(e.target.closest('.sc-hud')) return; drag=[e.clientX,e.clientY]; });
-    window.addEventListener('pointermove',e=>{ if(!drag||!lab.isOpen) return; const f=55/lab.mag*D2R/window.innerHeight;
-      lab.yaw-=(e.clientX-drag[0])*f; lab.pitch+=(e.clientY-drag[1])*f; lab.pitch=Math.max(-1.2,Math.min(1.2,lab.pitch)); drag=[e.clientX,e.clientY]; });
-    window.addEventListener('pointerup',()=>drag=null);
+    lab.drag=null;
+    lab.root.addEventListener('pointerdown',e=>{ if(e.target.closest('.sc-hud')) return; lab.drag=[e.clientX,e.clientY]; });
+    if(!lab.winOn){ lab.winOn=1;   // window tinglovchilari bir marta (har qayta qurishda to'planmasin)
+      window.addEventListener('pointermove',e=>{ const drag=lab.drag; if(!drag||!lab.isOpen) return; const f=55/lab.mag*D2R/window.innerHeight;
+        lab.yaw-=(e.clientX-drag[0])*f; lab.pitch+=(e.clientY-drag[1])*f; lab.pitch=Math.max(-1.2,Math.min(1.2,lab.pitch)); lab.drag=[e.clientX,e.clientY]; });
+      window.addEventListener('pointerup',()=>lab.drag=null); }
     lab.root.addEventListener('wheel',e=>{ if(!lab.isOpen) return; e.preventDefault(); lab.mag=Math.max(1,Math.min(400,lab.mag*Math.exp(-e.deltaY*0.0012))); upd(); },{passive:false});
     lab.upd=upd;
   },
@@ -113,6 +114,7 @@ register('scope',{ ico:'🔭', bare:true, name:SX.name, sub:SX.sub,
     lab.raf=requestAnimationFrame(loop);
   },
   close(){ const S=window.__solar, lab=this; cancelAnimationFrame(lab.raf); document.body.classList.remove('scope-on');
-    if(S && lab.saved){ S.camera.position.copy(lab.saved.pos); S.controls.target.copy(lab.saved.tgt); S.camera.fov=lab.saved.fov; S.camera.updateProjectionMatrix(); S.controls.update(); } }
+    // saqlangan kamera faqat bir marta tiklanadi — qayta qurishda (yopiq oynada) eski joyga sakramasin
+    if(S && lab.saved){ S.camera.position.copy(lab.saved.pos); S.controls.target.copy(lab.saved.tgt); S.camera.fov=lab.saved.fov; S.camera.updateProjectionMatrix(); S.controls.update(); lab.saved=null; } }
 });
 })();

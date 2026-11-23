@@ -44,13 +44,15 @@ function loadLib(){ return new Promise((res,rej)=>{ if(window.satellite) return 
   const s=document.createElement('script'); s.src='labs/satellite.min.js'; s.onload=()=>window.satellite?res(window.satellite):rej(); s.onerror=()=>{
     const s2=document.createElement('script'); s2.src='https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js'; s2.onload=()=>res(window.satellite); s2.onerror=rej; document.head.appendChild(s2); };
   document.head.appendChild(s); }); }
+// TLE qatorlarini tekshirish — buzilgan javob/kesh saqlanmasin va hisobni to'xtatmasin
+const okTLE=l=>Array.isArray(l)&&typeof l[0]==='string'&&typeof l[1]==='string'&&/^1 /.test(l[0])&&/^2 /.test(l[1]);
 async function getTLE(force){
-  let c=null; try{ c=JSON.parse(localStorage.getItem('iss_tle')||'null'); }catch(e){}
+  let c=null; try{ c=JSON.parse(localStorage.getItem('iss_tle')||'null'); }catch(e){} if(c&&!okTLE(c.l)) c=null;
   if(!force && c && Date.now()-c.t<3*3600000) return c;
   const tryF=async(u,parse)=>{ const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(),8000);
     try{ const r=await fetch(u,{signal:ctl.signal,cache:'no-store'}); if(!r.ok) throw 0; return parse(await r.text()); } finally{ clearTimeout(tm); } };
   for(const [u,p] of [['https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE',t=>{ const l=t.split(/\r?\n/).filter(s=>/^[12] /.test(s)); if(l.length<2) throw 0; return l; }],
-                      ['https://api.wheretheiss.at/v1/satellites/25544/tles',t=>{ const j=JSON.parse(t); return [j.line1,j.line2]; }]]){
+                      ['https://api.wheretheiss.at/v1/satellites/25544/tles',t=>{ const j=JSON.parse(t), l=[j.line1,j.line2]; if(!okTLE(l)) throw 0; return l; }]]){
     try{ const l=await tryF(u,p); const o={l, t:Date.now(), src:u.includes('celestrak')?'CelesTrak':'wheretheiss.at'}; localStorage.setItem('iss_tle',JSON.stringify(o)); return o; }catch(e){} }
   return c?Object.assign(c,{stale:true}):{l:TLE0,t:0,src:'NORAD',stale:true};
 }
@@ -189,7 +191,9 @@ register('iss',{ ico:'🛰', group:{uz:'Osmon',ru:'Небо',en:'Sky'}, name:TX.
     async function start(force){
       $('isNext').innerHTML=`<div class="is-nd">${esc(T(TX.loading))}</div>`;
       try{ sat=await loadLib(); }catch(e){ $('isNext').innerHTML=`<div class="is-nd">⚠ ${esc(T(TX.nolib))}</div>`; return; }
-      const tle=await getTLE(force); lab.rec=sat.twoline2satrec(tle.l[0],tle.l[1]); track=null; srcLine(tle);
+      let tle=await getTLE(force), rec=null; try{ rec=sat.twoline2satrec(tle.l[0],tle.l[1]); }catch(e){}
+      if(!rec||rec.error){ tle={l:TLE0,t:0,src:'NORAD',stale:true}; rec=sat.twoline2satrec(TLE0[0],TLE0[1]); }   // zaxira TLE
+      lab.rec=rec; track=null; srcLine(tle);
       setTimeout(predict,30);
     }
     map.onload=()=>tick();

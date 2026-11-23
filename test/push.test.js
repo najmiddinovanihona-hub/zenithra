@@ -60,6 +60,10 @@ test('push: obuna — joylashuv ~10 km gacha yaxlitlanadi, noto\'g\'ri ma\'lumot
 
   for (const bad of [
     { subscription: { ...SUB, endpoint: 'http://evil.example/x' }, lat: 1, lon: 1, tz: 5, prefs: { iss: true, showers: true } },
+    // SSRF: https bo'lsa ham, push xizmati bo'lmagan manzil rad etiladi
+    { subscription: { ...SUB, endpoint: 'https://evil.example/x' }, lat: 1, lon: 1, tz: 5, prefs: { iss: true, showers: true } },
+    { subscription: { ...SUB, endpoint: 'https://fcm.googleapis.com.evil.example/x' }, lat: 1, lon: 1, tz: 5, prefs: { iss: true, showers: true } },
+    { subscription: { ...SUB, endpoint: 'https://127.0.0.1:8443/admin' }, lat: 1, lon: 1, tz: 5, prefs: { iss: true, showers: true } },
     { subscription: SUB, lat: 95, lon: 1, tz: 5, prefs: { iss: true, showers: true } },
     { subscription: SUB, lat: 1, lon: 1, tz: 5, prefs: { iss: true } },
     { subscription: SUB, lat: 1, lon: 1, tz: 5, prefs: { iss: true, showers: true }, extra: 1 },
