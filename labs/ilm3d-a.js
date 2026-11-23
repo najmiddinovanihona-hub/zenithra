@@ -1,7 +1,8 @@
 // 3D ko'rgazmalar — Yulduzlar, Katta portlash, Qorong'i materiya
 (function(){
 if(!window.ILM3D)return;const H0=window.ILM3D.H;
-H0.label=function(txt,col,sc){const c=document.createElement('canvas'),x=c.getContext('2d');c.width=256;c.height=64;x.font='600 30px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillStyle=col||'#fff';x.fillText(txt,128,32);
+// Yorliq endi ilm3d-core.js da (H.label, xuddi shu imzo) — bu faqat zaxira
+if(!H0.label)H0.label=function(txt,col,sc){const c=document.createElement('canvas'),x=c.getContext('2d');c.width=256;c.height=64;x.font='600 30px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillStyle=col||'#fff';x.fillText(txt,128,32);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false}));s.scale.set(4*(sc||1),1*(sc||1),1);return s;};
 const lerp=(a,b,k)=>a+(b-a)*k,cl=k=>Math.max(0,Math.min(1,k)),sm=k=>{k=cl(k);return k*k*(3-2*k);};
 const rnd=n=>{const a=[];for(let i=0;i<n;i++){let x,y,z;do{x=Math.random()*2-1;y=Math.random()*2-1;z=Math.random()*2-1;}while(x*x+y*y+z*z>1);a.push(x,y,z);}return a;};
