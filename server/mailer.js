@@ -96,5 +96,6 @@ export async function sendCode({ to, name, lang, purpose, code }) {
   await getTransport().sendMail({ from: mailSender(), to, subject: msg.subject, text: msg.text, html: msg.html });
 }
 
-// Ishga tushganda ulanishni tekshirish (kalit / login-parol to'g'rimi)
-export const verifyMail = () => (useBrevo() ? brevo('/account') : getTransport().verify());
+// Ishga tushganda ulanishni tekshirish (SMTP login-parol to'g'rimi). Brevo kaliti odatda faqat "Transactional email"
+// ruxsati bilan cheklangan (/account ga ruxsat yo'q) — u birinchi xatda tekshiriladi, xato bo'lsa jurnalga yoziladi.
+export const verifyMail = () => (useBrevo() ? Promise.resolve() : getTransport().verify());
