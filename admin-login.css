@@ -1,0 +1,40 @@
+/* Zenithra · Admin kirish sahifasi — admin.css (ranglar, .glass, .ad-btn, .ad-langs) ustiga. */
+.al-body{ min-height:100vh; display:flex; flex-direction:column; }
+.al-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; }
+.al-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:12px 16px 48px; }
+.al-card{ width:100%; max-width:400px; padding:28px 26px 22px; text-align:center; }
+.al-icon{ width:54px; height:54px; margin:0 auto 12px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  color:var(--neon); background:rgba(78,168,255,.1); border:1px solid rgba(78,168,255,.35); box-shadow:0 0 18px rgba(78,168,255,.18); }
+.al-icon svg{ width:26px; height:26px; }
+.al-card h1{ margin:0 0 6px; font-size:20px; font-weight:650; letter-spacing:.01em; }
+.al-sub{ margin:0 0 18px; color:var(--text-dim); font-size:13px; line-height:1.5; }
+.al-note{ margin:0 0 16px; padding:9px 12px; border-radius:10px; font-size:12.5px; line-height:1.45; text-align:left;
+  color:var(--warn); background:rgba(255,213,79,.08); border:1px solid rgba(255,213,79,.28); }
+.al-field{ display:block; text-align:left; margin-bottom:12px; }
+.al-field > span:first-child{ display:block; font-size:12px; color:var(--text-dim); margin:0 0 5px 2px; }
+.al-card input{ width:100%; padding:11px 13px; border-radius:11px; border:1px solid rgba(140,170,255,.25); background:rgba(8,12,28,.7);
+  outline:none; font-size:14px; transition:border-color .15s, box-shadow .15s; }
+.al-card input:focus{ border-color:var(--neon); box-shadow:0 0 0 3px rgba(78,168,255,.15); }
+.al-pw{ position:relative; display:block; }
+.al-pw input{ padding-right:44px; }
+.al-eye{ position:absolute; top:50%; right:6px; transform:translateY(-50%); width:34px; height:34px; border:0; border-radius:8px;
+  background:transparent; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.al-eye:hover{ color:var(--neon); }
+.al-eye svg{ width:19px; height:19px; }
+.al-eye .eye-off, .al-eye.on .eye-on{ display:none; }
+.al-eye.on .eye-off{ display:block; }
+.al-err{ min-height:18px; margin:2px 2px 10px; font-size:12.5px; line-height:1.4; color:var(--bad); text-align:left; }
+.al-err.ok{ color:var(--ok); }
+.al-main{ width:100%; justify-content:center; padding:11px 14px; font-size:14px; border-radius:11px; }
+.al-main.busy{ opacity:.6; cursor:progress; }
+.al-link{ background:none; border:0; padding:4px 2px; font:inherit; font-size:12.5px; color:var(--neon); cursor:pointer; text-decoration:none; }
+.al-link:hover:not(:disabled){ text-decoration:underline; }
+.al-link:disabled{ color:var(--text-dim); cursor:default; }
+.al-forgot{ display:inline-block; margin-top:12px; }
+.al-site{ font-size:13px; }
+.al-sent{ margin:0 0 14px; font-size:13px; color:var(--text-dim); line-height:1.55; }
+.al-sent b{ color:var(--text); font-weight:600; }
+.al-card .al-code{ text-align:center; font-size:26px; letter-spacing:.45em; padding:12px 0 12px .45em; font-variant-numeric:tabular-nums; margin-bottom:8px; }
+.al-links{ display:flex; justify-content:space-between; gap:10px; margin-top:12px; }
+.al-hint{ margin:12px 0 0; font-size:11.5px; color:var(--text-dim); line-height:1.45; }
+@media (max-width:420px){ .al-card{ padding:22px 16px 18px; } .al-top{ padding:12px 14px; } }

@@ -16,7 +16,8 @@ model User {
   id           Int          @id @default(autoincrement())
   name         String
   email        String       @unique
-  passwordHash String       @map("password_hash")
+  // "" — parol hali o'rnatilmagan (ro'yxatdan o'tish yakunlanmagan yoki admin parolni tiklashga majburlagan)
+  passwordHash String       @default("") @map("password_hash")
   role         String       @default("user") // "user" | "admin"
   blocked      Boolean      @default(false)
   emailVerified Boolean     @default(false) @map("email_verified")
@@ -28,8 +29,85 @@ model User {
   quizResults  QuizResult[]
   settings     Settings?
   authCodes    AuthCode[]
+  passwordSetups PasswordSetup[]
 
   @@map("users")
+}
+
+// Pochta kodi tasdiqlangach parol o'rnatish uchun bir martalik ruxsat (ro'yxatdan o'tish va parolni tiklash).
+// id — brauzerdagi tokenning SHA-256 xeshi; qisqa muddatli.
+model PasswordSetup {
+  id        String   @id
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String   // "register" | "reset"
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([userId])
+  @@map("password_setups")
+}
+
+// Harakatlar jurnali: kim (actorId), nima (action), kimga/nimaga (targetType + targetId), qachon, qaysi IP dan.
+// Foydalanuvchi o'chirilsa ham yozuv qoladi (bog'lanish yo'q — actorEmail nusxasi saqlanadi).
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now()) @map("created_at")
+  actorId    Int?     @map("actor_id")
+  actorEmail String?  @map("actor_email")
+  action     String   // masalan: "auth.login", "auth.login_failed", "admin.user.block", "content.question.create"
+  targetType String?  @map("target_type") // "user" | "question" | ...
+  targetId   String?  @map("target_id")
+  ip         String?
+  details    Json?
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@map("audit_log")
+}
+
+// Admin qo'shgan test savollari (3 tilli). scope: "quiz" — klassik test (level: easy|medium|hard),
+// "dz" — darslik mavzusi testi (level: mavzu id, masalan "t07").
+model QuizQuestion {
+  id        Int      @id @default(autoincrement())
+  scope     String
+  level     String
+  question  Json     // {uz, ru, en}
+  options   Json     // [{uz, ru, en}, ...] — 2..6 ta
+  correct   Int      // to'g'ri variant indeksi
+  explain   Json?    // {uz, ru, en}
+  active    Boolean  @default(true)
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([scope, level])
+  @@map("quiz_questions")
+}
+
+// Kod ichidagi (o'rnatilgan) savolni admin yashirishi: qid — savolning barqaror identifikatori.
+model QuestionOverride {
+  qid       String   @id
+  hidden    Boolean  @default(true)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("question_overrides")
+}
+
+// Har bir savol bo'yicha javoblar statistikasi ("eng qiyin savollar" uchun).
+model QuestionStat {
+  qid       String   @id
+  scope     String
+  level     String
+  text      String   // savolning o'zbekcha matni (ko'rsatish uchun nusxa)
+  shown     Int      @default(0)
+  correct   Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([scope, level])
+  @@map("question_stats")
 }
 
 // Email orqali tasdiqlash kodi (ro'yxatdan o'tish va kirish). id — brauzerdagi "challenge" tokenining SHA-256 xeshi;

@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import adminRoutes from './routes/admin.js';
 import pushRoutes from './push.js';
+import contentRoutes from './routes/content.js';
 
 // Brauzerga beriladigan fayllar: faqat shular (server/, prisma/, .env, uploads/ va h.k. hech qachon berilmaydi).
 // MUHIM: har bir ochiq papka O'ZINING ildizidan beriladi. Avval butun loyiha ildizi regex bilan cheklangan edi —
@@ -72,6 +73,7 @@ export function createApp() {
   api.use('/me', meRoutes);
   api.use('/admin', adminRoutes);
   api.use('/push', pushRoutes);   // osmon hodisalari eslatmalari (Web Push)
+  api.use('/content', contentRoutes);   // admin qo'shgan test savollari (ommaviy, faqat o'qish)
   api.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
   api.use((err, req, res, next) => {
     if (err instanceof ApiError) {
@@ -88,13 +90,13 @@ export function createApp() {
   });
   app.use('/api', api);
 
-  /* ---------- Admin sahifasi: faqat admin uchun (server tomonda tekshiriladi) ---------- */
+  /* ---------- Admin sahifasi: faqat admin uchun (server tomonda tekshiriladi) ----------
+     Admin bo'lmagan / kirmagan foydalanuvchiga shu manzilning o'zida alohida kirish sahifasi beriladi. */
   const adminPage = express.Router();
   adminPage.use(cookieParser(), loadUser);
   adminPage.get(['/admin', '/admin.html'], (req, res) => {
-    if (req.user?.role !== 'admin') return res.redirect(302, '/#login');
     res.set('Cache-Control', 'no-store');
-    res.sendFile(path.join(ROOT, 'admin.html'));
+    res.sendFile(path.join(ROOT, req.user?.role === 'admin' ? 'admin.html' : 'admin-login.html'));
   });
   app.use(adminPage);
 

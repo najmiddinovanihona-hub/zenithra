@@ -4257,7 +4257,7 @@ const qNext = document.getElementById('quizNext');
 const qProg = document.getElementById('quizProgress');
 const qScoreEl = document.getElementById('quizScore');
 const qBar = document.getElementById('quizBarFill');
-let qList=[], qIdx=0, qScore=0, qAnswered=false, qLevel='easy';
+let qList=[], qIdx=0, qScore=0, qAnswered=false, qLevel='easy', qAns=[];   // qAns — savollar bo'yicha javoblar (statistika)
 
 function startQuiz(){
   quizEl.classList.add('open'); playClick(700);
@@ -4299,15 +4299,17 @@ function renderDzPicker(){
 function startQuizLevel(level){
   qLevel = level;
   const dzm = /^dz:(\d+)-(\d+)$/.exec(level);
-  const all = dzm && window.DZQ ? window.DZQ.items(+dzm[1],+dzm[2],LANG) : ((window.LOC[LANG].quiz||{})[level]||[]).slice();
+  // content.js (QCONTENT): admin qo'shgan savollar qo'shiladi, yashirilganlari olib tashlanadi; bo'lmasa — o'rnatilganlar
+  const all = dzm && window.DZQ ? window.DZQ.items(+dzm[1],+dzm[2],LANG)
+    : window.QCONTENT ? window.QCONTENT.quizPool(level, LANG) : ((window.LOC[LANG].quiz||{})[level]||[]).slice();
   for(let i=all.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [all[i],all[j]]=[all[j],all[i]]; } // aralashtirish
   // Har safar tasodifiy 10 ta savol tushadi, javob variantlari tartibi ham aralashadi
   qList = all.slice(0,10).map(it=>{
     const idx=it.o.map((_,i2)=>i2);
     for(let i2=idx.length-1;i2>0;i2--){ const j2=Math.floor(Math.random()*(i2+1)); [idx[i2],idx[j2]]=[idx[j2],idx[i2]]; }
-    return {q:it.q, o:idx.map(i2=>it.o[i2]), c:idx.indexOf(it.c), e:it.e};
+    return {q:it.q, o:idx.map(i2=>it.o[i2]), c:idx.indexOf(it.c), e:it.e, m:it.m||null};
   });
-  qIdx=0; qScore=0;
+  qIdx=0; qScore=0; qAns=[];
   renderQuizQ();
 }
 function renderQuizQ(){
@@ -4333,6 +4335,7 @@ function answerQuiz(i, btn){
   const buttons = qOpts.querySelectorAll('.quiz-opt');
   buttons.forEach(b=>b.disabled=true);
   buttons[item.c].classList.add('correct');
+  if(item.m) qAns.push(Object.assign({}, item.m, {correct: i===item.c}));
   if(i===item.c){ qScore++; playClick(900); }
   else { btn.classList.add('wrong'); playClick(300); }
   qScoreEl.textContent = qScore+' ✦';
@@ -4370,7 +4373,8 @@ function showQuizResult(){
   lb.textContent = tUI('quizLevelsBack');
   lb.addEventListener('click', ()=>{ playClick(600); renderLevelPicker(); });
   playClick(qScore>=7 ? 950 : 500);
-  if(window.API) window.API.quiz('quiz:'+qLevel, qScore, qList.length);
+  if(window.QCONTENT) window.QCONTENT.finish('quiz:'+qLevel, qScore, qList.length, qAns);
+  else if(window.API) window.API.quiz('quiz:'+qLevel, qScore, qList.length);
 }
 function closeQuiz(){ quizEl.classList.remove('open'); }
 document.getElementById('quizClose').addEventListener('click', ()=>{ playClick(440); closeQuiz(); });
@@ -6181,9 +6185,36 @@ window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini
    mehmon rejimida ishlayveradi. Kirgan foydalanuvchida darslik progressi,
    test natijalari va sozlamalar serverga sinxronlanadi.
    -------------------------------------------------------------------------- */
-var authMode='in', authBusy=false;
-function authT(){ return window.LOC[LANG].auth||window.LOC.uz.auth; }
+// authMode: 'in' — kirish (email + parol → kod), 'up' — ro'yxatdan o'tish (email → kod → ism + parol),
+// 'reset' — parolni tiklash (email → kod → yangi parol). authSetup — kod tasdiqlangach parol o'rnatish ruxsati.
+var authMode='in', authBusy=false, authSetup=null, authSetupFor='';
+// Yangi oqimlar matnlari (data.js dagi LOC[lang].auth ustiga qo'shiladi)
+const AUTH_X={
+  uz:{ stepNames:['Pochta','Kod','Parol'], resetSteps:['Pochta','Kod','Yangi parol'], upSub:'Pochtangizni kiriting — unga tasdiqlash kodi yuboramiz',
+    forgot:'Parolni unutdim?', resetTitle:'Parolni tiklash', resetSub:'Hisobingiz pochtasini kiriting — parolni tiklash uchun kod yuboramiz',
+    resetCodeSent:'Agar bu pochtada hisob bo‘lsa, unga tasdiqlash kodi yuborildi:', backToIn:'← Kirishga qaytish',
+    setupTitle:'Pochta tasdiqlandi ✓', setupSubUp:'Endi ismingiz va parolingizni kiriting', setupSubReset:'Yangi parolni kiriting',
+    finishUp:'Ro‘yxatdan o‘tishni yakunlash', savePass:'Parolni saqlash va kirish', newPass:'Yangi parol', newPass2:'Yangi parolni tasdiqlang',
+    restart:'← Boshidan boshlash', errSetupExpired:'Vaqt tugadi — qaytadan boshlang', resetDone:'Parol yangilandi. Boshqa qurilmalardagi sessiyalar yopildi.' },
+  ru:{ stepNames:['Почта','Код','Пароль'], resetSteps:['Почта','Код','Новый пароль'], upSub:'Введите почту — мы отправим на неё код подтверждения',
+    forgot:'Забыли пароль?', resetTitle:'Восстановление пароля', resetSub:'Введите почту аккаунта — мы отправим код для восстановления пароля',
+    resetCodeSent:'Если на эту почту есть аккаунт, код подтверждения отправлен на', backToIn:'← Вернуться ко входу',
+    setupTitle:'Почта подтверждена ✓', setupSubUp:'Теперь введите имя и пароль', setupSubReset:'Введите новый пароль',
+    finishUp:'Завершить регистрацию', savePass:'Сохранить пароль и войти', newPass:'Новый пароль', newPass2:'Подтвердите новый пароль',
+    restart:'← Начать заново', errSetupExpired:'Время истекло — начните заново', resetDone:'Пароль обновлён. Сеансы на других устройствах завершены.' },
+  en:{ stepNames:['Email','Code','Password'], resetSteps:['Email','Code','New password'], upSub:'Enter your email — we will send a verification code to it',
+    forgot:'Forgot password?', resetTitle:'Reset password', resetSub:'Enter your account email — we will send a code to reset your password',
+    resetCodeSent:'If an account exists for this email, a verification code was sent to', backToIn:'← Back to sign in',
+    setupTitle:'Email verified ✓', setupSubUp:'Now enter your name and a password', setupSubReset:'Enter a new password',
+    finishUp:'Finish sign-up', savePass:'Save password and sign in', newPass:'New password', newPass2:'Confirm new password',
+    restart:'← Start over', errSetupExpired:'Time is up — please start again', resetDone:'Password updated. Sessions on other devices were signed out.' },
+};
+let authTc=null, authTl='';
+function authT(){ if(authTl!==LANG||!authTc){ authTl=LANG; authTc=Object.assign({},window.LOC[LANG].auth||window.LOC.uz.auth,AUTH_X[LANG]||AUTH_X.uz); } return authTc; }
 const authEl=id=>document.getElementById(id);
+// "Parolni unutdim?" havolasi (index.html da yo'q — shu yerda qo'shiladi, mavjud .ac-link uslubida)
+const authForgot=(()=>{ const b=document.createElement('button'); b.type='button'; b.id='authForgot'; b.className='ac-link auth-back';
+  authEl('authSubmit').after(b); return b; })();
 function authBuildUI(){
   const t=authT(), u=window.API&&window.API.user;
   authEl('authForm').style.display=u||authCh?'none':'';
@@ -6192,8 +6223,9 @@ function authBuildUI(){
   if(authCh){ authCodeSentText(); authResendLabel(); }
   authEl('authAccount').style.display=u?'':'none';
   authEl('authCard').classList.toggle('pf',!!u);
-  authEl('authTitle').textContent=u?u.name:t.welcome;
-  authEl('authSub').textContent=u||authCh?'':t.sub;
+  authEl('authTitle').textContent=u?u.name:authSetup?t.setupTitle:authMode==='reset'?t.resetTitle:t.welcome;
+  authEl('authSub').textContent=u||authCh?'':authSetup?(authSetupFor==='register'?t.setupSubUp:t.setupSubReset)
+    :authMode==='reset'?t.resetSub:authMode==='up'?t.upSub:t.sub;
   authEl('authTabIn').textContent=t.tabIn;
   authEl('authTabUp').textContent=t.tabUp;
   authEl('authName').placeholder=t.firstName; authEl('authSurname').placeholder=t.lastName;
@@ -6220,30 +6252,49 @@ function authSetMode(m){
   authEl('authTabUp').classList.toggle('active',m==='up');
   authEl('authTabIn').setAttribute('aria-selected',m==='in'); authEl('authTabUp').setAttribute('aria-selected',m==='up');
   authEl('authTabs').classList.toggle('up',m==='up');
-  authUpStep=1;
-  authEl('authPass').autocomplete=m==='up'?'new-password':'current-password';
   authEl('authErr').classList.remove('on');
   authBuildUI();
 }
-// Ro'yxatdan o'tish 3 bosqichda: ① ism + familiya → ② email + parol → ③ pochtaga kelgan kod
-var authUpStep=1;
+// Yangi oqimni boshidan boshlash (kod / parol o'rnatish bosqichi bekor qilinadi)
+function authStart(m){ authSetup=null; authSetupFor=''; if(authCh) authHideCode(); authSetMode(m); }
+// Bosqichlar: ro'yxatdan o'tish va tiklash — ① pochta → ② kod → ③ (ism +) parol; kirish — email + parol → kod
 function authApplyFields(){
-  const t=authT(), up=authMode==='up', s1=up&&authUpStep===1, u=window.API&&window.API.user;
-  authEl('authName').style.display=s1?'block':'none';
-  authEl('authSurname').style.display=s1?'block':'none';
-  authEl('authEmail').style.display=s1?'none':'block';
-  authEl('authPass').closest('.auth-pw').style.display=s1?'none':'';
-  authEl('authPass2Wrap').style.display=up&&!s1?'':'none';
-  authEl('authSubmitTx').textContent=!up?t.btnIn:s1?t.next:t.sendCode;
-  authEl('authStepBack').style.display=up&&!s1?'':'none';
-  authEl('authStepBack').textContent=t.stepBack;
-  const st=authEl('authSteps'), cur=authCh?3:up?authUpStep:0;
-  st.style.display=!u&&(up||authCh&&authChUp)?'':'none';
-  [...st.children].forEach((li,i)=>{ li.lastChild.textContent=t.stepNames[i]; li.classList.toggle('on',i+1===cur); li.classList.toggle('done',i+1<cur); });
+  const t=authT(), u=window.API&&window.API.user, set=!!authSetup, nameOn=set&&authSetupFor==='register';
+  const passOn=set||authMode==='in', flow=set?(authSetupFor==='register'?'up':'reset'):authMode;
+  authEl('authTabs').style.display=set||authMode==='reset'?'none':'';
+  authEl('authName').style.display=nameOn?'block':'none';
+  authEl('authSurname').style.display=nameOn?'block':'none';
+  authEl('authEmail').style.display=set?'none':'block';
+  authEl('authPass').closest('.auth-pw').style.display=passOn?'':'none';
+  authEl('authPass2Wrap').style.display=set?'':'none';
+  authEl('authPass').autocomplete=set?'new-password':'current-password';
+  authEl('authPass').placeholder=set&&authSetupFor==='reset'?t.newPass:t.pass;
+  authEl('authPass2').placeholder=set&&authSetupFor==='reset'?t.newPass2:t.pass2;
+  authEl('authSubmitTx').textContent=set?(authSetupFor==='register'?t.finishUp:t.savePass):authMode==='in'?t.btnIn:t.sendCode;
+  authForgot.textContent=t.forgot; authForgot.style.display=!set&&authMode==='in'?'':'none';
+  const back=authEl('authStepBack');
+  back.style.display=set||authMode==='reset'?'':'none';
+  back.textContent=set?t.restart:t.backToIn;
+  const st=authEl('authSteps'), cur=set?3:authCh?2:1, names=flow==='reset'?t.resetSteps:t.stepNames;
+  st.style.display=!u&&(set||(authCh?authChMode:authMode)!=='in')?'':'none';
+  [...st.children].forEach((li,i)=>{ li.lastChild.textContent=names[i]; li.classList.toggle('on',i+1===cur); li.classList.toggle('done',i+1<cur); });
 }
-function authGoStep(n){ authUpStep=n; authEl('authErr').classList.remove('on'); authApplyFields();
-  setTimeout(()=>authEl(n===1?'authName':'authEmail').focus({preventScroll:true}),40); }
-authEl('authStepBack').addEventListener('click',()=>{ playClick(520); authGoStep(1); });
+// "Orqaga": tiklashda — kirishga; parol o'rnatish bosqichida — shu oqimni boshidan
+authEl('authStepBack').addEventListener('click',()=>{ playClick(520);
+  authStart(authSetup?(authSetupFor==='register'?'up':'reset'):'in');
+  setTimeout(()=>authEl('authEmail').focus({preventScroll:true}),40); });
+authForgot.addEventListener('click',()=>{ playClick(620);
+  const em=authEl('authEmail').value; authStart('reset'); authEl('authEmail').value=em;
+  setTimeout(()=>authEl('authEmail').focus({preventScroll:true}),40); });
+// Parol o'rnatish bosqichiga o'tish (kod tasdiqlandi, server {setup, purpose} qaytardi)
+function authShowSetup(r){
+  authSetup=r.setup; authSetupFor=r.purpose; authMode=r.purpose==='register'?'up':'reset';
+  ['authPass','authPass2'].forEach(id=>{ authEl(id).value=''; authEl(id).type='password'; });
+  document.querySelectorAll('#authFields .auth-eye').forEach(b=>b.classList.remove('on'));
+  authEl('authErr').classList.remove('on');
+  authHideCode();
+  setTimeout(()=>authEl(authSetupFor==='register'?'authName':'authPass').focus({preventScroll:true}),60);
+}
 // Oyna ochiq paytda 3D sahna pauza qilinadi (__authCover → animate()): blur qotgan kadr ustida bir marta
 // hisoblanadi, GPU bo'shaydi — kiritish va animatsiyalar qotmaydi.
 let authPrevFocus=null;   // oyna yopilganda fokus shu elementga qaytadi (klaviatura bilan ishlovchilar uchun)
@@ -6251,7 +6302,7 @@ function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(aut
   authPrevFocus=document.activeElement;
   window.__authCover=true; authEl('authView').classList.remove('off');
   if(window.API.user) pfLoad();
-  setTimeout(()=>{ const f=window.API.user?authEl('authClose'):authCh?document.querySelector('#authCodeBoxes input'):authEl(authMode==='up'?'authName':'authEmail'); if(f) f.focus({preventScroll:true}); },240); }
+  setTimeout(()=>{ const f=window.API.user?authEl('authClose'):authCh?document.querySelector('#authCodeBoxes input'):authSetup?authEl(authSetupFor==='register'?'authName':'authPass'):authEl('authEmail'); if(f) f.focus({preventScroll:true}); },240); }
 function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false;
   if(authPrevFocus && authPrevFocus.focus && document.contains(authPrevFocus)) authPrevFocus.focus({preventScroll:true}); authPrevFocus=null; }
 // Server xato kodlari → 3 tilli matn
@@ -6266,12 +6317,13 @@ function authErrText(e){
   const t=authT();
   if(e&&e.code==='VALIDATION'&&Array.isArray(e.details)&&e.details.some(d=>/password/i.test(d.field||'')&&/72/.test(d.message||''))) return passLongText();
   return ({ INVALID_CREDENTIALS:t.errCreds, EMAIL_EXISTS:t.errExists, CONFLICT:t.errExists, RATE_LIMIT:t.errRate, BLOCKED:t.errBlocked,
-    VALIDATION:t.errFill, MAIL_FAILED:t.errMail, MAIL_NOT_CONFIGURED:t.errMailCfg, CODE_EXPIRED:t.errCodeExpired, TOO_MANY_ATTEMPTS:t.errCodeMany })[e&&e.code] || t.errServer;
+    VALIDATION:t.errFill, MAIL_FAILED:t.errMail, MAIL_NOT_CONFIGURED:t.errMailCfg, CODE_EXPIRED:t.errCodeExpired, TOO_MANY_ATTEMPTS:t.errCodeMany,
+    SETUP_EXPIRED:t.errSetupExpired })[e&&e.code] || t.errServer;
 }
 /* ---------- 2-bosqich: pochtaga yuborilgan 6 xonali kod ---------- */
-var authCh=null, authChUp=false, authChEmail='', authResendAt=0, authResendTm=null;
+var authCh=null, authChMode='in', authChEmail='', authResendAt=0, authResendTm=null;
 const authBoxes=()=>[...document.querySelectorAll('#authCodeBoxes input')];
-function authCodeSentText(){ const p=authEl('authCodeSent'); p.textContent=authT().codeSent+' ';
+function authCodeSentText(){ const p=authEl('authCodeSent'); p.textContent=(authChMode==='reset'?authT().resetCodeSent:authT().codeSent)+' ';
   const b=document.createElement('b'); b.textContent=authChEmail; p.appendChild(document.createElement('br')); p.appendChild(b); }
 function authResendLabel(){
   const t=authT(), btn=authEl('authCodeResend'), left=Math.ceil((authResendAt-Date.now())/1000);
@@ -6282,7 +6334,7 @@ function authResendCountdown(sec){ authResendAt=Date.now()+sec*1000; clearInterv
 function authCodeErr(msg,shake){ authEl('authCodeErr').textContent=msg||'';
   if(shake){ const g=authEl('authCodeBoxes'); g.classList.remove('bad'); void g.offsetWidth; g.classList.add('bad'); } }
 function authShowCode(r){
-  authCh=r.challenge; authChUp=authMode==='up'; authChEmail=r.email||'';
+  authCh=r.challenge; authChMode=authMode; authChEmail=r.email||'';
   authBoxes().forEach(i=>{ i.value=''; i.classList.remove('filled'); }); authCodeErr('');
   authEl('authCodeBoxes').classList.remove('bad');
   authResendCountdown(r.resendIn||60);
@@ -6296,7 +6348,9 @@ async function authVerify(){
   if(!/^\d{6}$/.test(code)) return authCodeErr(t.errCodeFill,true);
   authBusy=true; const btn=authEl('authCodeOk'); btn.disabled=true; btn.classList.add('busy'); authCodeErr('');
   try{
-    await window.API.verify(authCh,code);
+    const r=await window.API.verify(authCh,code);
+    // ro'yxatdan o'tish / tiklash: sessiya hali yo'q — (ism +) parol bosqichiga o'tiladi
+    if(r&&r.setup){ authShowSetup(r); playClick(880); return; }
     authEl('authPass').value=''; authEl('authPass2').value='';
     document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
     authHideCode(); authClose(); playClick(880);
@@ -6426,27 +6480,52 @@ async function authSubmit(){
   const t=authT();
   const email=authEl('authEmail').value.trim().toLowerCase();
   const pass=authEl('authPass').value;
-  let name='';
-  if(authMode==='up'){
-    const first=authEl('authName').value.trim().replace(/\s+/g,' '), last=authEl('authSurname').value.trim().replace(/\s+/g,' ');
-    if(authUpStep===1){ if(!first||!last) return authShowErr(t.errName); playClick(700); return authGoStep(2); }
-    name=first+' '+last;
-    if(!first||!last){ authGoStep(1); return authShowErr(t.errName); }
-    const pass2=authEl('authPass2').value;
-    if(!email||!pass||!pass2) return authShowErr(t.errFill);
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail);
-    if(pass.length<8) return authShowErr(t.errPassLen);
-    if(passTooLong(pass)) return authShowErr(passLongText());
-    if(pass!==pass2) return authShowErr(t.errPass2);
-  } else if(!email||!pass) return authShowErr(t.errFill);
+  if(authSetup) return authSubmitPassword();
+  if(authMode==='in'){ if(!email||!pass) return authShowErr(t.errFill); }
+  else { if(!email) return authShowErr(t.errFill); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail); }
   authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');
   try{
-    // 1-bosqich: parol tekshiriladi va pochtaga kod yuboriladi → kod oynasi
-    const r=authMode==='up' ? await window.API.register(name,email,pass) : await window.API.login(email,pass);
+    // 1-bosqich: pochtaga kod yuboriladi (kirishda — parol to'g'ri bo'lsa) → kod oynasi
+    const r=authMode==='in' ? await window.API.login(email,pass) : authMode==='up' ? await window.API.register(email) : await window.API.reset(email);
     authShowCode(r); playClick(760);
   }catch(e){ authShowErr(authErrText(e)); }
   finally{ authBusy=false; authEl('authSubmit').disabled=false; authEl('authSubmit').classList.remove('busy'); }
 }
+// 3-bosqich: (ism +) parol → hisob faollashadi / parol yangilanadi va sessiya ochiladi
+async function authSubmitPassword(){
+  const t=authT(), reg=authSetupFor==='register', pass=authEl('authPass').value, pass2=authEl('authPass2').value;
+  let name='';
+  if(reg){
+    const first=authEl('authName').value.trim().replace(/\s+/g,' '), last=authEl('authSurname').value.trim().replace(/\s+/g,' ');
+    if(!first||!last) return authShowErr(t.errName);
+    name=first+' '+last;
+  }
+  if(!pass||!pass2) return authShowErr(t.errFill);
+  if(pass.length<8) return authShowErr(t.errPassLen);
+  if(passTooLong(pass)) return authShowErr(passLongText());
+  if(pass!==pass2) return authShowErr(t.errPass2);
+  authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');
+  try{
+    await window.API.setPassword(authSetup,pass,reg?name:undefined);
+    authSetup=null; authSetupFor='';
+    ['authPass','authPass2','authName','authSurname'].forEach(id=>{ authEl(id).value=''; });
+    document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
+    authSetMode('in'); playClick(880);
+    if(reg) authClose(); else { pfLoad(); pfMsg(t.resetDone,true); }
+  }catch(e){
+    if(e&&e.code==='SETUP_EXPIRED'){ const m=reg?'up':'reset'; authStart(m); authShowErr(authErrText(e)); }
+    else authShowErr(authErrText(e));
+  }finally{ authBusy=false; authEl('authSubmit').disabled=false; authEl('authSubmit').classList.remove('busy'); }
+}
+// Tashqi havolalar: /#login — kirish oynasi, /#reset — parolni tiklash (masalan, admin kirish sahifasidan)
+function authHashOpen(){
+  const h=location.hash; if(h!=='#login'&&h!=='#reset') return;
+  if(!window.API||!window.API.online) return;
+  history.replaceState(null,'',location.pathname+location.search);
+  if(h==='#reset'&&!window.API.user) authStart('reset');
+  authOpen();
+}
+window.addEventListener('hashchange',authHashOpen);
 authEl('authTabIn').addEventListener('click',()=>{ playClick(620); authSetMode('in'); });
 authEl('authTabUp').addEventListener('click',()=>{ playClick(620); authSetMode('up'); });
 authEl('authSubmit').addEventListener('click',()=>authSubmit());
@@ -6491,7 +6570,7 @@ function authRefresh(){
 window.__authReady=true;
 if(window.API){
   window.API.on(authRefresh);
-  window.API.ready.then(()=>{ authRefresh(); if(location.hash==='#login'){ history.replaceState(null,'',location.pathname+location.search); authOpen(); } });
+  window.API.ready.then(()=>{ authRefresh(); authHashOpen(); });
 }
 authRefresh();
 

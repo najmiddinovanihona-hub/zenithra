@@ -362,15 +362,16 @@ function build(el, api){
   $$('[data-go3d]').forEach(b=>b.onclick=()=>{ click(720); const m=el.closest('.dz-main'), s=$('#t2Sph'); if(m&&s) m.scrollTo({top:s.getBoundingClientRect().top-m.getBoundingClientRect().top+m.scrollTop-12,behavior:'smooth'}); });
 
   /* 08 · Test */
-  let qi=0, score=0, order=[];
+  // QZP — joriy urinish savollari (content.js: admin savollari qo'shiladi, yashirilganlari chiqadi), ans — statistika uchun
+  let qi=0, score=0, order=[], QZP=QZ, ans=[];
   const shuffle=a=>{ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
-  function qStart(){ qi=0; score=0; order=shuffle(QZ.map((_,i)=>i)); qShow(); }
+  function qStart(){ qi=0; score=0; ans=[]; QZP=window.QCONTENT?window.QCONTENT.dzPool('t02',QZ,true):QZ; order=shuffle(QZP.map((_,i)=>i)); qShow(); }
   function qShow(){ const box=$('#t2Quiz');
-    if(qi>=order.length){ box.innerHTML=`<div class="t1-qend"><div class="t1-qsc">${score} / ${order.length}</div><p class="t1-p">${T(TX.qRes)}</p><button class="lab-chip on" id="t2QA">↻ ${T(TX.qAgain)}</button></div>`; $('#t2QA').onclick=()=>{ click(720); qStart(); }; return; }
-    const q=QZ[order[qi]], opts=shuffle(q[1].map((o,i)=>[o,i]));
+    if(qi>=order.length){ if(window.DZP) window.DZP.score('t02',score,order.length,ans); box.innerHTML=`<div class="t1-qend"><div class="t1-qsc">${score} / ${order.length}</div><p class="t1-p">${T(TX.qRes)}</p><button class="lab-chip on" id="t2QA">↻ ${T(TX.qAgain)}</button></div>`; $('#t2QA').onclick=()=>{ click(720); qStart(); }; return; }
+    const q=QZP[order[qi]], opts=shuffle(q[1].map((o,i)=>[o,i]));
     box.innerHTML=`<div class="t1-qh"><span>${T(TX.qOf)} ${qi+1} / ${order.length}</span><span>${score} ✦</span></div><div class="t1-qbar"><i style="width:${qi/order.length*100}%"></i></div><h4>${T(q[0])}</h4>
       <div class="t1-opts">${opts.map(([o,i])=>`<button class="t1-opt" data-k="${i}">${T(o)}</button>`).join('')}</div><div class="t1-qn"></div>`;
-    box.querySelectorAll('.t1-opt').forEach(b=>b.onclick=()=>{ const ok=b.dataset.k==='0'; if(ok) score++; click(ok?900:300);
+    box.querySelectorAll('.t1-opt').forEach(b=>b.onclick=()=>{ const ok=b.dataset.k==='0'; if(ok) score++; click(ok?900:300); if(q.m) ans.push(Object.assign({},q.m,{correct:ok}));
       box.querySelectorAll('.t1-opt').forEach(x=>{ x.disabled=true; if(x.dataset.k==='0') x.classList.add('ok'); else if(x===b) x.classList.add('no'); });
       const n=box.querySelector('.t1-qn'); n.innerHTML=`<button class="lab-chip on">${T(qi===order.length-1?TX.qDone:TX.qNext)} →</button>`; n.firstChild.onclick=()=>{ click(720); qi++; qShow(); }; }); }
   qStart();

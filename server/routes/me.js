@@ -8,6 +8,8 @@ import { ApiError, badRequest, parse } from '../http.js';
 import { publicUser, requireAuth } from '../session.js';
 import { mergeProgress } from '../progress.js';
 import { topicTitles } from '../topics.js';
+import { audit } from '../audit.js';
+import { Answers, allowAnswers, recordAnswers } from '../answers.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -79,11 +81,15 @@ const QuizBody = z.object({
   quizId: z.string().regex(ID),
   score: z.number().int().min(0).max(1000),
   total: z.number().int().min(1).max(1000),
+  // ixtiyoriy: savollar bo'yicha javoblar (statistika uchun) — eski klientlar yubormaydi
+  answers: Answers.optional(),
 }).refine((q) => q.score <= q.total, { message: 'score > total', path: ['score'] });
 
 router.post('/quiz', quizLimiter, async (req, res) => {
-  const q = parse(QuizBody, req.body);
+  const { answers, ...q } = parse(QuizBody, req.body);
   const row = await prisma.quizResult.create({ data: { userId: req.user.id, ...q } });
+  // Statistika — asosiy natijaga ta'sir qilmaydi; foydalanuvchi bo'yicha 10 daqiqada 15 ta to'plam
+  if (answers && allowAnswers(`u${req.user.id}`)) await recordAnswers(answers).catch((e) => console.warn('[answers]', e.message));
   res.status(201).json({ result: { id: row.id, quizId: row.quizId, score: row.score, total: row.total, at: row.createdAt } });
 });
 
@@ -168,6 +174,7 @@ const ProfileBody = z.object({ name: z.string().trim().min(1).max(60) }).strict(
 router.patch('/profile', async (req, res) => {
   const { name } = parse(ProfileBody, req.body);
   const u = await prisma.user.update({ where: { id: req.user.id }, data: { name } });
+  if (name !== req.user.name) await audit(req, 'me.profile_update', { targetType: 'user', targetId: u.id, details: { before: { name: req.user.name }, after: { name } } });
   res.json({ user: publicUser(u) });
 });
 
@@ -195,7 +202,8 @@ router.post('/password', passwordLimiter, async (req, res) => {
     where: { id: req.user.id },
     data: { passwordHash: await bcrypt.hash(newPassword, config.bcryptRounds) },
   });
-  await prisma.session.deleteMany({ where: { userId: req.user.id, id: { not: req.sessionId } } });
+  const { count } = await prisma.session.deleteMany({ where: { userId: req.user.id, id: { not: req.sessionId } } });
+  await audit(req, 'me.password_change', { targetType: 'user', targetId: req.user.id, details: { otherSessionsClosed: count } });
   res.json({ ok: true });
 });
 
