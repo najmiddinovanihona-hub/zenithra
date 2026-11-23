@@ -1,0 +1,28 @@
+# Render.com Blueprint — bepul hosting. Render: New → Blueprint → shu repo'ni tanlang.
+# Ma'lumotlar bazasi — Neon (bepul PostgreSQL), pochta — Brevo (HTTP API; Render bepul tarifida SMTP portlari yopiq).
+# "sync: false" qiymatlarni Render birinchi deployda so'raydi (maxfiy — repo'ga yozilmaydi).
+services:
+  - type: web
+    name: zenithra
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm ci --include=dev && node server/scripts/prepare-db.js && npx prisma generate && npx prisma db push --skip-generate
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL        # Neon: postgresql://...?sslmode=require
+        sync: false
+      - key: BREVO_API_KEY       # Brevo → SMTP & API → API Keys
+        sync: false
+      - key: MAIL_FROM           # Brevo'da tasdiqlangan jo'natuvchi, masalan: Zenithra <siz@gmail.com>
+        sync: false
+      - key: ADMIN_EMAIL         # birinchi admin (shu email bilan saytda ro'yxatdan o'tgach avtomatik admin bo'ladi)
+        sync: false

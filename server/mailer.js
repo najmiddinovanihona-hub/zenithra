@@ -9,7 +9,25 @@ import { config } from './config.js';
 const env = process.env;
 export const outbox = [];
 let transport = null;
-export const mailConfigured = () => !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
+// Brevo (HTTP API): SMTP portlari yopiq bo'lgan hostinglar uchun (masalan, Render bepul tarifi). BREVO_API_KEY bo'lsa — ustun.
+const useBrevo = () => !!env.BREVO_API_KEY;
+export const mailConfigured = () => useBrevo() || !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
+export const mailSender = () => env.MAIL_FROM || env.SMTP_USER || '';
+// "Zenithra <a@b.uz>" → { name: 'Zenithra', email: 'a@b.uz' }
+function parseFrom(s) {
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(s || '');
+  return m ? { name: m[1].trim() || 'Zenithra', email: m[2].trim() } : { name: 'Zenithra', email: String(s || '').trim() };
+}
+const BREVO = 'https://api.brevo.com/v3';
+async function brevo(pathname, init = {}) {
+  const r = await fetch(BREVO + pathname, { ...init, signal: AbortSignal.timeout(15000),
+    headers: { 'api-key': env.BREVO_API_KEY, accept: 'application/json', 'content-type': 'application/json', ...(init.headers || {}) } });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw Object.assign(new Error(`Brevo ${r.status}: ${body.slice(0, 300)}`), { code: r.status === 401 ? 'EAUTH' : 'BREVO_' + r.status });
+  }
+  return r.status === 204 ? null : r.json();
+}
 function getTransport() {
   if (!transport) {
     const port = Number(env.SMTP_PORT) || 465;
@@ -70,8 +88,13 @@ export async function sendCode({ to, name, lang, purpose, code }) {
     console.log(`[mail] SMTP sozlanmagan — sinov rejimi. ${to} uchun kod: ${code}`);
     return;
   }
-  await getTransport().sendMail({ from: env.MAIL_FROM || env.SMTP_USER, to, subject: msg.subject, text: msg.text, html: msg.html });
+  if (useBrevo()) {
+    await brevo('/smtp/email', { method: 'POST', body: JSON.stringify({ sender: parseFrom(mailSender()), to: [{ email: to }],
+      subject: msg.subject, textContent: msg.text, htmlContent: msg.html }) });
+    return;
+  }
+  await getTransport().sendMail({ from: mailSender(), to, subject: msg.subject, text: msg.text, html: msg.html });
 }
 
-// Ishga tushganda ulanishni tekshirish (login/parol to'g'rimi)
-export const verifyMail = () => getTransport().verify();
+// Ishga tushganda ulanishni tekshirish (kalit / login-parol to'g'rimi)
+export const verifyMail = () => (useBrevo() ? brevo('/account') : getTransport().verify());
