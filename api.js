@@ -145,7 +145,8 @@ async function syncAll(){
 const curLang = () => { const l = LS.getItem('solar_lang'); return VALID.lang(l) ? l : 'uz'; };
 const signedIn = (r) => { API.user = r.user; emit(); syncAll(); return r; };
 API.register = (email) => req('POST', '/api/auth/register', { email, lang:curLang() });
-API.login = (email, password) => req('POST', '/api/auth/login', { email, password });
+// Kirish: email + parol → darhol sessiya ({user}); pochta kodi so'ralmaydi
+API.login = async (email, password) => signedIn(await req('POST', '/api/auth/login', { email, password }));
 API.reset = (email) => req('POST', '/api/auth/reset', { email, lang:curLang() });
 API.verify = async (challenge, code) => {
   const r = await req('POST', '/api/auth/verify', { challenge, code });

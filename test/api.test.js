@@ -61,11 +61,10 @@ async function signup(c, { name, email, password }) {
   if (v.status !== 200) return v;
   return c('POST', '/api/auth/password', { setup: v.json.setup, password, name });
 }
-async function signin(c, email, password) {
-  const r = await c('POST', '/api/auth/login', { email, password });
-  if (r.status !== 202) return r;
-  return c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: lastCode(email) });
-}
+// Kirish: email + parol → darhol sessiya (pochta kodi faqat ro'yxatdan o'tish, parolni tiklash va admin kirishida)
+const signin = (c, email, password) => c('POST', '/api/auth/login', { email, password });
+// Pochta kodi mexanikasini tekshirish uchun kod yuboriladigan oqim — parolni tiklash
+const askCode = (c, email) => c('POST', '/api/auth/reset', { email });
 
 const admin = client();
 const alice = client();
@@ -115,9 +114,20 @@ test('login / logout', async () => {
   assert.equal((await c('GET', '/api/auth/me')).json.user, null);
 });
 
-test('email kodi: parol to\'g\'ri bo\'lsa ham kodsiz kirib bo\'lmaydi; xat to\'g\'ri pochtaga ketadi', async () => {
-  const c = client();
+test('kirish: email + parol — darhol sessiya, pochtaga xat yuborilmaydi', async () => {
+  const c = client(), n = outbox.length;
   const r = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.user.email, 'alice@test.uz');
+  assert.match(r.headers.get('set-cookie'), /astro_sid=/);
+  assert.equal(outbox.length, n, 'kod so\'ralmaydi');
+  assert.equal((await c('GET', '/api/auth/me')).json.user.email, 'alice@test.uz');
+  assert.equal(await prisma.authCode.count({ where: { user: { email: 'alice@test.uz' } } }), 0);
+});
+
+test('email kodi: kod xati to\'g\'ri pochtaga ketadi; kod tasdiqlanmaguncha sessiya yo\'q; bazada ochiq saqlanmaydi', async () => {
+  const c = client();
+  const r = await askCode(c, 'alice@test.uz');
   assert.equal(r.status, 202);
   assert.equal(r.json.needCode, true);
   assert.equal(r.json.email, 'al***@test.uz', 'to\'liq manzil qaytarilmaydi');
@@ -134,13 +144,13 @@ test('email kodi: parol to\'g\'ri bo\'lsa ham kodsiz kirib bo\'lmaydi; xat to\'g
 test('email kodi: noto\'g\'ri kod — 5 urinishdan keyin bekor; eski kod yangisidan keyin ishlamaydi', async () => {
   const c = client();
   await prisma.authCode.deleteMany({ where: { user: { email: 'alice@test.uz' } } });   // oldingi testdan qolgan kod
-  const r1 = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  const r1 = await askCode(c, 'alice@test.uz');
   const code1 = lastCode('alice@test.uz');
-  const again = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
-  assert.equal(again.status, 429, '60 s o\'tmay qayta kirish — yangi xat yuborilmaydi');
+  const again = await askCode(c, 'alice@test.uz');
+  assert.equal(again.status, 429, '60 s o\'tmay qayta so\'rash — yangi xat yuborilmaydi');
   assert.equal(again.json.error, 'RATE_LIMIT');
   await prisma.authCode.updateMany({ where: { user: { email: 'alice@test.uz' } }, data: { sentAt: new Date(Date.now() - 61000) } });
-  const r2 = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  const r2 = await askCode(c, 'alice@test.uz');
   assert.equal((await c('POST', '/api/auth/verify', { challenge: r1.json.challenge, code: code1 })).json.error, 'CODE_EXPIRED', 'yangi kod eskisini bekor qiladi');
   const good = lastCode('alice@test.uz'), bad = good === '000000' ? '111111' : '000000';
   let w;
@@ -153,7 +163,7 @@ test('email kodi: noto\'g\'ri kod — 5 urinishdan keyin bekor; eski kod yangisi
 test('email kodi: parallel noto\'g\'ri urinishlar 5 ta chegarani aylanib o\'ta olmaydi', async () => {
   const c = client();
   await prisma.authCode.deleteMany({ where: { user: { email: 'alice@test.uz' } } });
-  const r = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  const r = await askCode(c, 'alice@test.uz');
   const good = lastCode('alice@test.uz'), bad = good === '000000' ? '111111' : '000000';
   const rs = await Promise.all(Array.from({ length: 12 }, () => c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: bad })));
   assert.ok(rs.filter((x) => x.json.error === 'WRONG_CODE').length <= 4, 'ko\'pi bilan 4 ta "yana urinib ko\'ring"');
@@ -182,7 +192,8 @@ test('email kodi: qayta ro\'yxatdan o\'tish orqali begona pochtaga xatlar oqimi 
 
 test('email kodi: muddati o\'tgan kod; qayta yuborish 60 s dan keyin', async () => {
   const c = client();
-  const r = await c('POST', '/api/auth/login', { email: 'alice@test.uz', password: 'password-2' });
+  await prisma.authCode.deleteMany({ where: { user: { email: 'alice@test.uz' } } });
+  const r = await askCode(c, 'alice@test.uz');
   const w = await c('POST', '/api/auth/resend', { challenge: r.json.challenge });
   assert.equal(w.json.error, 'RESEND_WAIT');
   assert.ok(w.json.details.wait > 50);
@@ -580,7 +591,7 @@ test('jurnal: asosiy auth hodisalari yoziladi, parol va kodlar yozilmaydi', asyn
   // kod 5 marta noto'g'ri — auth.code_failed; chiqish — auth.logout
   const c = client();
   await prisma.authCode.deleteMany({ where: { user: { email: 'new@test.uz' } } });
-  const r = await c('POST', '/api/auth/login', { email: 'new@test.uz', password: 'password-12' });
+  const r = await askCode(c, 'new@test.uz');
   const bad = lastCode('new@test.uz') === '000000' ? '111111' : '000000';
   for (let i = 0; i < 5; i++) await c('POST', '/api/auth/verify', { challenge: r.json.challenge, code: bad });
   const c2 = client();

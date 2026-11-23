@@ -6485,8 +6485,13 @@ async function authSubmit(){
   else { if(!email) return authShowErr(t.errFill); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail); }
   authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');
   try{
-    // 1-bosqich: pochtaga kod yuboriladi (kirishda — parol to'g'ri bo'lsa) → kod oynasi
+    // Kirish: email + parol → darhol ichkariga. Ro'yxatdan o'tish / tiklash: pochtaga kod → kod oynasi
     const r=authMode==='in' ? await window.API.login(email,pass) : authMode==='up' ? await window.API.register(email) : await window.API.reset(email);
+    if(r&&r.user){
+      authEl('authPass').value='';
+      document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
+      authClose(); playClick(880); return;
+    }
     authShowCode(r); playClick(760);
   }catch(e){ authShowErr(authErrText(e)); }
   finally{ authBusy=false; authEl('authSubmit').disabled=false; authEl('authSubmit').classList.remove('busy'); }

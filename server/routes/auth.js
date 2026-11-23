@@ -158,17 +158,23 @@ router.post('/register', registerLimiter, async (req, res) => {
   res.status(202).json(reply);
 });
 
-/* ---------- Kirish: email + parol → kod → sessiya ---------- */
+/* ---------- Kirish: email + parol → sessiya (standart) ----------
+   Pochta kodi faqat bir marta — ro'yxatdan o'tishda (email egasi ekanini isbotlash) va parolni tiklashda so'raladi.
+   Parol o'rnatilgan hisob pochtasi allaqachon tasdiqlangan. Parolni taxmin qilishga qarshi: IP+email bo'yicha 15 daqiqada
+   5 ta, IP bo'yicha 50 ta muvaffaqiyatsiz urinish. Admin paneli uchun kod saqlanadi (/admin/login). */
 router.post('/login', loginIpLimiter, loginLimiter, async (req, res) => {
   const body = parse(LoginBody, req.body);
-  const user = await checkCredentials(body);
-  if (!user) {
+  const found = await checkCredentials(body);
+  if (!found) {
     audit(req, 'auth.login_failed', { actor: null, details: { email: body.email } });
     throw new ApiError(401, 'INVALID_CREDENTIALS');
   }
-  if (user.blocked) throw new ApiError(403, 'BLOCKED');
-  const sends = await sendQuota(user.id, 'login');
-  res.status(202).json(await issueCode(user, 'login', sends));
+  if (found.blocked) throw new ApiError(403, 'BLOCKED');
+  const user = await prisma.user.update({ where: { id: found.id }, data: { lastSeenAt: new Date() } });
+  await dropSession(req);   // eski sessiya bazada osilib qolmasin
+  await startSession(res, user.id);
+  audit(req, 'auth.login', { actor: user, targetType: 'user', targetId: user.id });
+  res.json({ user: publicUser(user) });
 });
 
 // Admin paneli uchun alohida kirish: parol noto'g'ri, hisob admin emas yoki bloklangan — hammasi bir xil 401 va xat
