@@ -299,7 +299,7 @@ function engineInit(host){ const THREE=window.THREE; if(!THREE||!THREE.OrbitCont
   E.r=r; E.host=host; r.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); r.shadowMap.enabled=true; r.shadowMap.type=THREE.PCFSoftShadowMap;
   r.localClippingEnabled=true; r.outputEncoding=THREE.sRGBEncoding; r.toneMapping=THREE.ACESFilmicToneMapping;
   E.sc=new THREE.Scene(); E.cam=new THREE.PerspectiveCamera(42,1.6,0.2,12000);
-  E.ctl=new THREE.OrbitControls(E.cam,cv); E.ctl.enableDamping=true; E.ctl.dampingFactor=0.08; E.ctl.autoRotateSpeed=0.8;
+  E.ctl=new THREE.OrbitControls(E.cam,cv); E.ctl.enableDamping=true; E.ctl.dampingFactor=0.08; E.ctl.autoRotateSpeed=0.8; E.ctl.autoRotate=!!E.spin;   // qayta ochilganda «Aylantirish» tugmasi holati saqlanadi
   E.ctl.addEventListener('start',()=>{ E.camGoal=null; });
   E.clip=new THREE.Plane(new THREE.Vector3(-1,0,0),1e5);
   const resize=()=>{ const w=host.clientWidth, h=host.clientHeight||Math.round(w*0.6); r.setSize(w,h,false); E.cam.aspect=w/Math.max(1,h); E.cam.updateProjectionMatrix(); };
@@ -312,7 +312,7 @@ function clearModel(){ const THREE=window.THREE; if(!E.sc) return;
   E.labels.forEach(l=>l.el.remove()); E.labels=[]; E.anims=[]; E.domeFns=[]; E.root=null; E.tkit=null; E.grime=null; }
 function loadModel(m){ const THREE=window.THREE; if(!E.sc) return;   // oyna model yuklanguncha yopilgan bo'lsa
   clearModel(); seed=11;
-  E.cur=m; E.domeK=0; E.domeOpen=false; E.cut=false; E.clip.constant=1e5; E.t=0;
+  E.cur=m; E.domeK=0; E.domeOpen=false; E.cut=false; E.clip.constant=1e5; E.t=0; E.camGoal=null;   // oldingi modelga uchish yangi modelda davom etmasin
   E.root=new THREE.Group(); E.sc.add(E.root);
   E.clip.constant=1e5; buildEnv(m.env||{});
   const ctx={ THREE, root:E.root, M, X, mesh, jitter, lbl, D2R, rnd, domeHouse, refractor, reflector, hexMirror, dish, terrain,

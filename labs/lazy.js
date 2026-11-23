@@ -4,7 +4,7 @@
 (function(){
 const G={
   obs:['labs/obs-models.js?v=9','labs/obs-models2.js?v=7','labs/obs-data.js?v=1','labs/obs-photos.js?v=1','labs/obs-text.js?v=1','labs/obs-text-ru.js?v=1'],
-  ins:['labs/ins-models.js?v=3','labs/ins-models2.js?v=5'],
+  ins:['labs/ins-models.js?v=4','labs/ins-models2.js?v=6'],
   sci:['labs/sci-data-1.js?v=1','labs/sci-data-2.js?v=2','labs/sci-data-3.js?v=2','labs/sci-data-4.js?v=1','labs/sci-data-5.js?v=1','labs/sci-photos.js?v=1'],
   ast:['labs/ast-data-1.js?v=2','labs/ast-data-2.js?v=2','labs/ast-data-3.js?v=2','labs/ast-data-4.js?v=2','labs/ast-data-5.js?v=2','labs/ast-photos.js?v=3'],
   ilmiy:['labs/ilmiy-d1.js?v=1','labs/ilmiy-d2.js?v=1','labs/ilmiy-d3.js?v=1','labs/ilmiy-d4.js?v=1','labs/ilmiy-d5.js?v=1','labs/ilmiy-x1.js?v=1','labs/ilmiy-x2.js?v=1','labs/ilmiy-x3.js?v=1','labs/ilmiy-x4.js?v=1','labs/ilmiy-x5.js?v=1'],

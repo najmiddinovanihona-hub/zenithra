@@ -185,14 +185,15 @@ IM.push({ id:'orrery', use:['model'], icon:'🪐', yearN:1713,
       mesh(new THREE.CylinderGeometry(0.02-k*0.0012,0.02-k*0.0012,0.01,24),br,null,null,g); mesh(new THREE.BoxGeometry(R,0.004,0.008),br,[R/2,0,0],null,g);
       const h=PY-g.position.y; K.bar(c,[R,0,0],[R,h,0],0.0025,br,g);
       const pg=new THREE.Group(); pg.position.set(R,h,0); g.add(pg); const ball=mesh(new THREE.SphereGeometry(r,32,24),M({ map:c.img('textures/2k_'+tx+'.jpg'), rough:0.8, clean:true, env:0.4 }),null,null,pg);
-      if(tx==='earth_daymap'){ ball.rotation.z=23.44*D; const mg=new THREE.Group(); pg.add(mg); mesh(new THREE.BoxGeometry(0.028,0.002,0.003),br,[0.014,0,0],null,mg); mesh(new THREE.SphereGeometry(0.004,16,12),M({ map:c.img('textures/2k_moon.jpg'), rough:0.9, clean:true }),[0.028,0,0],null,mg); g.userData.moon=mg; }
+      if(tx==='earth_daymap'){ ball.rotation.order='ZYX'; ball.rotation.z=23.44*D; const mg=new THREE.Group(); pg.add(mg); mesh(new THREE.BoxGeometry(0.028,0.002,0.003),br,[0.014,0,0],null,mg); mesh(new THREE.SphereGeometry(0.004,16,12),M({ map:c.img('textures/2k_moon.jpg'), rough:0.9, clean:true }),[0.028,0,0],null,mg); g.userData.moon=mg; }
       if(tx==='saturn'){ const rt=c.img('textures/2k_saturn_ring_alpha.png'), rr=new THREE.RingGeometry(r*1.25,r*2.2,64), uv=rr.attributes.uv, pp=rr.attributes.position;
         for(let i=0;i<uv.count;i++){ const d=Math.hypot(pp.getX(i),pp.getY(i)); uv.setXY(i,(d-r*1.25)/(r*0.95),0.5); }
         mesh(rr,M({ map:rt, clean:true, transparent:true, side:THREE.DoubleSide, rough:0.8 }),null,[Math.PI/2-0.47,0,0],pg); }
-      g.userData.ball=ball; g.userData.P=Pd; return g; });
+      g.userData.ball=ball; g.userData.pg=pg; g.userData.P=Pd; return g; });
     lbl(P[0][0],[0,PY+0.08,0]); lbl(P[3][0],[0.3,TOP-0.03,0.12]); lbl(P[4][0],[0.1,TOP+0.06,0.1]);
     const eL=K.lblRef(c,P[1][0],[0,0,0]), sL=K.lblRef(c,P[2][0],[0,0,0]), v=new THREE.Vector3();
-    anim((t,dt)=>{ const yr=c.play()?6:80; arms.forEach(g=>{ g.rotation.y-=dt*Math.PI*2/(yr*g.userData.P); g.userData.ball.rotation.y+=dt*2; if(g.userData.moon) g.userData.moon.rotation.y-=dt*Math.PI*2*13.37/yr; });
+    // sayyoralar shimoldan qaraganda soat miliga teskari aylanadi (zodiak tartibida); o'qlar (Yer 23,4°, Saturn halqasi) fazoda bir yo'nalishda qoladi
+    anim((t,dt)=>{ const yr=c.play()?6:80; arms.forEach(g=>{ g.rotation.y+=dt*Math.PI*2/(yr*g.userData.P); g.userData.pg.rotation.y=-g.rotation.y; g.userData.ball.rotation.y+=dt*2; if(g.userData.moon) g.userData.moon.rotation.y+=dt*Math.PI*2*13.37/yr; });
       arms[2].userData.ball.getWorldPosition(v); eL.p.set(v.x,v.y+0.04,v.z); arms[5].userData.ball.getWorldPosition(v); sL.p.set(v.x,v.y+0.05,v.z); });
     return { cam:[0.85,1.15,0.95], tgt:[0,0.72,0], maxDist:5, minDist:0.2, near:0.01 }; } });
 

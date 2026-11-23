@@ -502,13 +502,14 @@ function quizNext(){ const lc=H().loc(), q=S.quiz;
     b.addEventListener('click',()=>{ if(!S.quiz) return; const ok=i===S.quiz.ans; $('#ubTryMsg').textContent=ok?'✅ '+lc.tryOk:'❌ '+lc.tryNo; click(ok?950:300);
       S.quiz.score+=ok?1:0; S.quiz.n++; setTimeout(()=>{ if(S.quiz) quizNext(); },900); }); op.appendChild(b); }); }
 
-function loop2(){ // sekstant yil animatsiyasi va Zij yil animatsiyasi
+function loop2(now){ // sekstant yil animatsiyasi va Zij yil animatsiyasi
   S.raf2=0; let again=false;
-  if(S.sPlay&&S.tab===1){ S.sDay=(S.sDay+1.2)%365; const sl=$('#ubSday'); if(sl) sl.value=Math.floor(S.sDay); updSext(); again=true; }
-  if(S.zPlay&&S.tab===3){ S.zYear=Math.min(2026,S.zYear+4); const sl=$('#ubZy'); if(sl) sl.value=S.zYear; $('#ubZyv').textContent=S.zYear; drawZij(); if(S.zYear>=2026) S.zPlay=false; else again=true; }
+  const dt=S.l2?Math.min(0.1,Math.max(0,(now-S.l2)/1000)):1/60; S.l2=now;   // kadr tezligidan qat'i nazar bir xil tezlik (60 Hz dagi kabi)
+  if(S.sPlay&&S.tab===1){ S.sDay=(S.sDay+72*dt)%365; const sl=$('#ubSday'); if(sl) sl.value=Math.floor(S.sDay); updSext(); again=true; }
+  if(S.zPlay&&S.tab===3){ S.zF=Math.min(2026,(S.zF!=null&&Math.floor(S.zF)===S.zYear?S.zF:S.zYear)+240*dt); S.zYear=Math.floor(S.zF); const sl=$('#ubZy'); if(sl) sl.value=S.zYear; $('#ubZyv').textContent=S.zYear; drawZij(); if(S.zYear>=2026) S.zPlay=false; else again=true; }
   if(again) S.raf2=requestAnimationFrame(loop2);
 }
-const kick=()=>{ if(!S.raf2) S.raf2=requestAnimationFrame(loop2); };
+const kick=()=>{ if(!S.raf2){ S.l2=0; S.raf2=requestAnimationFrame(loop2); } };
 
 function wire(){
   const on=(sel,ev,fn)=>{ const e=$(sel); if(e) e.addEventListener(ev,fn); };
@@ -543,7 +544,7 @@ function syncSPlay(){ const b=$('#ubS_play'); if(b) b.textContent=S.sPlay?T(TX.p
 function showTab(i){
   S.tab=i; S.root.querySelectorAll('.ub-tab').forEach((b,k)=>b.classList.toggle('active',k===i));
   S.root.querySelectorAll('.ub-pane').forEach((p,k)=>p.classList.toggle('on',k===i));
-  if(i===0) obsStart(); else obsStop();
+  if(i===0) obsStart(); else { obsStop(); window.__labCover=true; }   // boshqa varaqlarda ham oyna ochiq — asosiy sahna orqada chizilmaydi
   if(i===1){ updSext(); syncSPlay(); if(S.sPlay) kick(); }
   if(i===3) drawZij();
   if(i===4) updYou();

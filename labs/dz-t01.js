@@ -163,17 +163,17 @@ function stage3d(host, T){
     place(); }
   const pos=(R,a)=>[R*Math.cos(a),-R*Math.sin(a)];
   let sunMesh=null;
-  function place(){
+  function place(dt){
     items.forEach(it=>{ const a=TAU*t/it.P; let [x,z]=pos(it.Rd,a);
       if(it.ep){ it.ep.position.set(x,0,z); const [ex,ez]=pos(it.r,TAU*t/it.p); x+=ex; z+=ez; }
-      it.mesh.position.set(x,0,z); it.mesh.rotation.y+=.01;
+      it.mesh.position.set(x,0,z); it.mesh.rotation.y+=(dt||0)*.6;   // kadr tezligiga bog'liq emas (60 Hz da avvalgidek)
       if(it.moon){ const [mx,mz]=pos(.6,TAU*t/.075); it.moon.position.set(x+mx,0,z+mz); it.mr.position.set(x,0,z); }
       if(it.k==='sun') PL.position.set(x,0,z); });
     if(mode==='helio') PL.position.set(0,0,0); }
   const v=new THREE.Vector3();
   function size(){ const w=host.clientWidth, h=host.clientHeight; if(!w||!h) return; const c=R.getSize(new THREE.Vector2()); if(c.x!==w||c.y!==h){ R.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); } }
   function frame(now){ if(!alive) return; raf=requestAnimationFrame(frame); const dt=Math.min(.05,(now-last)/1000); last=now; if(!seen||document.hidden) return;
-    if(run){ t+=dt*spd/7; place(); } ctl.update(); size(); R.render(S,cam);
+    if(run){ t+=dt*spd/7; place(dt); } ctl.update(); size(); R.render(S,cam);
     const w=host.clientWidth, h=host.clientHeight;
     labels.forEach(([d,m,r])=>{ m.getWorldPosition(v); v.y+=r; v.project(cam); const vis=v.z<1; d.style.display=vis?'':'none'; if(vis) d.style.transform=`translate(${(v.x*.5+.5)*w}px,${(-v.y*.5+.5)*h}px) translate(-50%,-130%)`; }); }
   setMode('geo'); raf=requestAnimationFrame(frame);

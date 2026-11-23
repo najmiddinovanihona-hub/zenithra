@@ -39,7 +39,7 @@ const item={n:{uz:"Quyosh tizimi (haqiqiy yil nisbatlari)",ru:"Солнечна�
    const lb=H.label(p.n[L]||p.n.uz,'#dfe8ff',.8);lb.position.y=p.r+.9;piv.add(lb);
    return {piv,m,moon,R,w:6.283/(p.y*YEAR),a0:i*1.3};});
   return {G,cam:[0,20,36],tg:[0,0,0],u(t){sun.rotation.y=t*.08;glow.material.rotation=t*.02;
-   O.forEach(o=>{const a=o.a0+o.w*t;o.piv.position.set(o.R*Math.cos(a),0,-o.R*Math.sin(a));o.m.rotation.y=t*1.5;if(o.moon)o.moon.position.set(.9*Math.cos(t*4),0,.9*Math.sin(t*4));});}};}};
+   O.forEach(o=>{const a=o.a0+o.w*t;o.piv.position.set(o.R*Math.cos(a),0,-o.R*Math.sin(a));o.m.rotation.y=t*1.5;if(o.moon)o.moon.position.set(.9*Math.cos(t*4),0,-.9*Math.sin(t*4));/* Oy ham shimoldan qaraganda soat miliga teskari */});}};}};
 const add=()=>{const r=window.ILM3D.reg;if(r['⏳'])r['⏳'].items.unshift(item);if(r['☀'])r['☀'].items.unshift(item);};
 add();
 })();

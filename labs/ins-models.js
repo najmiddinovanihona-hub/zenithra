@@ -203,7 +203,8 @@ IM.push({ id:'armillary', use:['model','angle'], icon:'🌐', yearN:-255,
     const earth=mesh(new THREE.SphereGeometry(0.035,48,32),M({ map:c.img('textures/2k_earth_daymap.jpg'), rough:0.7, clean:true, env:0.5 }),null,null,sky);
     lbl(P[0][0],[0,CY+RM+0.03,0.05]); lbl(P[1][0],[0.26,CY+0.02,0.14]); lbl(P[2][0],[-0.18,CY+0.12,0.1]); lbl(P[3][0],[0.2,CY-0.05,0.1]);
     lbl(P[4][0],[0,CY+Math.sin(LAT*D)*(RM+0.05),-Math.cos(LAT*D)*(RM+0.05)]); lbl(P[5][0],[0,CY+0.05,0]);
-    anim((t,dt)=>{ sky.rotation.y+=dt*(c.play()?0.9:0.07); earth.rotation.y-=dt*(c.play()?0.9:0.07); });
+    // osmon sharqdan g'arbga aylanadi (shimol qutbidan qaraganda soat mili bo'yicha) — yulduzlar sharqdan chiqadi
+    anim((t,dt)=>{ sky.rotation.y-=dt*(c.play()?0.9:0.07); earth.rotation.y+=dt*(c.play()?0.9:0.07); });
     return { cam:[0.78,0.92,0.92], tgt:[0,0.5,0], maxDist:5, minDist:0.25, near:0.01 }; } });
 
 /* ---------------- Antikitera mexanizmi ---------------- */
@@ -246,7 +247,7 @@ IM.push({ id:'antikythera', use:['model','time'], icon:'⚙️', yearN:-150,
       [0.079,0.07,0.06,0.052].forEach(r=>K.ring(x,cx,cy,r*s,2.4));
       K.scale(x,cx,cy,0.07*s,0.079*s,365,{ long:i=>i%30===0, mid:i=>i%5===0 });
       const Z=['ΚΡΙΟΣ','ΤΑΥΡΟΣ','ΔΙΔΥΜΟΙ','ΚΑΡΚΙΝΟΣ','ΛΕΩΝ','ΠΑΡΘΕΝΟΣ','ΧΗΛΑΙ','ΣΚΟΡΠΙΟΣ','ΤΟΞΟΤΗΣ','ΑΙΓΟΚΕΡΩΣ','ΥΔΡΟΧΟΟΣ','ΙΧΘΥΕΣ'];
-      K.scale(x,cx,cy,0.06*s,0.07*s,12,{ long:()=>true, lab:i=>Z[i], lr:0.065*s, font:'bold 17px serif' });
+      K.scale(x,cx,cy,0.06*s,0.07*s,12,{ a0:0, a1:-Math.PI*2, long:()=>true, lab:i=>Z[i], lr:0.065*s, font:'bold 17px serif' });   // ko'rsatkichlar soat mili bo'yicha — burjlar ham shu tartibda
       K.scale(x,cx,cy,0.052*s,0.06*s,360,{ long:i=>i%30===0, mid:i=>i%10===0 });
       x.font='18px serif'; x.textAlign='left'; const G='ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ'; for(let r=0;r<9;r++){ let t=''; for(let k=0;k<26;k++) t+=(k%6===5?' ':G[(r*7+k*5)%24]); x.globalAlpha=0.75; x.fillText(t,30,h*0.72+r*26); } x.globalAlpha=1;
       for(let r=0;r<4;r++){ let t=''; for(let k=0;k<22;k++) t+=(k%5===4?' ':G[(r*3+k*11)%24]); x.globalAlpha=0.7; x.fillText(t,40,40+r*26); } x.globalAlpha=1; });
@@ -332,7 +333,7 @@ IM.push({ id:'astrolabe', use:['time','angle','model','nav'], icon:'🧿', yearN
       STARS.forEach(([ra,dec])=>{ const r=Re*Math.tan((90-dec)/2*D); if(r>Rcap-0.003) return; const [px,py]=P2(r,ra), [qx,qy]=P2(Math.min(Rcap,r+0.012),ra), a=Math.atan2(qy-py,qx-px);
         x.lineWidth=0.0018*s; x.beginPath(); x.moveTo(px,py); x.lineTo(qx,qy); x.stroke();
         x.beginPath(); x.moveTo(px,py); x.lineTo(px+Math.cos(a+0.35)*0.009*s,py+Math.sin(a+0.35)*0.009*s); x.quadraticCurveTo(px+Math.cos(a)*0.013*s,py+Math.sin(a)*0.013*s,px+Math.cos(a-0.35)*0.009*s,py+Math.sin(a-0.35)*0.009*s); x.closePath(); x.fill(); });
-      x.fillStyle='rgba(60,38,14,.85)'; x.font='bold 16px serif'; x.textAlign='center'; for(let i=0;i<12;i++){ const a=(18*15+i*30+15)*D, ex=Math.cos(18*15*D)*dE, ey=Math.sin(18*15*D)*dE, rr=(Rcap+Rcan)/2-0.002; x.save(); x.translate(cx+(ex+Math.cos(a)*rr)*s,cx-(ey+Math.sin(a)*rr)*s); x.rotate(-a+Math.PI/2); x.fillText(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'][i]+'︎',0,5); x.restore(); } });
+      x.fillStyle='rgba(60,38,14,.85)'; x.font='bold 16px serif'; x.textAlign='center'; for(let i=0;i<12;i++){ const a=(i*30+15)*D, ex=Math.cos(18*15*D)*dE, ey=Math.sin(18*15*D)*dE, rr=(Rcap+Rcan)/2-0.002; x.save(); x.translate(cx+(ex+Math.cos(a)*rr)*s,cx-(ey+Math.sin(a)*rr)*s); x.rotate(-a+Math.PI/2); x.fillText(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'][i]+'︎',0,5); x.restore(); } });
     const rete=new THREE.Group(); rete.position.z=0.0024; A.add(rete);
     mesh(new THREE.CircleGeometry(RP,96),M({ clean:true, map:rt, metal:0.95, rough:0.28, env:1.4, alphaTest:0.5, side:THREE.DoubleSide }),null,null,rete).material.alphaTest=0.5;
     const rule=new THREE.Group(); rule.position.z=0.0038; A.add(rule); mesh(new THREE.BoxGeometry(0.17,0.007,0.0012),br,[0,0,0],null,rule);
@@ -467,7 +468,7 @@ IM.push({ id:'globe', use:['model'], icon:'🔮', yearN:1085,
   build(c){ const {THREE,M,mesh,lbl,anim}=c, P=this.parts, LAT=41.3, CY=0.56, RG=0.16;
     const br=K.brass(c), wd=K.wood(c,'#4e2c16');
     const gt=c.texB(2048,1024,(x,w,h)=>{ const b=c.rgb('#bf9550'); c.paint(x,512,[[0,...c.shade(b,0.78)],[0.5,...b],[1,...c.shade(b,1.12)]],{ oct:6, speck:10 }); x.drawImage(x.canvas,0,0,512,512,0,0,w,h);
-      const X=ra=>(1-ra/24)*w, Y=dec=>(90-dec)/180*h; x.strokeStyle='rgba(45,28,10,.85)'; x.lineWidth=2.6; x.beginPath(); x.moveTo(0,Y(0)); x.lineTo(w,Y(0)); x.stroke();
+      const X=ra=>ra/24*w, Y=dec=>(90-dec)/180*h;   // globus tashqaridan ko'riladi: α sharqqa ortadi, turkumlar ko'zgu aksidek x.strokeStyle='rgba(45,28,10,.85)'; x.lineWidth=2.6; x.beginPath(); x.moveTo(0,Y(0)); x.lineTo(w,Y(0)); x.stroke();
       x.lineWidth=2; x.beginPath(); for(let i=0;i<=360;i++){ const ra=i/15, dec=Math.atan(Math.tan(23.44*D)*Math.sin(i*D))/D; x.lineTo(X(ra),Y(dec)); } x.stroke();
       [23.44,-23.44,66.56,-66.56].forEach(d=>{ x.lineWidth=1; x.setLineDash([8,6]); x.beginPath(); x.moveTo(0,Y(d)); x.lineTo(w,Y(d)); x.stroke(); }); x.setLineDash([]);
       for(let r=0;r<24;r+=2){ x.lineWidth=0.8; x.beginPath(); x.moveTo(X(r),0); x.lineTo(X(r),h); x.stroke(); }
@@ -492,6 +493,6 @@ IM.push({ id:'globe', use:['model'], icon:'🔮', yearN:1085,
     mesh(new THREE.SphereGeometry(RG,128,64),M({ map:gt, metal:0.9, rough:0.34, env:1.25, bump:0.04 }),null,null,spin);
     K.bar(c,[0,-RM-0.004,0],[0,RM+0.004,0],0.0035,br,tilt); [1,-1].forEach(s=>mesh(new THREE.CylinderGeometry(0.012,0.012,0.004,24),br,[0,s*(RG+0.003),0],null,tilt));
     lbl(P[0][0],[0.06,CY+0.17,0.08]); lbl(P[1][0],[0,CY+RM+0.03,0.02]); lbl(P[2][0],[0.21,CY+0.02,0.12]); lbl(P[3][0],[0,CY+Math.sin(LAT*D)*0.2,-Math.cos(LAT*D)*0.2]); lbl(P[4][0],[0.2,0.22,0.12]);
-    anim((t,dt)=>{ spin.rotation.y+=dt*(c.play()?0.8:0.05); });
+    anim((t,dt)=>{ spin.rotation.y-=dt*(c.play()?0.8:0.05); });   // sharqdan g'arbga (kunlik harakat)
     return { cam:[0.72,0.86,0.82], tgt:[0,0.5,0], maxDist:5, minDist:0.22, near:0.01 }; } });
 })();
