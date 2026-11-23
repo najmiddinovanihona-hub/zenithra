@@ -722,6 +722,9 @@ function ringTexture(){
     ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
   }
   const t=asTexture(c, false);
+  // halqa UV si radial (u=0 ichki, u=1 tashqi chegara) — markazdan o'ngga r0..r1 oralig'i (avval tasvir markazidan
+  // ikki tomonga ko'zgudek o'qilardi: ichkarida tashqi chet, o'rtada bo'shliq)
+  t.offset.x=0.8; t.repeat.x=0.2;
   _texCache.ring=t;
   return t;
 }
@@ -1077,7 +1080,7 @@ const PLANETS = [
     fact:'Zichligi suvdan kam — agar ulkan okean bo‘lsa, Saturn unda suzib yurardi.' },
 
   { key:'uranus', name:'Uran', type:'MUZ GIGANTI', color:0x9fe0e6,
-    radius:4.2, orbit:205, speed:0.0068, spin:0.03, tilt:97.8, special:'uranus',
+    radius:4.2, orbit:205, speed:0.0068, spin:-0.03, tilt:97.8, special:'uranus',   // IAU shimoliy qutbi atrofida teskari (AXIS)
     desc:'Yonboshi bilan aylanadigan muz giganti. Metan unga ko‘kish tus beradi.',
     dist:'2.87 mlrd km', dia:'50 724 km', mass:'8.68×10²⁵ kg', atmo:'H₂, He, CH₄',
     moons:'28', temp:'≈ −195°C',
@@ -1176,6 +1179,66 @@ function makeSatellite(scale){
   return g;
 }
 
+/* Aylanish o'qi: [orbita tekisligiga og'ish °, og'ish yo'nalishi — ekliptik uzunlama °, haqiqiy sutka (soat, − = teskari)].
+   Og'ish — NASA Planetary Fact Sheet; yo'nalish — IAU shimoliy qutbi (Archinal va b., 2018) dan hisoblangan.
+   Mahalliy +Y = IAU shimoliy qutbi; Venera, Uran, Pluton teskari aylanadi (177.4° → 2.6°, 97.8° → 82.2°, 122.5° → 57.5°).
+   Yer: qutb λ=90° tomonga og'gan — iyunda Shimoliy yarimshar Quyoshga qaraydi (osmon sferasi bilan bir xil). */
+const AXIS = {
+  mercury:[0.034,298,1407.6], venus:[2.64,148,-5832.6], earth:[23.44,90,23.934], mars:[25.19,355,24.623],
+  jupiter:[3.13,227,9.925], saturn:[26.73,84,10.656], uranus:[82.23,258,-17.24], neptune:[28.32,315,16.11],
+  pluto:[57.47,130,-153.29], ceres:[4,122,9.074]
+};
+// Qutb siqilishi (NASA fact sheet, "ellipticity"); 1% dan kichiklari ko'rinmaydi
+const OBLATE = { jupiter:0.06487, saturn:0.09796, uranus:0.02293, neptune:0.01708 };
+const D2R = Math.PI/180;
+const _axY = new THREE.Vector3(0,1,0);
+/* Halqa yoritilishi: sayyora soyasi (Quyosh koordinata boshida) va Quyoshga teskari tomondan qaralganda
+   zich qismlar qorong'iroq (yorug'lik faqat siyrak joylardan o'tadi). uPC — sayyora markazi, har kadr yangilanadi. */
+function ringShade(mat, R, qPole){
+  const U = { uPC:{ value:new THREE.Vector3() }, uPN:{ value:_axY.clone().applyQuaternion(qPole) }, uPR:{ value:R } };
+  mat.onBeforeCompile = sh=>{
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = 'varying vec3 vRW;\n' + sh.vertexShader.replace('#include <project_vertex>',
+      '#include <project_vertex>\n  vRW = (modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader = 'uniform vec3 uPC; uniform vec3 uPN; uniform float uPR; varying vec3 vRW;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>',
+      '{ vec3 S=normalize(uPC), d=vRW-uPC; float a=dot(d,S), q=length(d-a*S);\n'+
+      '  float sh=1.0-(1.0-smoothstep(uPR*0.97,uPR*1.03,q))*step(0.0,a);\n'+
+      '  float lit=dot(uPN,-uPC)*dot(uPN,cameraPosition-vRW);\n'+
+      '  gl_FragColor.rgb*=mix(0.05,1.0,sh)*(lit<0.0 ? mix(0.8,0.3,gl_FragColor.a) : 1.0); }\n'+
+      '#include <tonemapping_fragment>');
+  };
+  return U;
+}
+// Uran halqalari: tor, qora ringletlar (6, 5, 4, α, β, η, γ, δ, λ, ε — km), geometriya 1.6R–2.05R ga mos lenta
+function uranusRingTexture(){
+  const W=1024, c=makeCanvas(W,4), x=c.getContext('2d'), R=25559, r0=1.6*R, r1=2.05*R, kmPx=(r1-r0)/W;
+  const RINGS=[[41837,1.5,0.5],[42234,2,0.5],[42571,2,0.5],[44718,7,0.7],[45661,8,0.7],[47176,2,0.45],[47627,3,0.6],[48300,5,0.65],[50024,2,0.4],[51149,58,0.95]];
+  const d=x.createImageData(W,4);
+  for(let i=0;i<W;i++){
+    const r=r0+(i+0.5)*kmPx; let a=0;
+    RINGS.forEach(([rr,w,al])=>{ const s=Math.max(w/2, kmPx*1.1); a=Math.max(a, al*Math.exp(-0.5*Math.pow((r-rr)/s,2))); });
+    for(let y=0;y<4;y++){ const o=(y*W+i)*4; d.data[o]=168; d.data[o+1]=172; d.data[o+2]=176; d.data[o+3]=Math.round(a*255); }
+  }
+  x.putImageData(d,0,0);
+  const t=asTexture(c, true); t.wrapS=THREE.ClampToEdgeWrapping;
+  return t;
+}
+/* O'q ramkasi: orbita pivotining ichida, lekin uning aylanishini bekor qiladi — o'q yo'nalishi fazoda
+   QAT'IY qoladi (avval o'q orbita bilan birga burilardi: fasllar yo'q, Uran qutbi doim Quyoshga qarardi).
+   Sutkalik aylanish — ichki meshning faqat rotation.y si (avval rotation.z og'ishi bilan Euler XYZ tartibida
+   o'q har sutkada konus bo'ylab chayqalardi). */
+function axisFrame(pivot, key){
+  const a = AXIS[key] || [0,0], t = a[0]*D2R, az = a[1]*D2R;
+  const pole = new THREE.Vector3(Math.sin(t)*Math.cos(az), Math.cos(t), -Math.sin(t)*Math.sin(az));
+  const body = new THREE.Object3D();
+  body.userData.qPole = new THREE.Quaternion().setFromUnitVectors(_axY, pole);
+  body.updateMatrix = function(){
+    this.quaternion.copy(pivot.quaternion).invert().multiply(this.userData.qPole);
+    THREE.Object3D.prototype.updateMatrix.call(this);
+  };
+  return body;
+}
+
 PLANETS.forEach(p=>{
   scene.add(makeOrbitRing(p.orbit));
 
@@ -1183,6 +1246,9 @@ PLANETS.forEach(p=>{
   const pivot = new THREE.Object3D();
   pivot.rotation.y = Math.random()*Math.PI*2;
   scene.add(pivot);
+  const body = axisFrame(pivot, p.key);
+  body.position.x = p.orbit;
+  pivot.add(body);
 
   // Sayyora teksturasi
   let material;
@@ -1263,36 +1329,39 @@ PLANETS.forEach(p=>{
   }
 
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(p.radius, SEG(128), SEG(96)), material);
-  mesh.position.x = p.orbit;
-  mesh.rotation.z = THREE.MathUtils.degToRad(p.tilt);
   mesh.userData = p;
-  pivot.add(mesh);
+  if(OBLATE[p.key]) mesh.scale.y = 1-OBLATE[p.key];   // qutblardan siqilgan
+  body.add(mesh);            // mesh faqat o'z o'qi atrofida aylanadi (rotation.y)
   planetMeshes.push(mesh);
 
-  const rec = { ...p, mesh, pivot, extras:{} };
+  const rec = { ...p, mesh, pivot, body, extras:{} };
 
   // --- Tabiiy yo‘ldoshlar (har sayyoraning mashhurlari) ---
+  // i — ekvatorga qiyalik (°), P — haqiqiy siderik davr (kun, − = teskari). Masofalar siqilgan, lekin halqalardan tashqarida.
   const MOONS = {
-    mars:    [ {n:'Fobos', r:0.16, d:1.7, s:2.2, c:'#8a7f72'}, {n:'Deymos', r:0.12, d:2.4, s:1.4, c:'#9a8f80'} ],
-    jupiter: [ {n:'Io', r:0.5, d:1.6, s:1.6, c:'#d9c25a'}, {n:'Yevropa', r:0.44, d:2.0, s:1.2, c:'#cfc4ae'},
-               {n:'Ganimed', r:0.7, d:2.5, s:0.9, c:'#9d9486'}, {n:'Kallisto', r:0.62, d:3.1, s:0.65, c:'#7d7468'} ],
-    saturn:  [ {n:'Titan', r:0.62, d:2.9, s:0.8, c:'#d8a95e'}, {n:'Reya', r:0.3, d:2.3, s:1.1, c:'#b8b2a6'},
-               {n:'Enselad', r:0.22, d:1.8, s:1.5, c:'#e8ecec'} ],
-    uranus:  [ {n:'Titaniya', r:0.32, d:1.9, s:1.1, c:'#a8a29a'}, {n:'Oberon', r:0.3, d:2.4, s:0.85, c:'#948e86'},
-               {n:'Miranda', r:0.18, d:1.5, s:1.5, c:'#c0bab2'} ],
-    neptune: [ {n:'Triton', r:0.4, d:1.9, s:-1.0, c:'#c8d4dc'} ]   // Triton teskari aylanadi
+    mars:    [ {n:'Fobos', r:0.16, d:1.7, s:2.2, c:'#8a7f72', i:1.08, P:0.31891}, {n:'Deymos', r:0.12, d:2.4, s:1.4, c:'#9a8f80', i:1.79, P:1.26244} ],
+    jupiter: [ {n:'Io', r:0.5, d:1.6, s:1.6, c:'#d9c25a', i:0.04, P:1.76914}, {n:'Yevropa', r:0.44, d:2.0, s:1.2, c:'#cfc4ae', i:0.47, P:3.55118},
+               {n:'Ganimed', r:0.7, d:2.5, s:0.9, c:'#9d9486', i:0.2, P:7.15455}, {n:'Kallisto', r:0.62, d:3.1, s:0.65, c:'#7d7468', i:0.19, P:16.689} ],
+    saturn:  [ {n:'Titan', r:0.62, d:3.9, s:0.8, c:'#d8a95e', i:0.35, P:15.945}, {n:'Reya', r:0.3, d:3.2, s:1.1, c:'#b8b2a6', i:0.35, P:4.5182},
+               {n:'Enselad', r:0.22, d:2.7, s:1.5, c:'#e8ecec', i:0.02, P:1.3702} ],
+    uranus:  [ {n:'Titaniya', r:0.32, d:2.9, s:1.1, c:'#a8a29a', i:0.08, P:8.7059}, {n:'Oberon', r:0.3, d:3.4, s:0.85, c:'#948e86', i:0.07, P:13.463},
+               {n:'Miranda', r:0.18, d:2.4, s:1.5, c:'#c0bab2', i:4.34, P:1.4135} ],
+    neptune: [ {n:'Triton', r:0.4, d:1.9, s:-1.0, c:'#c8d4dc', i:23.1, P:-5.8769} ]   // Triton teskari aylanadi (ekvatorga 156.9°)
   };
   if(MOONS[p.key]){
+    const dirn = Math.sign(p.spin)||1;   // muntazam yo'ldoshlar sayyora aylanishi yo'nalishida (Uranda teskari)
     rec.extras.moons = MOONS[p.key].map(m=>{
       const mp = new THREE.Object3D();
       mp.rotation.y = Math.random()*Math.PI*2;
-      mp.rotation.x = (Math.random()-0.5)*0.25;
-      mesh.add(mp);
+      Math.random();                     // (tasodifiy ketma-ketlik o'zgarmasin)
+      mp.rotation.x = m.i*D2R;
+      body.add(mp);                      // sayyora sutkasiga bog'liq emas
       const mm = new THREE.Mesh(new THREE.SphereGeometry(m.r, SEG(48), SEG(32)),
         stdFromTex(rockyTexture(m.c, [shadeColor(m.c,-28), shadeColor(m.c,22)], 26, 256), { roughness:0.98, metalness:0.0 }));
       mm.position.x = p.radius * m.d;
+      mm.rotation.y = Math.PI;           // qulflangan: 0° meridian sayyoraga qaraydi
       mp.add(mm);
-      return { pivot: mp, speed: m.s };
+      return { pivot: mp, speed: m.s*(m.s>0?dirn:1), period: m.P, phase0: mp.rotation.y };
     });
   }
 
@@ -1317,19 +1386,27 @@ PLANETS.forEach(p=>{
           void main(){
             vec3 V=normalize(cameraPosition-vWP);
             float f=pow(1.0-max(dot(-vN,V),0.0),2.8);
-            float s=max(dot(-vN,normalize(sunDir)),0.0);
+            // yoritilganlik — ko'rish nuri urinib o'tgan nuqtada (normalning ekran tekisligidagi qismi); avval −vN
+            // olinib, nur tun tomonida porlab, kunduz tomonda yo'qolardi
+            vec3 T=normalize(vN-dot(vN,V)*V+1e-5);
+            float s=smoothstep(-0.45,0.9,dot(T,normalize(sunDir)));
             vec3 c=mix(vec3(0.18,0.36,0.85), vec3(0.55,0.72,1.0), s);
             float a=clamp(f*(0.12+1.15*s),0.0,1.0);
             gl_FragColor=vec4(c,1.0)*a;
           }` }));
     mesh.add(atmo);
-    // Oy
-    const moonPivot = new THREE.Object3D(); mesh.add(moonPivot);
+    // Oy — orbitasi Yer ekvatorida emas, ekliptikaga 5.145° qiya tekislikda (ramka dunyoda qat'iy)
+    const moonFrame = new THREE.Object3D();
+    moonFrame.quaternion.copy(body.userData.qPole).invert()
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), 5.145*D2R));
+    body.add(moonFrame);
+    const moonPivot = new THREE.Object3D(); moonFrame.add(moonPivot);
     const moon = new THREE.Mesh(new THREE.SphereGeometry(p.radius*0.27,SEG(96),SEG(64)),
       stdFromTex(RT_ON?flatTexture('#8a8a8a'):rockyTexture('#9a9a9a',['#6e6e6e','#b9b9b9','#8a8a8a'],130,768), { roughness:1.0, metalness:0.0 }));
     moon.position.x = p.radius*3.2; moonPivot.add(moon);
+    moon.rotation.y = Math.PI;   // qulflangan: Yerga ko'rinadigan (yaqin) tomoni qaraydi — avval orqa tomoni qarab turardi
     rec.extras.moonPivot = moonPivot;
-    rec.extras.moons = [{ pivot: moonPivot, speed: 0.7 }];   // toggle uchun umumiy ro‘yxat
+    rec.extras.moons = [{ pivot: moonPivot, speed: 0.7, period: 27.321661 }];   // toggle uchun umumiy ro‘yxat
 
     // Sun'iy yo‘ldoshlar — turli orbita va qiyalikda
     rec.extras.sats = [];
@@ -1355,18 +1432,21 @@ PLANETS.forEach(p=>{
 
   if (p.special==='saturn' || p.key==='uranus'){
     // Halqalar (Saturn to‘liq, Uran ingichka)
-    const inner = p.radius*1.4, outer = p.radius*(p.key==='uranus'?1.9:2.4);
+    // Radiuslar haqiqiy: Saturn — 2k_saturn_ring_alpha.png qamrovi ≈70 400–141 300 km (C halqa 1.24R, Kassini 1.95R
+    // shu tasvirda o'z joyiga tushadi); Uran — 6-halqadan ε gacha 1.64R–2.00R (avval 1.4R–2.4R / 1.9R edi)
+    const inner = p.radius*(p.key==='uranus'?1.6:1.168), outer = p.radius*(p.key==='uranus'?2.05:2.345);
     const rg = new THREE.RingGeometry(inner, outer, 180);
     // UV ni radial qilib moslash
     const pos=rg.attributes.position; const uv=rg.attributes.uv; const v3=new THREE.Vector3();
     for(let i=0;i<pos.count;i++){ v3.fromBufferAttribute(pos,i);
       const t=(v3.length()-inner)/(outer-inner); uv.setXY(i, t, 0.5); }
-    const ringMat = new THREE.MeshBasicMaterial({ map:ringTexture(), side:THREE.DoubleSide,
+    const ringMat = new THREE.MeshBasicMaterial({ map:p.key==='uranus'?uranusRingTexture():ringTexture(), side:THREE.DoubleSide,
       transparent:true, opacity:p.key==='uranus'?0.5:0.95, depthWrite:false });
+    rec.extras.ringU = ringShade(ringMat, p.radius, body.userData.qPole);
+    body.getWorldPosition(rec.extras.ringU.uPC.value);
     const ring = new THREE.Mesh(rg, ringMat);
-    ring.rotation.x = Math.PI/2;
-    if(p.key==='uranus') ring.rotation.y = THREE.MathUtils.degToRad(0); // o‘q qiyaligini meshdan oladi
-    mesh.add(ring);
+    ring.rotation.x = Math.PI/2;   // ekvator tekisligida (o'q ramkasidan)
+    body.add(ring);
     rec.extras.ring = ring;
   }
 
@@ -1460,7 +1540,7 @@ const EXTRA_BODIES = [];
 [
   { key:'ceres', radius:0.9, orbit:104, speed:0.018, spin:0.012,
     tex:()=>RT_ON?flatTexture('#8f8578'):rockyTexture('#8f8578',['#7a7060','#a39885'],55) },
-  { key:'pluto', radius:1.0, orbit:285, speed:0.0038, spin:0.008,
+  { key:'pluto', radius:1.0, orbit:285, speed:0.0038, spin:-0.008,   // Pluton teskari aylanadi (AXIS)
     tex:()=>rockyTexture('#c2b09a',['#8a7a68','#e0d2bd','#a08d76'],45) },
 ].forEach(d=>{
   scene.add(makeOrbitRing(d.orbit));
@@ -1469,9 +1549,10 @@ const EXTRA_BODIES = [];
   scene.add(pivot);
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.radius, SEG(96), SEG(64)),
     stdFromTex(d.tex(), { roughness:0.96, metalness:0.03 }));
-  mesh.position.x = d.orbit;
-  pivot.add(mesh);
-  EXTRA_BODIES.push({ key:d.key, mesh, pivot, radius:d.radius, speed:d.speed, spin:d.spin });
+  const body = axisFrame(pivot, d.key);
+  body.position.x = d.orbit;
+  pivot.add(body); body.add(mesh);
+  EXTRA_BODIES.push({ key:d.key, mesh, pivot, body, radius:d.radius, speed:d.speed, spin:d.spin });
 });
 
 // Koyper kamari — Neptundan naridagi muzli jismlar halqasi
@@ -2678,9 +2759,15 @@ function cosmicStep(dt){
 // Kometa: yadro aylanishi, koma faolligi, ion va chang dumlari
 function cometStep(c, sdt, dt){
   c.t += sdt*c.speed;
-  const x=Math.cos(c.t)*c.ra, z=Math.sin(c.t)*c.rb, y=Math.sin(c.t)*c.inc*60;
-  if(dt>0) c.vel.set(x-c.g.position.x, y-c.g.position.y, z-c.g.position.z).divideScalar(dt);
-  c.g.position.set(x,y,z);
+  // Kepler: Quyosh ellips FOKUSIDA (avval markazida edi), c.t — o'rtacha anomaliya, perigeliyda tezroq (2-qonun).
+  // c.a — perigeliy yo'nalishi (har kometada har xil)
+  const e=Math.sqrt(1-(c.rb*c.rb)/(c.ra*c.ra));
+  let E=c.t+e*Math.sin(c.t); for(let i=0;i<8;i++) E-=(E-e*Math.sin(E)-c.t)/(1-e*Math.cos(E));
+  const ox=c.ra*(Math.cos(E)-e), oz=c.rb*Math.sin(E), cw=Math.cos(c.a), sw=Math.sin(c.a);
+  const x=ox*cw-oz*sw, z=ox*sw+oz*cw, y=Math.sin(E)*c.inc*60;
+  // birinchi kadrda oldingi pozitsiya (0,0,0) — tezlik ulkan chiqib, chang zarralari "otilib" ketardi
+  if(dt>0 && c.placed) c.vel.set(x-c.g.position.x, y-c.g.position.y, z-c.g.position.z).divideScalar(dt);
+  c.g.position.set(x,y,z); c.placed=true;
   c.head.rotation.y += dt*0.3; c.head.rotation.x += dt*0.11;
   const r=Math.max(30, Math.hypot(x,y,z)), act=Math.min(1.5, Math.pow(150/r,1.7));
   const ax=x/r, ay=y/r, az=z/r;
@@ -3569,7 +3656,7 @@ function titanTexture(){
   return t;
 }
 orbitObjects.forEach(rec=>{
-  (rec.mesh.children||[]).forEach(mp=>{
+  (rec.extras.moons||[]).forEach(({pivot:mp})=>{
     (mp.children||[]).forEach(mm=>{
       if(!mm.isMesh || !mm.geometry || !mm.geometry.parameters) return;
       const r=mm.geometry.parameters.radius; if(r==null) return;
@@ -3762,8 +3849,9 @@ const CRAFT = {};
 {
   const er=orbitObjects.find(r=>r.key==='earth');
   // XKS — Yer atrofida, 51,6° qiyalikda
-  const issPivot=new THREE.Object3D(); issPivot.position.copy(er.mesh.position); issPivot.rotation.x=THREE.MathUtils.degToRad(51.6);
-  er.pivot.add(issPivot);
+  // qiyalik Yer ekvatoriga nisbatan — o'q ramkasi ichida (Yer bilan birga aylanmaydi)
+  const issPivot=new THREE.Object3D(); issPivot.rotation.x=THREE.MathUtils.degToRad(51.6);
+  er.body.add(issPivot);
   const iss=buildISS(); iss.scale.setScalar(0.5); iss.position.x=er.radius*1.35; iss.rotation.z=Math.PI/2; issPivot.add(iss);
   makePickable(iss,'iss',0.35); iss.userData.viewDist=2.6; iss.userData.followRot=true; CRAFT.iss={obj:iss,pivot:issPivot,k:0.45};
   // kamera: stansiya orqasida, Yerdan tashqariga va biroz yuqoriga — Yer hech qachon kamera va XKS orasiga tushmaydi
@@ -4394,8 +4482,9 @@ function buildStream(key){
   return { pts, grp, P, p, e, geo };
 }
 function stopShower(){
-  if(SHW.stream){ scene.remove(SHW.stream.pts); scene.remove(SHW.stream.grp); SHW.stream.geo.dispose(); SHW.stream=null; }
-  SHW.streaks.forEach(s=>scene.remove(s.line)); SHW.streaks=[]; SHW.key=null;
+  if(SHW.stream){ scene.remove(SHW.stream.pts); scene.remove(SHW.stream.grp); SHW.stream.geo.dispose(); SHW.stream.pts.material.dispose();
+    SHW.stream.grp.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); SHW.stream=null; }
+  SHW.streaks.forEach(s=>{ scene.remove(s.line); s.line.geometry.dispose(); s.line.material.dispose(); }); SHW.streaks=[]; SHW.key=null;
 }
 function startShower(key){
   stopShower(); if(tourActive) stopTour(false);
@@ -5013,6 +5102,28 @@ function heliocentricLongitude(key, date){
   const nu = 2*Math.atan2(Math.sqrt(1+e)*Math.sin(E/2), Math.sqrt(1-e)*Math.cos(E/2));
   return norm360(nu*180/Math.PI + el.wb) * Math.PI/180;
 }
+/* Real vaqt: sutkalik aylanish (AXIS dagi siderik sutka) va yo'ldoshlar sanadan to'g'ridan-to'g'ri.
+   Yer: GMST = 280.46062° + 360.98564737°·d — 0° meridianning to'g'ri chiqishi (o'q ramkasining +X i = bahorgi tengkunlik);
+   kunduz/tun chegarasi haqiqiy UTC vaqtga mos. Boshqa jismlarda faza ixtiyoriy, tezlik haqiqiy. */
+const _rtQ = new THREE.Quaternion(), _rtV = new THREE.Vector3(), _rtX = new THREE.Vector3(1,0,0);
+function rtSpin(rec, d){
+  const a = AXIS[rec.key]; if(!a) return;
+  rec.mesh.rotation.y = rec.key==='earth' ? ((280.46061837 + 360.98564736629*d)%360)*D2R : TAU*((d*24/a[2])%1);
+  if(rec.key==='earth'){ if(rec.extras.moonPivot) moonEphemeris(rec.extras.moonPivot, d); return; }
+  ((rec.extras && rec.extras.moons) || []).forEach(m=>{
+    if(m.period) m.pivot.rotation.y = m.phase0 + TAU*((d/Math.abs(m.period))%1)*Math.sign(m.speed);
+  });
+}
+// Oyning geotsentrik ekliptik koordinatalari (Astronomical Almanac qisqa formulasi, ~0.3°) — fazasi sanaga mos
+function moonEphemeris(pivot, d){
+  const L=218.316+13.176396*d, M=(134.963+13.064993*d)*D2R, F=(93.272+13.229350*d)*D2R,
+        D=(297.850+12.190749*d)*D2R, Ms=(357.529+0.98560028*d)*D2R;
+  const lam=(L + 6.289*Math.sin(M) - 1.274*Math.sin(M-2*D) + 0.658*Math.sin(2*D) + 0.214*Math.sin(2*M)
+             - 0.186*Math.sin(Ms) - 0.114*Math.sin(2*F))*D2R, bet=5.128*Math.sin(F)*D2R;
+  _rtV.set(Math.cos(bet)*Math.cos(lam), Math.sin(bet), -Math.cos(bet)*Math.sin(lam));
+  pivot.parent.getWorldQuaternion(_rtQ).invert(); _rtV.applyQuaternion(_rtQ);
+  pivot.quaternion.setFromUnitVectors(_rtX, _rtV);
+}
 // Nazorat nuqtalari (debugLongitudes() bilan tekshirilgan):
 //  • 2026-01-01: Yer λ ≈ 100° (Quyosh geosentrik ~280° Jadiyda → Yer +180°) ✓
 //  • Merkuriy 88 kunda to‘liq aylanadi, Neptun asrda ~2.2° siljiydi ✓
@@ -5355,7 +5466,7 @@ function stopLightSpeed(){
   lsPhoton.visible=false; lsTrail.visible=false;
   lsHud.classList.remove('on'); lsLabelEl.classList.remove('on');
   lsFinalEl.classList.remove('open');
-  lsFlashRings.forEach(f=>scene.remove(f.obj)); lsFlashRings.length=0;
+  lsFlashRings.forEach(f=>{ scene.remove(f.obj); f.obj.geometry.dispose(); f.obj.material.dispose(); }); lsFlashRings.length=0;   // GPU buferlari ham bo'shatiladi
   flyToOverview();
 }
 function lsShowFinal(){
@@ -5439,7 +5550,7 @@ function lsUpdate(dt){
   for(let i=lsFlashRings.length-1;i>=0;i--){
     const f=lsFlashRings[i]; f.life-=dt;
     f.obj.material.opacity=Math.max(0,f.life)*0.9;
-    if(f.life<=0){ scene.remove(f.obj); lsFlashRings.splice(i,1); }
+    if(f.life<=0){ scene.remove(f.obj); f.obj.geometry.dispose(); f.obj.material.dispose(); lsFlashRings.splice(i,1); }
   }
   // HUD
   document.getElementById('lsTimeV').textContent = formatLightTime(lsT);
@@ -5802,15 +5913,22 @@ function animate(){
   sunMat.uniforms.time.value = simTime;
   const pulse = 1 + Math.sin(simTime*1.5)*0.04;
   corona.scale.set(SUN_RADIUS*7*pulse, SUN_RADIUS*7*pulse, 1);
-  sun.rotation.y += sdt*0.05;
+  // Real vaqt rejimida sutkalik aylanish va yo'ldoshlar ham sanaga bog'liq (orbitalar bilan bir xil vaqt oqimi)
+  const rtD = realTimeMode ? rtDate.getTime()/86400000 - 10957.5 : 0;   // J2000 dan kunlar
+  if(realTimeMode) sun.rotation.y = TAU*(rtD/25.38 % 1);                 // ekvatorda siderik 25.38 kun
+  else sun.rotation.y += sdt*0.05;
 
   // Sayyoralar: orbita + o‘z o‘qi atrofida aylanish
   // (real vaqt rejimida orbital burchakni Kepler bloki boshqaradi)
   orbitObjects.forEach(rec=>{
     if(!realTimeMode && !lsActive && !(IMPX.phase && IMPX.rec===rec)) rec.pivot.rotation.y += rec.speed * sdt * 12;
-    rec.mesh.rotation.y  += rec.spin  * sdt * 60;
-    if(rec.extras.clouds)   rec.extras.clouds.rotation.y += sdt*0.06;
-    if(rec.extras.moons) rec.extras.moons.forEach(m=>{ m.pivot.rotation.y += m.speed * sdt; });
+    if(rec.extras.ringU) rec.body.getWorldPosition(rec.extras.ringU.uPC.value);   // halqa soyasi uchun
+    if(realTimeMode){ if(rec.spin) rtSpin(rec, rtD); }
+    else {
+      rec.mesh.rotation.y  += rec.spin  * sdt * 60;
+      if(rec.extras.clouds)   rec.extras.clouds.rotation.y += sdt*0.06;
+      if(rec.extras.moons) rec.extras.moons.forEach(m=>{ m.pivot.rotation.y += m.speed * sdt; });
+    }
     if(rec.extras.sats) rec.extras.sats.forEach(s=>{
       s.pivot.rotation.y += s.speed * sdt;
       s.satMesh.rotation.y += s.spin * sdt;
@@ -5827,7 +5945,8 @@ function animate(){
   // Qo‘shimcha obyektlar (Serera, Pluton) orbitada aylanadi
   EXTRA_BODIES.forEach(b=>{
     if(!lsActive && !(realTimeMode && KEPLER[b.key])) b.pivot.rotation.y += b.speed * sdt * 12;
-    b.mesh.rotation.y  += b.spin  * sdt * 60;
+    if(realTimeMode && AXIS[b.key]) rtSpin(b, rtD);
+    else b.mesh.rotation.y  += b.spin  * sdt * 60;
   });
   // Yirik asteroidlar: orbita bo‘ylab harakat + o‘z o‘qida dumalash
   heroAsteroids.forEach(ha=>{
@@ -5887,7 +6006,7 @@ function animate(){
     else ox = 0.8*Math.min(1, Math.max(0, eclipseT-1.5)/6.5);              // olmos uzuk → o‘tib ketish
     if(er.extras.moonPivot){
       const moonDirWorld = dir.clone().multiplyScalar(8).addScaledVector(perp, ox).normalize();
-      const pLocal = er.mesh.worldToLocal(tmpV.clone().add(moonDirWorld)).normalize();
+      const pLocal = er.extras.moonPivot.parent.worldToLocal(tmpV.clone().add(moonDirWorld)).normalize();
       er.extras.moonPivot.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), pLocal);
     }
     // Kamera: 2-bosqich — Oy Quyoshni to'liq yopadi; 3-bosqich — «olmos uzuk» (halqa)
@@ -6459,6 +6578,7 @@ window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini
     const mesh=TARGET[key] && TARGET[key]();
     if(!PREWARM.ok || !mesh || !mesh.isMesh || !mesh.material || mesh.material.isShaderMaterial) return null;
     const orig=mesh.material, ghost=orig.clone();
+    ghost.onBeforeCompile=orig.onBeforeCompile;   // clone() uni ko'chirmaydi — aks holda nusxa boshqa dastur bo'lardi
     mesh.material=ghost; DRY=true;
     try{ apply(t); } finally{ DRY=false; mesh.material=orig; }
     const g=new THREE.Mesh(mesh.geometry, ghost);
@@ -6913,6 +7033,9 @@ window.addEventListener('resize', ()=>{
   camera.updateProjectionMatrix();
   if(cutCamera){ cutCamera.aspect = window.innerWidth/window.innerHeight; cutCamera.updateProjectionMatrix(); }
   if(typeof snCamera!=='undefined' && snCamera){ snCamera.aspect = window.innerWidth/window.innerHeight; snCamera.updateProjectionMatrix(); }
+  // brauzer masshtabi (Ctrl +/−) yoki boshqa monitorga o'tishda devicePixelRatio o'zgaradi — tasvir xiralashmasin
+  const pr = Math.min(window.devicePixelRatio, Q.dpr);
+  if(pr !== renderer.getPixelRatio()) renderer.setPixelRatio(pr);
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
