@@ -85,6 +85,16 @@
     size();window.addEventListener('resize',size);
     (function fr(t){if(done())return;core.frame(t);requestAnimationFrame(fr);})(performance.now());
   })();
+  /* 3D sahnaning WebGL kontekstini skriptlar yuklanayotgan bo'sh vaqtda oldindan yaratish (birinchi yaratish ~1 s
+     asosiy oqimni band qiladi). Atributlar three.js (script.js dagi WebGLRenderer) bilan AYNAN bir xil —
+     keyin three.js shu kontekstni oladi; natija o'zgarmaydi. Yuklanish ekrani avval chizilib olinadi. */
+  (function(){
+    var cv=document.getElementById('scene');if(!cv||!cv.getContext||!window.requestAnimationFrame)return;
+    requestAnimationFrame(function(){setTimeout(function(){
+      try{cv.getContext('webgl2',{alpha:false,depth:true,stencil:true,antialias:true,premultipliedAlpha:true,
+        preserveDrawingBuffer:false,powerPreference:'high-performance',failIfMajorPerformanceCaveat:false});}catch(e){}
+    },0);});
+  })();
   </script>
 
   <!-- Kirish (Intro) ekrani -->
@@ -518,7 +528,7 @@
   <script src="labs/dz-kit.js?v=3"></script>
   <script src="labs/dz-load.js?v=5"></script>
   <script src="labs/constellations.js?v=1"></script>
-  <script src="script.js?v=118"></script>
+  <script src="script.js?v=119"></script>
   <script src="guide.js?v=9"></script>
   <script src="a11y.js?v=3"></script>
   <script src="labs/ilmiy-waves-txt.js?v=1"></script>

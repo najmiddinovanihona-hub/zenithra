@@ -47,7 +47,7 @@ controls.maxDistance     = 3e7;    // Quyosh tizimi → Somon yo'li → Mahalliy
 controls.target.set(0, 0, 0);
 
 const clock = new THREE.Clock();
-window.__solar = { camera, controls, scene, renderer, get COSMO(){ return COSMO; }, get BLACKHOLES(){ return BLACKHOLES; }, step:(d)=>cosmicStep(d||0.016), halt:()=>{ focusRec=null; flight=null; }, click:(f)=>playClick(f), skyTick:(d)=>{ skyGridStep(d); skyPoleStep(d); }, impact:(c,m)=>impactPlay(c,m) };   // tashqi diagnostika uchun
+window.__solar = { camera, controls, scene, renderer, get COSMO(){ return COSMO; }, get BLACKHOLES(){ return BLACKHOLES; }, step:(d)=>cosmicStep(d||0.016), halt:()=>{ focusRec=null; flight=null; }, click:(f)=>playClick(f), skyTick:(d)=>{ skyGridStep(d); skyPoleStep(d); }, impact:(c,m)=>impactPlay(c,m), texBusy:()=>TEXW.busy() };   // tashqi diagnostika uchun
 
 /* --------------------------------------------------------------------------
    I18N — til holati (UZ / RU / EN) va yordamchilar
@@ -128,11 +128,16 @@ function ridged3(x,y,z,oct){
 // Har piksel uchun shar yuzida fn(x,y,z,lat01) hisoblab Float32 maydon qaytaradi.
 // div>1 — maydon kichik o'lchamda hisoblanib bilinear kattalashtiriladi (4× tezroq,
 // shovqin silliq bo'lgani uchun sifat deyarli o'zgarmaydi).
-function sphereField(w,h,scale,fn,div){
+// *Gen — o'sha hisob generator ko'rinishida: har qatordan keyin `yield` (uzun hisobni bo'laklab bajarish uchun).
+// Oddiy funksiya — generatorni oxirigacha yurgizadi; natija aynan bir xil.
+function runGen(g){ let r=g.next(); while(!r.done) r=g.next(); return r.value; }
+function sphereField(w,h,scale,fn,div){ return runGen(sphereFieldGen(w,h,scale,fn,div)); }
+function* sphereFieldGen(w,h,scale,fn,div){
   div=div||1;
   if(div>1){
     const sw=Math.max(16,Math.round(w/div)), sh=Math.max(8,Math.round(h/div));
-    return upsampleField(sphereField(sw,sh,scale,fn),sw,sh,w,h);
+    const src=yield* sphereFieldGen(sw,sh,scale,fn);
+    return yield* upsampleFieldGen(src,sw,sh,w,h);
   }
   const out=new Float32Array(w*h);
   for(let j=0;j<h;j++){
@@ -141,10 +146,12 @@ function sphereField(w,h,scale,fn,div){
       const th=(i+0.5)/w*Math.PI*2;
       out[j*w+i]=fn(sp*Math.cos(th)*scale, cp*scale, sp*Math.sin(th)*scale, lat);
     }
+    yield;
   }
   return out;
 }
-function upsampleField(src,sw,sh,w,h){
+function upsampleField(src,sw,sh,w,h){ return runGen(upsampleFieldGen(src,sw,sh,w,h)); }
+function* upsampleFieldGen(src,sw,sh,w,h){
   const out=new Float32Array(w*h);
   for(let j=0;j<h;j++){
     const fy=(j+0.5)*sh/h-0.5, j0=Math.floor(fy), ty=fy-j0;
@@ -156,12 +163,14 @@ function upsampleField(src,sw,sh,w,h){
       const v1=src[jb*sw+ia]*(1-tx)+src[jb*sw+ib]*tx;
       out[j*w+i]=v0*(1-ty)+v1*ty;
     }
+    yield;
   }
   return out;
 }
 // Balandlik maydonidan normal xarita (relyef yoritilishi uchun — bumpMap'dan aniqroq)
-function normalTexture(fld,w,h,strength){
-  const c=makeCanvas(w,h), ctx=c.getContext('2d'), img=ctx.createImageData(w,h), d=img.data;
+// normalDataGen — faqat piksellar (canvas'siz): asosiy oqimda ham, Web Worker'da ham aynan bir xil natija
+function* normalDataGen(fld,w,h,strength){
+  const d=new Uint8ClampedArray(w*h*4);
   const S=strength||6;
   for(let j=0;j<h;j++){
     const jm=Math.max(0,j-1), jp=Math.min(h-1,j+1);
@@ -171,12 +180,21 @@ function normalTexture(fld,w,h,strength){
       const l=Math.sqrt(dx*dx+dy*dy+1), k=(j*w+i)*4;
       d[k]=(-dx/l*0.5+0.5)*255; d[k+1]=(-dy/l*0.5+0.5)*255; d[k+2]=(1/l*0.5+0.5)*255; d[k+3]=255;
     }
+    yield;
   }
-  ctx.putImageData(img,0,0);
+  return d;
+}
+// Normal xarita teksturasi (canvas hozircha bo'sh bo'lishi mumkin — piksellar keyin putPixels bilan yoziladi)
+function normalTexOf(c){
   const t=new THREE.CanvasTexture(c);
   t.anisotropy=renderer.capabilities.getMaxAnisotropy();
   t.wrapS=THREE.RepeatWrapping;
   return t;
+}
+function putPixels(c, d){ c.getContext('2d').putImageData(new ImageData(d, c.width, c.height), 0, 0); }
+function normalTexture(fld,w,h,strength){
+  const c=makeCanvas(w,h); putPixels(c, runGen(normalDataGen(fld,w,h,strength)));
+  return normalTexOf(c);
 }
 // Bir kanalli (kulrang) xarita — masalan roughnessMap
 function grayTexture(w,h,fn){
@@ -198,18 +216,33 @@ function pixCanvas(w,h,fn){
   }
   ctx.putImageData(img,0,0); return c;
 }
+// pixCanvas bilan bir xil, lekin canvas'siz — Uint8ClampedArray (Web Worker ichida ham ishlaydi)
+function* pixDataGen(w,h,fn){
+  const d=new Uint8ClampedArray(w*h*4);
+  for(let j=0;j<h;j++){
+    for(let i=0;i<w;i++){ const k=j*w+i, o=k*4; fn(i,j,k,d,o);  d[o+3]=255; }
+    yield;
+  }
+  return d;
+}
 function hexRGB(c){
   const n=parseInt(String(c).replace('#','').slice(0,6),16);
   return [(n>>16)&255,(n>>8)&255,n&255];
 }
 const _texCache = Object.create(null);
-// Kraterlar — balandlik maydoniga kosa + gardish sifatida chiziladi
-function addCraters(fld,w,h,count){
+// Oldindan olingan tasodifiy sonlar ketma-ketligi (Math.random o'rniga) — tasodifiy qiymatlar chaqiruv paytida,
+// AYNAN avvalgi tartibda olinadi, og'ir hisob esa keyinroq (bo'laklab yoki Worker'da) bajariladi; natija o'zgarmaydi
+function rndSeq(a){ let i=0; return ()=>a[i++]; }
+function rndTake(n){ const a=new Float64Array(n); for(let i=0;i<n;i++) a[i]=Math.random(); return a; }
+// Kraterlar — balandlik maydoniga kosa + gardish sifatida chiziladi (rnd — har krater uchun 4 ta son)
+function* addCratersGen(fld,w,h,count,rnd){
+  const R_=rnd||Math.random;
   for(let n=0;n<count;n++){
-    const cx=Math.random()*w, cy=h*0.03+Math.random()*h*0.94;
-    const R=3+Math.pow(Math.random(),2.4)*Math.min(46, w*0.045);
+    if((n&3)===3) yield;
+    const cx=R_()*w, cy=h*0.03+R_()*h*0.94;
+    const R=3+Math.pow(R_(),2.4)*Math.min(46, w*0.045);
     const lx=1/Math.max(0.22, Math.sin(cy/h*Math.PI));   // qutblarda cho'zilish
-    const depth=0.10+Math.random()*0.15;
+    const depth=0.10+R_()*0.15;
     const j0=Math.max(0,Math.floor(cy-R)), j1=Math.min(h,Math.ceil(cy+R));
     for(let j=j0;j<j1;j++){
       const dyv=(j-cy)/R, hw=Math.ceil(R*lx);
@@ -247,22 +280,21 @@ function speckle(ctx, w, h, count, colorFn, rMin, rMax){
 /* Toshli jism (Merkuriy, Mars, oylar, mitti sayyoralar).
    fBm + ridged relyef → rang xaritasi VA normal xarita; kraterlar haqiqiy
    chuqurlik/gardish sifatida balandlikka o'yiladi. Natija keshlanadi. */
-function rockyTexture(base, shades, craterCount, res){
-  const key='r|'+base+'|'+(shades||[]).join(',')+'|'+craterCount+'|'+(res||0);
-  if(_texCache[key]) return _texCache[key];
+// Faqat piksellar (sof funksiya — Worker'da ham ishlaydi). rnd — kraterlar uchun oldindan olingan sonlar
+function* rockyGen(base, shades, craterCount, res, rnd){
   const small = (res===0) || craterCount<30;
   const w = res || (small?512:768), h = w>>1;
   const sd = (parseInt(String(base).replace('#','').slice(0,6),16)%997)*0.031;
-  const fld = sphereField(w,h,2.1,(x,y,z)=>{
+  const fld = yield* sphereFieldGen(w,h,2.1,(x,y,z)=>{
     const b = fbm3(x+sd, y+sd*0.7, z-sd, small?3:4, 0.52, 2.07);
     const r = ridged3(x*1.9+sd, y*1.9, z*1.9, small?2:3);
     return Math.max(0, Math.min(1, b*0.62 + r*0.38));
   },2);
-  const reg = sphereField(w,h,0.85,(x,y,z)=> fbm3(x+11.3, y+4.1, z+7.7, 2, 0.5, 2.1),4);
-  if(craterCount) addCraters(fld,w,h,craterCount|0);
+  const reg = yield* sphereFieldGen(w,h,0.85,(x,y,z)=> fbm3(x+11.3, y+4.1, z+7.7, 2, 0.5, 2.1),4);
+  if(craterCount) yield* addCratersGen(fld,w,h,craterCount|0,rnd);
   const B = hexRGB(base);
   const T = (shades && shades.length ? shades : [base]).map(hexRGB);
-  const cv = pixCanvas(w,h,(i,j,k,d,o)=>{
+  const col = yield* pixDataGen(w,h,(i,j,k,d,o)=>{
     const hv = fld[k], rg = reg[k];
     const ti = Math.min(T.length-1, Math.floor(rg*T.length*0.999));
     const mixT = 0.3 + rg*0.38;                       // mintaqaviy tus
@@ -273,12 +305,204 @@ function rockyTexture(base, shades, craterCount, res){
       d[o+ch] = Math.max(0, Math.min(255, base2*lum*grain));
     }
   });
+  return { col, nrm: yield* normalDataGen(fld,w,h, small?5:8) };
+}
+function rockyTexture(base, shades, craterCount, res){
+  const key='r|'+base+'|'+(shades||[]).join(',')+'|'+craterCount+'|'+(res||0);
+  if(_texCache[key]) return _texCache[key];
+  const small = (res===0) || craterCount<30;
+  const w = res || (small?512:768), h = w>>1;
+  const rnd = rndTake(craterCount ? (craterCount|0)*4 : 0);   // kraterlar: har biriga 4 ta Math.random (avvalgi tartibda)
+  const cv = makeCanvas(w,h), nc = makeCanvas(w,h);
   const tex = asTexture(cv);
-  tex.userData.normalMap = normalTexture(fld,w,h, small?5:8);
+  tex.userData.normalMap = normalTexOf(nc);
   tex.userData.normalScale = 0.65;
   _texCache[key]=tex;
+  TEXW.run('rocky', { base, shades, craterCount, res, rnd }, r=>{
+    putPixels(cv, r.col); putPixels(nc, r.nrm); texReady(tex); texReady(tex.userData.normalMap);
+  });
   return tex;
 }
+
+/* --------------------------------------------------------------------------
+   1b. OCHILISH BOSQICHI (BOOT) VA FONDAGI TEKSTURALAR
+   Sahifa ochilayotganda og'ir protsedural teksturalar (shovqin, kraterlar, galaktikalar) bitta uzun vazifada
+   emas: asosiy oqim ularni qisqa bo'laklarda hisoblaydi, Web Worker'lar esa parallel yordam beradi.
+   Algoritm, o'lcham va tasodifiy sonlar AYNAN avvalgidek (Math.random chaqiruv paytida, avvalgi tartibda
+   olinadi), shuning uchun natija bayt-baayt bir xil. Teksturalar va shaderlar tayyor bo'lgach (BOOT) sahna
+   birinchi marta chiziladi — yuklanish ekrani shu vaqtgacha turadi, foydalanuvchi chala sahnani ko'rmaydi.
+   Sahna ochilgandan keyingi chaqiruvlar (masalan, zaxira teksturalar) avvalgidek darhol (sinxron) bajariladi.
+   -------------------------------------------------------------------------- */
+let BOOT_PHASE = true;
+const BOOT = { ready:false, promise:null };
+// Piksellar yozilgan tekstura: ochilish bosqichida darhol GPU'ga yuklanadi (birinchi kadrda hammasi birdan emas)
+function texReady(t){ t.needsUpdate=true; if(BOOT_PHASE){ try{ renderer.initTexture(t); }catch(e){} } }
+// Tekstura vazifasi — generator (har qatordan keyin yield). Asosiy oqimda ham, Worker'da ham AYNAN shu kod ishlaydi.
+function* texGen(kind, a){
+  switch(kind){
+    case 'rocky':  return yield* rockyGen(a.base, a.shades, a.craterCount, a.res, rndSeq(a.rnd));
+    case 'nebula': return { px: yield* nebulaGen(a.T, a.seed, a.lo) };
+    case 'gspr':   return { px: yield* gsprGen(a.g, a.inc, a.S) };
+    case 'gdisk':  return yield* gdiskGen(a.g, a.W);
+    case 'atlas':  return { px: yield* atlasGen(a.cells, a.C) };
+    case 'moonb':  return { px: yield* moonbGen(a.k, a.W, a.H) };
+  }
+  throw new Error('texGen: '+kind);
+}
+function texJob(kind, a){ return runGen(texGen(kind, a)); }
+/* Navbat: vazifalarni asosiy oqim qisqa bo'laklarda (ochilishda ~25 ms, keyin ~8 ms) bajaradi, Worker'lar esa
+   parallel yordam beradi. Kim birinchi tugatsa — o'sha natija olinadi (ikkalasi ham bir xil). Asosiy oqim
+   navbat bo'shasa Worker'da ketayotgan eng eski vazifani ham bajarib ko'radi — Worker sekin bo'lsa kutilmaydi. */
+const TEXW = (function(){
+  let pool=null, queue=[], boot=0, waiters=[], cur=null, gen=null, ticking=false;
+  const ch=new MessageChannel();
+  ch.port1.onmessage=tick;
+  function init(){
+    pool=[];
+    if(!window.Worker || !window.Blob || !window.URL || !window.ImageData) return;
+    try{
+      const fns=[_h3,vnoise3,fbm3,ridged3,runGen,sphereFieldGen,upsampleFieldGen,hexRGB,rndSeq,addCratersGen,pixDataGen,normalDataGen,
+        armOff,armProfile,spiralPixel,rockyGen,nebulaGen,gsprGen,gdiskGen,atlasGen,moonbGen,texGen,texJob];
+      const src="'use strict';\nconst _NP=new Uint8Array(["+Array.from(_NP).join(',')+"]);\nconst TAU=Math.PI*2;\nconst sstep="+sstep.toString()+";\n"+
+        fns.map(f=>f.toString()).join('\n')+
+        "\nonmessage=function(e){ const m=e.data, r=texJob(m.kind,m.args), tr=[]; for(const k in r) if(r[k]&&r[k].buffer) tr.push(r[k].buffer); postMessage({ r:r }, tr); };";
+      const url=URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+      const n=Math.max(1, Math.min(3, (navigator.hardwareConcurrency||4)-2));
+      for(let i=0;i<n;i++){
+        const w=new Worker(url); w.job=null;
+        w.onmessage=e=>{ const j=w.job; w.job=null; if(j && !j.done) finish(j, e.data.r); pump(); };
+        // Worker ishlamasa — undan voz kechamiz, vazifalarni asosiy oqim bajaradi
+        w.onerror=e=>{ if(e && e.preventDefault) e.preventDefault(); const j=w.job; w.job=null; pool=pool.filter(x=>x!==w);
+          try{ w.terminate(); }catch(_){} if(j && !j.done) queue.unshift(j); schedule(); };
+        pool.push(w);
+      }
+      URL.revokeObjectURL(url);
+    }catch(e){ pool=[]; }
+  }
+  function finish(j, r){
+    j.done=true;
+    try{ j.cb(r); }catch(e){ console.error('[tekstura]', e); }
+    if(j.boot && --boot===0) waiters.splice(0).forEach(f=>f());
+  }
+  function pump(){ for(const w of pool){ if(!queue.length) return; if(w.job) continue; const j=w.job=queue.shift(); j.tp=performance.now(); w.postMessage({ kind:j.kind, args:j.args }); } }
+  function schedule(){ if(!ticking){ ticking=true; ch.port2.postMessage(0); } }
+  // asosiy oqim uchun keyingi vazifa: avval hech kim olmagan, so'ng Worker'da eng uzoq ketayotgan
+  function pick(){
+    const j=queue.shift(); if(j) return j;
+    let best=null; for(const w of pool){ const x=w.job; if(x && !x.done && (!best || x.tp<best.tp)) best=x; }
+    return best;
+  }
+  function tick(){
+    ticking=false;
+    const t0=performance.now(), budget=BOOT_PHASE?25:8;
+    while(performance.now()-t0<budget){
+      if(cur && cur.done){ cur=null; gen=null; }             // Worker bizdan oldin tugatdi
+      if(!cur){ cur=pick(); if(!cur) return; gen=texGen(cur.kind, cur.args); }
+      let r; do{ r=gen.next(); }while(!r.done && performance.now()-t0<budget);
+      if(r.done){ const j=cur; cur=null; gen=null; if(!j.done) finish(j, r.value); }
+    }
+    schedule();
+  }
+  return {
+    // bg=true — ochilishdan keyin ham fonda (hali ko'rinmaydigan obyektlar, masalan uzoq galaktikalar)
+    run(kind, args, cb, bg){
+      if(!(BOOT_PHASE || bg)){ cb(texJob(kind, args)); return; }   // sahna ochilgach — avvalgidek darhol
+      if(pool===null) init();
+      const j={ kind, args, cb, boot: BOOT_PHASE && !bg, done:false, tp:0 };
+      if(j.boot) boot++;
+      queue.push(j); pump(); schedule();
+    },
+    // ochilish bosqichidagi barcha teksturalar tayyor bo'lganda
+    idle(){ return boot ? new Promise(r=>waiters.push(r)) : Promise.resolve(); },
+    // navbatda / bajarilayotgan vazifalar soni (diagnostika)
+    busy(){ return queue.length + (cur && !cur.done ? 1 : 0) + (pool ? pool.filter(w=>w.job && !w.job.done).length : 0); }
+  };
+})();
+
+/* Shaderlarni asosiy oqimni band qilmasdan oldindan kompilyatsiya qilish (KHR_parallel_shader_compile).
+   Ikkinchi, ko'rinmas (1×1) WebGL kontekstida three.js xuddi shu sahna uchun AYNAN bir xil shader matnlarini
+   yasaydi; ular GPU jarayonining fon oqimlarida kompilyatsiya qilinadi va brauzerning umumiy dastur keshiga
+   tushadi. So'ng asosiy renderer o'sha dasturlarni keshdan millisekundlarda oladi (avval har biri 0.1–0.7 s
+   asosiy oqimni to'xtatardi). Shader kodi va natija o'zgarmaydi. Kengaytma bo'lmasa — avvalgidek. */
+const PREWARM = (function(){
+  let R2=null, gl2=null, ext=null, gp=null, inited=false;
+  function init(){                                    // birinchi chaqiruvda (sahna qurilib bo'lgach) yaratiladi
+    if(inited) return; inited=true;
+    try{
+      const c=document.createElement('canvas'); c.width=c.height=1;
+      R2=new THREE.WebGLRenderer({ canvas:c, antialias:true, powerPreference:'high-performance' });
+      gl2=R2.getContext(); ext=gl2.getExtension('KHR_parallel_shader_compile');
+      const a=renderer.capabilities, b=R2.capabilities;
+      if(!ext || a.isWebGL2!==b.isWebGL2 || a.precision!==b.precision || a.maxTextures!==b.maxTextures ||
+         a.vertexTextures!==b.vertexTextures || a.floatVertexTextures!==b.floatVertexTextures || a.logarithmicDepthBuffer!==b.logarithmicDepthBuffer) throw 0;
+      R2.debug.checkShaderErrors=false;               // xato so'rovlari kompilyatsiya tugashini kutib qoladi
+      gp=gl2.getProgramParameter.bind(gl2);
+      const AU=gl2.ACTIVE_UNIFORMS, AA=gl2.ACTIVE_ATTRIBUTES;
+      gl2.getProgramParameter=(p,n)=>(n===AU||n===AA) ? 0 : gp(p,n);   // uniform ro'yxati bu kontekstda kerak emas
+    }catch(e){ if(R2){ try{ R2.dispose(); }catch(_){} } R2=null; }
+  }
+  // Sahnadagi materialli obyektlar (material + instancing turi bo'yicha bittadan) va ko'rinadigan yorug'liklar.
+  // visibleOnly — faqat hozir ko'rinadiganlar (yashirin guruhlar keyinroq, fonda)
+  function collect(scn, visibleOnly){
+    const objs=[], seen=new Map(), lights=[];
+    scn[visibleOnly?'traverseVisible':'traverse'](o=>{
+      const ms=o.material; if(!ms) return;
+      const arr=Array.isArray(ms)?ms:[ms], tag=o.isInstancedMesh?1:(o.isSkinnedMesh?2:0);
+      if(arr.every(m=>{ const s=seen.get(m); return s && s.has(tag); })) return;
+      arr.forEach(m=>{ let s=seen.get(m); if(!s) seen.set(m, s=new Set()); s.add(tag); });
+      objs.push(o);
+    });
+    scn.traverseVisible(o=>{ if(o.isLight) lights.push(o); });
+    return { objs, lights };
+  }
+  // O'sha sahna (yorug'lik, fon, tuman) — lekin faqat berilgan obyektlar kompilyatsiya qilinadi
+  function proxy(scn, lights, list){
+    const ps=Object.create(scn);
+    ps.traverse=f=>{ list.forEach(f); };
+    ps.traverseVisible=f=>{ lights.forEach(f); };
+    return ps;
+  }
+  // renderer.compile bo'laklab: har vazifa ~budget ms, orasida brauzer kadr chizadi va kiritishga javob beradi
+  function compileChunked(R, scn, cam, budget, visibleOnly){
+    const { objs, lights }=collect(scn, visibleOnly), one=[], ps=proxy(scn, lights, one);
+    let i=0;
+    return new Promise(res=>{
+      (function step(){
+        const t0=performance.now();
+        try{ while(i<objs.length){ one[0]=objs[i++]; R.compile(ps, cam); if(performance.now()-t0>budget) break; } }
+        catch(e){ console.warn('[shader]', e); i=objs.length; }
+        if(i<objs.length) setTimeout(step, 0); else res();
+      })();
+    });
+  }
+  const done=new WeakSet();
+  // 2-kontekstda kompilyatsiyani boshlaydi va hammasi tayyor bo'lguncha (bloklamasdan) kutadi
+  function warm(scn, cam){
+    init();
+    if(!R2) return Promise.resolve(false);
+    ['outputEncoding','gammaFactor','toneMapping','physicallyCorrectLights','localClippingEnabled'].forEach(k=>{ R2[k]=renderer[k]; });
+    R2.shadowMap.enabled=renderer.shadowMap.enabled; R2.shadowMap.type=renderer.shadowMap.type;
+    return compileChunked(R2, scn, cam, 12).then(()=>new Promise(res=>{
+      const list=R2.info.programs.map(p=>p.program).filter(p=>!done.has(p)), t0=performance.now();
+      (function poll(){
+        let all=true;
+        for(const p of list){
+          if(done.has(p)) continue;
+          if(gp(p, ext.COMPLETION_STATUS_KHR)){ gp(p, gl2.LINK_STATUS); done.add(p); } else all=false;
+        }
+        if(all || performance.now()-t0>20000) res(true); else setTimeout(poll, 25);
+      })();
+    }));
+  }
+  return {
+    get ok(){ init(); return !!R2; },
+    warm,
+    // asosiy rendererda (dasturlar keshdan) — bo'laklab
+    compileMain(scn, cam, visibleOnly){ return compileChunked(renderer, scn, cam, 40, visibleOnly); },
+    // faqat berilgan obyektlar uchun, darhol (sinxron)
+    compileNow(scn, cam, objs){ const { lights }=collect(scn); renderer.compile(proxy(scn, lights, objs), cam); },
+  };
+})();
 
 // Kamar ranglarini 1×H lentaga chizib, piksel massivi sifatida o'qish
 function bandStrip(bands,H){
@@ -568,11 +792,32 @@ function spiralPixel(x,z,g,n,n2,out){
 function nebulaTexture(tint){
   const key='neb|'+tint; if(_texCache[key]) return _texCache[key];
   const m=tint.match(/rgba\((\d+),(\d+),(\d+)/); const T=[+m[1],+m[2],+m[3]];
-  const T2=[235,88,122];                                // H-alfa (ionlashgan vodorod) qizg'ish-pushti
   const seed=(T[0]*0.37+T[1]*0.11+T[2]*0.07)%17;
   const lo=192, S=384;
-  const sm=makeCanvas(lo,lo), sx=sm.getContext('2d'), im=sx.createImageData(lo,lo), d=im.data;
-  for(let j=0;j<lo;j++) for(let i=0;i<lo;i++){
+  const c=makeCanvas(S,S);
+  const rnd=rndSeq(rndTake(26*3));                     // ichidagi yulduzlar uchun sonlar — avvalgi tartibda, hozir olinadi
+  const t=asTexture(c,false); _texCache[key]=t;
+  TEXW.run('nebula', { T, seed, lo }, r=>{
+    const sm=makeCanvas(lo,lo); putPixels(sm, r.px);
+    const ctx=c.getContext('2d');
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(sm,0,0,S,S);
+    for(let k=0;k<26;k++){                               // ichidagi yosh yulduzlar
+      const rr=Math.pow(rnd(),1.5)*S*0.3, aa=rnd()*TAU;
+      const x=S/2+Math.cos(aa)*rr, y=S/2+Math.sin(aa)*rr, R=1+rnd()*3.5;
+      const g=ctx.createRadialGradient(x,y,0,x,y,R*3);
+      g.addColorStop(0,'rgba(255,255,255,0.95)'); g.addColorStop(0.3,'rgba(210,225,255,0.35)'); g.addColorStop(1,'rgba(200,220,255,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,R*3,0,TAU); ctx.fill();
+    }
+    texReady(t);
+  });
+  return t;
+}
+// Tumanlik piksellari (kichik o'lchamda, sof funksiya)
+function* nebulaGen(T, seed, lo){
+  const T2=[235,88,122];                                // H-alfa (ionlashgan vodorod) qizg'ish-pushti
+  const d=new Uint8ClampedArray(lo*lo*4);
+  for(let j=0;j<lo;j++, yield) for(let i=0;i<lo;i++){
     const x=i/lo*2-1, y=j/lo*2-1, r=Math.hypot(x,y), o=(j*lo+i)*4;
     const fall=Math.exp(-r*r*2.4)*(1-sstep(0.72,1,r));
     if(fall<0.004) continue;
@@ -586,18 +831,7 @@ function nebulaTexture(tint){
     for(let c=0;c<3;c++) d[o+c]=Math.min(255, T[c]*(1-mc)+T2[c]*mc + hot*255);
     d[o+3]=Math.min(255, a*170);
   }
-  sx.putImageData(im,0,0);
-  const c=makeCanvas(S,S), ctx=c.getContext('2d');
-  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-  ctx.drawImage(sm,0,0,S,S);
-  for(let k=0;k<26;k++){                                 // ichidagi yosh yulduzlar
-    const rr=Math.pow(Math.random(),1.5)*S*0.3, aa=Math.random()*TAU;
-    const x=S/2+Math.cos(aa)*rr, y=S/2+Math.sin(aa)*rr, R=1+Math.random()*3.5;
-    const g=ctx.createRadialGradient(x,y,0,x,y,R*3);
-    g.addColorStop(0,'rgba(255,255,255,0.95)'); g.addColorStop(0.3,'rgba(210,225,255,0.35)'); g.addColorStop(1,'rgba(200,220,255,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,R*3,0,TAU); ctx.fill();
-  }
-  const t=asTexture(c,false); _texCache[key]=t; return t;
+  return d;
 }
 
 /* --------------------------------------------------------------------------
@@ -655,18 +889,23 @@ scene.add(nebulaGroup);
 
 // Uzoq galaktikalar — spiral qo'llar, bar, bo'rtiq va chang (spiralPixel)
 function galaxyTexture(){
-  const S=256, c=makeCanvas(S,S), ctx=c.getContext('2d'), im=ctx.createImageData(S,S), d=im.data;
+  const S=256, c=makeCanvas(S,S);
   const g={arms:2+(Math.random()*2|0), pitch:0.32+Math.random()*0.25, armW:0.08, rs:0.3, rb:0.1+Math.random()*0.06,
     bar:Math.random()<0.5?0.24:0, barA:Math.random()*3, seed:Math.random()*20};
-  const inc=0.45+Math.random()*0.5, out=[0,0,0];
-  for(let j=0;j<S;j++) for(let i=0;i<S;i++){
+  const inc=0.45+Math.random()*0.5;
+  const t=asTexture(c,false);
+  TEXW.run('gspr', { g, inc, S }, r=>{ putPixels(c, r.px); texReady(t); });
+  return t;
+}
+function* gsprGen(g, inc, S){
+  const d=new Uint8ClampedArray(S*S*4), out=[0,0,0];
+  for(let j=0;j<S;j++, yield) for(let i=0;i<S;i++){
     const x=(i/S*2-1)/0.95, z=(j/S*2-1)/0.95/inc, o=(j*S+i)*4;
     const n=fbm3(x*5+g.seed, z*5, g.seed, 3, 0.55, 2.1), n2=fbm3(x*12, z*12-g.seed, 2.2, 2, 0.5, 2.2);
     spiralPixel(x,z,g,n,n2,out);
     d[o]=255*(1-Math.exp(-out[0]*1.3)); d[o+1]=255*(1-Math.exp(-out[1]*1.3)); d[o+2]=255*(1-Math.exp(-out[2]*1.3)); d[o+3]=255;
   }
-  ctx.putImageData(im,0,0);
-  return asTexture(c,false);
+  return d;
 }
 const galaxySprites = [];   // vizual sayohat uchun
 for(let i=0;i<4;i++){
@@ -1867,7 +2106,10 @@ const BLACKHOLES = {};
     lensRing, photon, particles, pGeo, pDat:[], chunks, srcSpr, srcCol, src:def.src,
     srcA: def.key==='sagA' ? 2.2 : 0.4, flash:0, nDust };
   for(let i=0;i<pN;i++){ const p={ stream:i>=nDust }; bhSpawn(b,p,true); b.pDat.push(p); }
-  for(let k=0;k<320;k++) bhParticles(b, 0.1);             // oldindan "isitish" — oqim darhol to'liq
+  // oldindan "isitish" — oqim darhol to'liq. Oraliq qadamlarda faqat zarralar holati hisoblanadi (pozitsiya/rang
+  // massivlari baribir oxirgi qadamda qayta yoziladi) — natija aynan bir xil, ~2 baravar tez
+  for(let k=0;k<319;k++) bhParticles(b, 0.1, true);
+  bhParticles(b, 0.1);
   bhPlaceSrc(b);
 });
 function bhPlaceSrc(b){
@@ -1886,7 +2128,7 @@ function bhSpawn(b,p,init){
   }
   p.k = 0.7+Math.random()*0.6; p.age = init ? 1 : 0;
 }
-function bhParticles(b, dt){
+function bhParticles(b, dt, stateOnly){
   const S=b.size, pos=b.pGeo.attributes.position.array, col=b.pGeo.attributes.color.array;
   const R0=b.src.r*S;
   for(let i=0;i<b.pDat.length;i++){
@@ -1896,6 +2138,7 @@ function bhParticles(b, dt){
     p.a += dt*0.95*Math.pow(S*2/p.r,1.5)*(0.85+p.k*0.2);
     p.age += dt;
     if(p.r < S*1.03){ bhSpawn(b,p,false); }
+    if(stateOnly) continue;
     const o=i*3, flat=Math.min(1,p.r/R0);
     pos[o]=Math.cos(p.a)*p.r; pos[o+1]=Math.sin(p.a)*p.r; pos[o+2]=p.z*flat;
     const tr=Math.max(0,Math.min(1,(p.r-S*1.2)/(S*2.6)));
@@ -2147,16 +2390,24 @@ const sunMarker = new THREE.Sprite(new THREE.SpriteMaterial({ map:SPRITE, color:
   opacity:0, depthTest:false, depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:false }));
 sunMarker.scale.set(0.012,0.012,1); sunMarker.renderOrder=10; scene.add(sunMarker);
 
+// Galaktika diski: nur (glow) va chang teksturalari. Piksellar fonda (bo'laklab / Worker'da) hisoblanadi — galaktikalar
+// faqat kamera juda uzoqlashganda ko'rinadi, ungacha tayyor bo'ladi. Algoritm va o'lcham o'zgarmagan.
 function galaxyDiskTextures(g, W){
+  const gc=makeCanvas(W,W), dc=makeCanvas(W,W);
+  const tx={ glow:asTexture(gc,false), dust:asTexture(dc,false) };
+  TEXW.run('gdisk', { g, W }, r=>{ putPixels(gc, r.glow); putPixels(dc, r.dust);
+    [tx.glow, tx.dust].forEach(t=>{ t.needsUpdate=true; try{ renderer.initTexture(t); }catch(e){} }); }, true);
+  return tx;
+}
+function* gdiskGen(g, W){
   const Wn=W>>1, nz=new Float32Array(Wn*Wn), nz2=new Float32Array(Wn*Wn);
-  for(let j=0;j<Wn;j++) for(let i=0;i<Wn;i++){
+  for(let j=0;j<Wn;j++, yield) for(let i=0;i<Wn;i++){
     const x=(i/Wn)*2-1, z=(j/Wn)*2-1, k=j*Wn+i;
     nz[k]=fbm3(x*5+g.seed, z*5-g.seed, g.seed*0.37, 4, 0.55, 2.1);
     nz2[k]=fbm3(x*12-g.seed, z*12+3.3, g.seed, 3, 0.5, 2.2);
   }
-  const gc=makeCanvas(W,W), dc=makeCanvas(W,W), gx=gc.getContext('2d'), dx=dc.getContext('2d');
-  const gi=gx.createImageData(W,W), di=dx.createImageData(W,W), gd=gi.data, dd=di.data, out=[0,0,0];
-  for(let j=0;j<W;j++) for(let i=0;i<W;i++){
+  const gd=new Uint8ClampedArray(W*W*4), dd=new Uint8ClampedArray(W*W*4), out=[0,0,0];
+  for(let j=0;j<W;j++, yield) for(let i=0;i<W;i++){
     const x=(i+0.5)/W*2-1, z=(j+0.5)/W*2-1, r=Math.hypot(x,z), o=(j*W+i)*4;
     gd[o+3]=255; if(r>=1) continue;
     const kk=(j>>1)*Wn+(i>>1), n=nz[kk], n2=nz2[kk];
@@ -2169,8 +2420,7 @@ function galaxyDiskTextures(g, W){
       dd[o]=26; dd[o+1]=16; dd[o+2]=10; dd[o+3]=Math.min(255, D*230);
     }
   }
-  gx.putImageData(gi,0,0); dx.putImageData(di,0,0);
-  return { glow:asTexture(gc,false), dust:asTexture(dc,false) };
+  return { glow:gd, dust:dd };
 }
 function galaxyPlaneMat(tex, isDust, n0, n1){
   return new THREE.ShaderMaterial({
@@ -2257,13 +2507,23 @@ function incNormal(los, incDeg, paDeg){
 }
 // Uzoq galaktikalar atlasi: 9 spiral, 5 elliptik, 2 notekis (har biri 128px katak)
 function galaxyAtlas(){
-  const C=128, W=C*4, cv=makeCanvas(W,W), ctx=cv.getContext('2d'), im=ctx.createImageData(W,W), d=im.data, out=[0,0,0];
-  for(let cell=0;cell<16;cell++){
-    const cx=(cell%4)*C, cy=Math.floor(cell/4)*C, type=cell<9?'s':(cell<14?'e':'i');
+  const C=128, W=C*4, cv=makeCanvas(W,W), cells=[];
+  for(let cell=0;cell<16;cell++){                       // tasodifiy parametrlar — avvalgi tartibda, shu yerda
     const g={arms:2+(cell%3), pitch:0.3+Math.random()*0.3, armW:0.07+Math.random()*0.05, rs:0.26+Math.random()*0.1,
       rb:0.08+Math.random()*0.1, bar:cell%4===1?0.25:0, barA:Math.random()*3, seed:cell*3.7+1};
     const ell=0.35+Math.random()*0.35;
-    for(let j=0;j<C;j++) for(let i=0;i<C;i++){
+    cells.push({ g, ell });
+  }
+  const t=new THREE.CanvasTexture(cv); t.minFilter=THREE.LinearFilter; t.generateMipmaps=false;
+  TEXW.run('atlas', { cells, C }, r=>{ putPixels(cv, r.px); t.needsUpdate=true; try{ renderer.initTexture(t); }catch(e){} }, true);
+  return t;
+}
+function* atlasGen(cells, C){
+  const W=C*4, d=new Uint8ClampedArray(W*W*4), out=[0,0,0];
+  for(let cell=0;cell<16;cell++){
+    const cx=(cell%4)*C, cy=Math.floor(cell/4)*C, type=cell<9?'s':(cell<14?'e':'i');
+    const g=cells[cell].g, ell=cells[cell].ell;
+    for(let j=0;j<C;j++, yield) for(let i=0;i<C;i++){
       const x=((i+0.5)/C*2-1)/0.92, z=((j+0.5)/C*2-1)/0.92, r=Math.hypot(x,z), o=((cy+j)*W+cx+i)*4;
       d[o+3]=255; if(r>=1) continue;
       let R=0,G=0,B=0;
@@ -2273,8 +2533,7 @@ function galaxyAtlas(){
       d[o]=255*(1-Math.exp(-R*1.3)); d[o+1]=255*(1-Math.exp(-G*1.3)); d[o+2]=255*(1-Math.exp(-B*1.3));
     }
   }
-  ctx.putImageData(im,0,0);
-  const t=new THREE.CanvasTexture(cv); t.minFilter=THREE.LinearFilter; t.generateMipmaps=false; return t;
+  return d;
 }
 function buildCosmicWeb(){
   const atlas=galaxyAtlas(), P=[], clusters=[];
@@ -2367,9 +2626,13 @@ COSMO.build=function(){ if(COSMO.started) return; COSMO.started=true;
   let i=0;
   // MessageChannel orqali navbat — fon tabida ham setTimeout kabi sekinlashmaydi
   const ch=new MessageChannel();
-  const next=()=>{ if(i>=steps.length) return; try{ steps[i++](); }catch(e){ console.error('cosmos', e); } ch.port2.postMessage(0); };
+  const next=()=>{ if(i>=steps.length){ COSMO.ready=cosmoWarm(); return; } try{ steps[i++](); }catch(e){ console.error('cosmos', e); } ch.port2.postMessage(0); };
   ch.port1.onmessage=next; next();
 };
+// Galaktikalar shaderlari fonda kompilyatsiya qilinadi — kamera uzoqlashganda birinchi ko'rinishida qotmaydi
+function cosmoWarm(){
+  return Promise.resolve(BOOT.promise).then(()=>PREWARM.warm(scene, camera)).then(ok=>ok ? PREWARM.compileMain(scene, camera) : null);
+}
 // Qurilish asosiy sahna ochilib bo'lgach, brauzer bo'sh paytida (yoki kamera uzoqlashsa — darhol)
 const idleRun=window.requestIdleCallback||((f,o)=>setTimeout(f,(o&&o.timeout)||500));
 COSMO.schedule=function(ms){ setTimeout(()=>idleRun(()=>COSMO.build(),{timeout:4000}), ms||0); };
@@ -3252,40 +3515,58 @@ function showInfo(key, actions){
 
 // ---------- Yirik yo'ldoshlar: nom → kalit, yaxshiroq teksturalar ----------
 const MOON_KEY={ 'Io':'io','Yevropa':'europa','Ganimed':'ganymede','Kallisto':'callisto','Titan':'titan','Enselad':'enceladus','Triton':'triton' };
-function europaTexture(){
-  const W=512,H=256, c=makeCanvas(W,H), x=c.getContext('2d');
-  const base=pixCanvas(W,H,(i,j,k,d,o)=>{ const n=vnoise3(i*0.02,j*0.02,1.3)*0.6+vnoise3(i*0.07,j*0.07,4.1)*0.4;
+// Yo'ldoshlar teksturalarining asosiy (shovqinli) qatlami — sof funksiya (fonda bo'laklab / Worker'da hisoblanadi)
+function* moonbGen(k, W, H){
+  if(k==='europa') return yield* pixDataGen(W,H,(i,j,kk,d,o)=>{ const n=vnoise3(i*0.02,j*0.02,1.3)*0.6+vnoise3(i*0.07,j*0.07,4.1)*0.4;
     d[o]=208+n*30; d[o+1]=200+n*26; d[o+2]=186+n*22; });
-  x.drawImage(base,0,0);
-  x.lineCap='round';
-  for(let n=0;n<150;n++){                                  // lineae — qizg'ish-jigarrang yoriqlar
-    let px=Math.random()*W, py=H*0.1+Math.random()*H*0.8, a=Math.random()*Math.PI;
-    x.strokeStyle=`rgba(${120+Math.random()*40|0},${62+Math.random()*25|0},${38+Math.random()*20|0},${0.35+Math.random()*0.4})`;
-    x.lineWidth=0.6+Math.random()*1.8; x.beginPath(); x.moveTo(px,py);
-    for(let s=0;s<14;s++){ a+=(Math.random()-0.5)*0.35; px+=Math.cos(a)*9; py+=Math.sin(a)*5; x.lineTo(px,py); }
-    x.stroke();
-  }
-  const t=asTexture(c); return t;
+  if(k==='io') return yield* pixDataGen(W,H,(i,j,kk,d,o)=>{ const n=vnoise3(i*0.025,j*0.025,7.7)*0.6+vnoise3(i*0.09,j*0.09,2.2)*0.4;
+    d[o]=214+n*34; d[o+1]=182+n*44; d[o+2]=70+n*40; });
+  return yield* pixDataGen(W,H,(i,j,kk,d,o)=>{ const lat=Math.abs(j/(H-1)*2-1), n=vnoise3(i*0.03,j*0.05,3.3);
+    d[o]=214-lat*30+n*12; d[o+1]=150-lat*22+n*10; d[o+2]=66-lat*10+n*6; });
+}
+function europaTexture(){
+  const W=512,H=256, c=makeCanvas(W,H);
+  const rnd=rndSeq(rndTake(150*22));                        // har yoriq uchun 22 ta son (avvalgi tartibda)
+  const t=asTexture(c);
+  TEXW.run('moonb', { k:'europa', W, H }, r=>{
+    const x=c.getContext('2d'), base=makeCanvas(W,H); putPixels(base, r.px);
+    x.drawImage(base,0,0);
+    x.lineCap='round';
+    for(let n=0;n<150;n++){                                  // lineae — qizg'ish-jigarrang yoriqlar
+      let px=rnd()*W, py=H*0.1+rnd()*H*0.8, a=rnd()*Math.PI;
+      x.strokeStyle=`rgba(${120+rnd()*40|0},${62+rnd()*25|0},${38+rnd()*20|0},${0.35+rnd()*0.4})`;
+      x.lineWidth=0.6+rnd()*1.8; x.beginPath(); x.moveTo(px,py);
+      for(let s=0;s<14;s++){ a+=(rnd()-0.5)*0.35; px+=Math.cos(a)*9; py+=Math.sin(a)*5; x.lineTo(px,py); }
+      x.stroke();
+    }
+    texReady(t);
+  });
+  return t;
 }
 function ioTexture(){
-  const W=512,H=256, c=pixCanvas(W,H,(i,j,k,d,o)=>{ const n=vnoise3(i*0.025,j*0.025,7.7)*0.6+vnoise3(i*0.09,j*0.09,2.2)*0.4;
-    d[o]=214+n*34; d[o+1]=182+n*44; d[o+2]=70+n*40; });
-  const x=c.getContext('2d');
-  for(let n=0;n<70;n++){                                    // vulqon dog'lari va lava oqimlari
-    const px=Math.random()*W, py=H*0.08+Math.random()*H*0.84, r=2+Math.random()*9;
-    const g=x.createRadialGradient(px,py,0,px,py,r*2.4);
-    const red=Math.random()<0.35;
-    g.addColorStop(0, red?'rgba(40,18,10,0.95)':'rgba(30,24,16,0.9)');
-    g.addColorStop(0.35, red?'rgba(180,60,24,0.7)':'rgba(120,90,40,0.45)');
-    g.addColorStop(1,'rgba(220,180,80,0)');
-    x.fillStyle=g; x.beginPath(); x.arc(px,py,r*2.4,0,TAU); x.fill();
-  }
-  return asTexture(c);
+  const W=512,H=256, c=makeCanvas(W,H);
+  const rnd=rndSeq(rndTake(70*4));                          // har dog' uchun 4 ta son
+  const t=asTexture(c);
+  TEXW.run('moonb', { k:'io', W, H }, r=>{
+    putPixels(c, r.px);
+    const x=c.getContext('2d');
+    for(let n=0;n<70;n++){                                    // vulqon dog'lari va lava oqimlari
+      const px=rnd()*W, py=H*0.08+rnd()*H*0.84, r2=2+rnd()*9;
+      const g=x.createRadialGradient(px,py,0,px,py,r2*2.4);
+      const red=rnd()<0.35;
+      g.addColorStop(0, red?'rgba(40,18,10,0.95)':'rgba(30,24,16,0.9)');
+      g.addColorStop(0.35, red?'rgba(180,60,24,0.7)':'rgba(120,90,40,0.45)');
+      g.addColorStop(1,'rgba(220,180,80,0)');
+      x.fillStyle=g; x.beginPath(); x.arc(px,py,r2*2.4,0,TAU); x.fill();
+    }
+    texReady(t);
+  });
+  return t;
 }
 function titanTexture(){
-  const W=256,H=128, c=pixCanvas(W,H,(i,j,k,d,o)=>{ const lat=Math.abs(j/(H-1)*2-1), n=vnoise3(i*0.03,j*0.05,3.3);
-    d[o]=214-lat*30+n*12; d[o+1]=150-lat*22+n*10; d[o+2]=66-lat*10+n*6; });
-  return asTexture(c);
+  const W=256,H=128, c=makeCanvas(W,H), t=asTexture(c);
+  TEXW.run('moonb', { k:'titan', W, H }, r=>{ putPixels(c, r.px); texReady(t); });
+  return t;
 }
 orbitObjects.forEach(rec=>{
   (rec.mesh.children||[]).forEach(mp=>{
@@ -4662,13 +4943,13 @@ function revealIntro(){
 }
 if(document.readyState==='complete') revealIntro();
 else window.addEventListener('load', revealIntro);
-// Zaxira: nima bo‘lganda ham 3 soniyadan keyin ochilsin
-setTimeout(()=>{
+// Zaxira: nima bo‘lganda ham 12 soniyadan keyin ochilsin (sahna tayyorlanishi — BOOT — tugagach)
+setTimeout(()=>Promise.resolve(BOOT.promise).then(()=>{
   if(!loader.classList.contains('hidden')){
     loader.classList.add('hidden');
     if(topbar.classList.contains('hidden')) intro.classList.remove('hidden');
   }
-}, 12000);
+}), 12000);
 
 // Tilni va dock/UI ni dastlabki holatda o‘rnatish
 buildLangSwitch(document.getElementById('introLang'));
@@ -5500,6 +5781,7 @@ function perfStep(raw){
 function animate(){
   requestAnimationFrame(animate);
   if(document.hidden || window.__labCover || window.__authCover){ clock.getDelta(); return; }        // yashirin varaqda GPU ishlamaydi
+  if(!BOOT.ready){ clock.getDelta(); return; }       // teksturalar/shaderlar fonda tayyorlanmoqda (yuklanish ekrani ostida)
   // Yuklanish ekrani to'liq yopib turganda 3D sahna chizilmaydi (shaderlar uchun dastlabki 3 kadrdan keyin)
   if(loader && !loader.classList.contains('hidden') && !loader.classList.contains('sp-out') && (animate._lf=(animate._lf||0)+1)>3){ clock.getDelta(); return; }
   const rawDt = clock.getDelta();
@@ -6117,7 +6399,8 @@ window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini
   const RT=window.REALTEX;
   if(!RT || !RT.ok) return;
   const rec=k=>orbitObjects.find(o=>o.key===k);
-  const disposeOld=(...ts)=>ts.forEach(t=>{ if(t && t.dispose) t.dispose(); });
+  let DRY=false;                     // material nusxasida sinov (prepare) — eski teksturalar dispose qilinmaydi
+  const disposeOld=(...ts)=>{ if(!DRY) ts.forEach(t=>{ if(t && t.dispose) t.dispose(); }); };
   // Sahna yorug'ligi (PointLight 3.2) eski, to'qroq protsedural teksturalarga moslangan — haqiqiy suratlar
   // yorqinroq, shuning uchun rang koeffitsienti bilan pasaytiriladi (aks holda gaz gigantlari oqarib "kuyadi").
   const GAIN={ gas:0.4, rock:0.55 };
@@ -6162,14 +6445,40 @@ window.__REALTEX = {};   // kesim ko'rinishi (cutSurfaceTexture) yuklanganlarini
     ceres(){ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); if(b) b.mesh.material=stdFromTex(rockyTexture('#8f8578',['#7a7060','#a39885'],55),{roughness:0.96,metalness:0.03}); },
   };
   const pause=ms=>new Promise(r=>setTimeout(r,ms));
+  /* Vazifa materialni yangi shader variantiga o'tkazadi (masalan normalMap o'rniga bumpMap). O'sha variant avval
+     material NUSXASIDA (ko'rinmas guruhda) tayyorlanadi: shader fonda kompilyatsiya qilinib (PREWARM), asosiy
+     rendererga keshdan olinadi — keyin haqiqiy materialga qo'llanganda qotish bo'lmaydi. */
+  const TARGET={
+    clouds:()=>rec('earth').extras.clouds, moon:()=>{ const p=rec('earth').extras.moonPivot; return p&&p.children[0]; },
+    mars:()=>rec('mars').mesh, jupiter:()=>rec('jupiter').mesh, saturn:()=>rec('saturn').mesh, venus:()=>rec('venus').mesh,
+    mercury:()=>rec('mercury').mesh, uranus:()=>rec('uranus').mesh, neptune:()=>rec('neptune').mesh,
+    saturnRing:()=>rec('saturn').extras.ring, ceres:()=>{ const b=EXTRA_BODIES.find(x=>x.key==='ceres'); return b&&b.mesh; },
+  };
+  let ghostGrp=null;
+  async function prepare(key, apply, t){
+    const mesh=TARGET[key] && TARGET[key]();
+    if(!PREWARM.ok || !mesh || !mesh.isMesh || !mesh.material || mesh.material.isShaderMaterial) return null;
+    const orig=mesh.material, ghost=orig.clone();
+    mesh.material=ghost; DRY=true;
+    try{ apply(t); } finally{ DRY=false; mesh.material=orig; }
+    const g=new THREE.Mesh(mesh.geometry, ghost);
+    if(!ghostGrp){ ghostGrp=new THREE.Group(); ghostGrp.visible=false; scene.add(ghostGrp); }
+    ghostGrp.add(g);
+    await PREWARM.warm(scene, camera);
+    PREWARM.compileNow(scene, camera, [g]);
+    return ()=>{ PREWARM.compileNow(scene, camera, [mesh]); ghostGrp.remove(g); ghost.dispose(); };
+  }
   async function run(){
+    await BOOT.promise;                 // boshlang'ich shaderlar tayyor bo'lmaguncha compile() hammasini sinxron yasardi
     for(const [key, apply] of JOBS){
       try{
         const t=await RT.texture(key);
         renderer.initTexture(t);          // GPU'ga hozir yuklanadi — sayyora ko'rinishga kirganda emas
+        const release=await prepare(key, apply, t);
         apply(t);
-        await pause(16);
-        renderer.compile(scene, camera);  // o'zgargan materiallar shaderi oldindan tayyorlanadi
+        if(release) release();            // haqiqiy material tayyor dasturni oladi, nusxa o'chiriladi
+        else if(!PREWARM.ok){ await pause(16); renderer.compile(scene, camera); }  // o'zgargan materiallar shaderi oldindan tayyorlanadi
+        // (PREWARM bilan: nusxasiz vazifalar faqat uniform/teksturani almashtiradi — shader o'zgarmaydi)
       }catch(e){ if(FALLBACK[key]) try{ FALLBACK[key](); }catch(_){} }
       await pause(120);
     }
@@ -6579,6 +6888,21 @@ if(window.API){
 }
 authRefresh();
 
+/* Ochilish: fondagi teksturalar va fonda kompilyatsiya qilinayotgan shaderlar tayyor bo'lgach sahna
+   birinchi marta chiziladi (shaderlar asosiy rendererga keshdan tez olinadi). Har ehtimolga qarshi —
+   ko'pi bilan 20 s kutiladi, keyin avvalgidek ochiladi. */
+let bootWarm=null;
+BOOT.promise = new Promise(r=>setTimeout(r, 0)).then(()=>{      // skript tugagach, alohida vazifada
+  bootWarm=PREWARM.warm(scene, camera);
+  // hozir ko'rinadigan obyektlar shaderlari asosiy rendererga (keshdan) — teksturalar tayyorlanishi bilan parallel
+  const visible=bootWarm.then(ok=>ok ? PREWARM.compileMain(scene, camera, true) : null);
+  return Promise.race([ Promise.all([ visible, TEXW.idle() ]), new Promise(r=>setTimeout(r, 20000)) ]);
+}).then(()=>{
+  BOOT_PHASE=false; BOOT.ready=true;
+  // qolganlari (yashirin guruhlar: yulduz turkumlari, osmon to'ri va h.k.) — fonda, kichik bo'laklarda
+  setTimeout(()=>{ bootWarm.then(ok=>{ if(ok) PREWARM.compileMain(scene, camera, false); }); }, 1500);
+});
+window.__solar.ready = BOOT.promise;
 animate();
 
 /* --------------------------------------------------------------------------
