@@ -473,33 +473,34 @@
     </div>
   </div>
 
-  <!-- Three.js (r128) va OrbitControls CDN orqali yuklanadi -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <!-- CDN ishlamasa (internet yo'q, bloklangan) — loyihadagi nusxa. Aks holda butun sayt to'xtardi -->
+  <!-- Three.js (r128) va OrbitControls CDN orqali yuklanadi. integrity (SRI): CDN dagi fayl o'zgartirilsa brauzer uni
+       ishga tushirmaydi — quyidagi zaxira (labs/vendor) yuklanadi. Xeshlar labs/vendor nusxalari bilan bir xil (CRLF siz). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" integrity="sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf" crossorigin="anonymous"></script>
+  <!-- CDN ishlamasa (internet yo'q, bloklangan, SRI mos kelmadi) — loyihadagi nusxa. Aks holda butun sayt to'xtardi -->
   <script>window.THREE||document.write('<script src="labs/vendor/three.min.js"><\/script>')</script>
   <script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="labs/vendor/OrbitControls.js"><\/script>')</script>
   <!-- Ko‘p tilli ma'lumotlar -->
   <!-- Grafika darajasi (telefon/kompyuter) — barcha 3D sahnalardan oldin -->
   <script src="quality.js?v=1"></script>
-  <script src="realtex.js?v=4"></script>
-  <script src="api.js?v=6"></script>
+  <script src="realtex.js?v=5"></script>
+  <script src="api.js?v=7"></script>
   <script src="data.js?v=42"></script>
   <!-- Haqiqiy kosmik suratlar (photos/ papkasida) -->
   <script src="photos.js?v=3"></script>
   <script src="extras.js?v=1"></script>
   <script src="quiz-extra.js?v=1"></script>
   <script src="quiz-extra-hard.js?v=1"></script>
-  <script src="labs/core.js?v=17"></script>
+  <script src="labs/core.js?v=18"></script>
   <script src="labs/moon.js?v=1"></script>
   <script src="labs/star.js?v=6"></script>
-  <script src="labs/tonight.js?v=3"></script>
-  <script src="labs/iss.js?v=3"></script>
-  <script src="labs/weather.js?v=5"></script>
+  <script src="labs/tonight.js?v=4"></script>
+  <script src="labs/iss.js?v=4"></script>
+  <script src="labs/weather.js?v=6"></script>
   <script src="labs/sky-core.js?v=2"></script>
-  <script src="labs/space.js?v=5"></script>
-  <script src="labs/sky.js?v=3"></script>
-  <script src="labs/ar.js?v=4"></script>
+  <script src="labs/space.js?v=6"></script>
+  <script src="labs/sky.js?v=4"></script>
+  <script src="labs/ar.js?v=5"></script>
   <script src="labs/ulugbek.js?v=5"></script>
   <!-- Katta ma'lumot fayllari (rasadxonalar, asboblar, olimlar, kosmonavtlar, ilmiy) bo'lim ochilganda yuklanadi -->
   <script src="labs/lazy.js?v=1"></script>
@@ -507,7 +508,7 @@
   <script src="labs/instruments.js?v=7"></script>
   <script src="labs/scientists.js?v=6"></script>
   <script src="labs/astronauts.js?v=7"></script>
-  <script src="labs/reminders.js?v=2"></script>
+  <script src="labs/reminders.js?v=3"></script>
   <script src="labs/sim.js?v=4"></script>
   <script src="labs/impacts.js?v=4"></script>
   <script src="labs/edu.js?v=2"></script>
@@ -515,8 +516,8 @@
   <script src="labs/dz-kit.js?v=2"></script>
   <script src="labs/dz-load.js?v=4"></script>
   <script src="labs/constellations.js?v=1"></script>
-  <script src="script.js?v=115"></script>
-  <script src="guide.js?v=8"></script>
+  <script src="script.js?v=116"></script>
+  <script src="guide.js?v=9"></script>
   <script src="a11y.js?v=3"></script>
   <script src="labs/ilmiy-waves-txt.js?v=1"></script>
   <script src="labs/ilm3d-core.js?v=2"></script>

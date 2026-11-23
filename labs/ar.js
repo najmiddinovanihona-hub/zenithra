@@ -127,10 +127,12 @@ register('ar',{ ico:'📱', bare:true, group:{uz:'Osmon',ru:'Небо',en:'Sky'}
       const btn=q('[data-a="cam"]');
       if(lab.stream){ stopCam(); btn.textContent=T(TX.camOn); return; }
       try{ lab.stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } }, audio:false });
+        if(!lab.isOpen){ stopCam(); return; }   // ruxsat kutilayotganda oyna yopilgan bo'lsa — kamera yonib qolmasin
         video.srcObject=lab.stream; await video.play().catch(()=>{}); body.classList.add('ar-camera'); btn.textContent=T(TX.camOff); }
       catch(e){ note.textContent=T(TX.camErr); }
     }
-    function stopCam(){ if(lab.stream){ lab.stream.getTracks().forEach(t=>t.stop()); lab.stream=null; } video.srcObject=null; body.classList.remove('ar-camera'); }
+    function stopCam(){ if(lab.stream){ lab.stream.getTracks().forEach(t=>t.stop()); lab.stream=null; } video.srcObject=null; body.classList.remove('ar-camera');
+      const cb=q('[data-a="cam"]'); if(cb) cb.textContent=T(TX.camOn); }   // yopilganda ham tugma yozuvi to'g'ri qolsin
     lab.stopCam=stopCam;
 
     body.addEventListener('click',e=>{ const b=e.target.closest('[data-a]'); if(!b) return; const a=b.dataset.a;

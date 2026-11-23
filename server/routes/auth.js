@@ -72,10 +72,22 @@ const newCode = () => String(crypto.randomInt(0, 1e6)).padStart(6, '0');
 // "na***@gmail.com" — kod qaysi pochtaga ketganini ko'rsatish uchun (to'liq manzil qaytarilmaydi)
 const maskEmail = (e) => { const [u, d] = e.split('@'); return (u.length <= 2 ? u[0] + '*' : u.slice(0, 2) + '***') + '@' + d; };
 
-async function issueCode(user, purpose) {
+// Bitta pochtaga xatlar oqimini cheklaydi (qayta ro'yxatdan o'tish / kirish orqali begona pochtani xatga ko'mib
+// tashlashga qarshi): oldingi koddan 60 s o'tmagan bo'lsa yoki faol zanjirda 5 ta xat yuborilgan bo'lsa — rad etiladi.
+// Qaytaradi: yangi kod nechanchi xat bo'lishi (sends).
+async function sendQuota(userId, purpose) {
+  const prev = await prisma.authCode.findFirst({ where: { userId, purpose, expiresAt: { gt: new Date() } }, orderBy: { sentAt: 'desc' } });
+  if (!prev) return 1;
+  const wait = prev.sentAt.getTime() + RESEND_WAIT - Date.now();
+  if (wait > 0) throw new ApiError(429, 'RATE_LIMIT', { wait: Math.ceil(wait / 1000) });
+  if (prev.sends >= MAX_SENDS) throw new ApiError(429, 'RATE_LIMIT');
+  return prev.sends + 1;
+}
+
+async function issueCode(user, purpose, sends = 1) {
   await prisma.authCode.deleteMany({ where: { userId: user.id, purpose } });   // bir vaqtda bitta faol kod
   const token = crypto.randomBytes(24).toString('base64url'), id = sha256(token), code = newCode();
-  await prisma.authCode.create({ data: { id, userId: user.id, purpose, codeHash: codeHash(id, code), expiresAt: new Date(Date.now() + CODE_TTL) } });
+  await prisma.authCode.create({ data: { id, userId: user.id, purpose, sends, codeHash: codeHash(id, code), expiresAt: new Date(Date.now() + CODE_TTL) } });
   try { await sendCode({ to: user.email, name: user.name, lang: user.lang, purpose, code }); }
   catch (e) {
     await prisma.authCode.delete({ where: { id } }).catch(() => {});
@@ -91,11 +103,12 @@ router.post('/register', registerLimiter, async (req, res) => {
   // Tasdiqlanmagan va hech qachon kirilmagan yozuv (kod kiritilmay qolgan) — qayta ro'yxatdan o'tish mumkin.
   // Eski (bu o'zgarishdan oldingi) hisoblarda lastSeenAt bor — ularni hech kim "egallab" ololmaydi.
   if (exists && (exists.emailVerified || exists.lastSeenAt)) throw new ApiError(409, 'EMAIL_EXISTS');
+  const sends = exists ? await sendQuota(exists.id, 'register') : 1;   // parol/ism o'zgartirilishidan OLDIN tekshiriladi
   const data = { name: body.name, passwordHash: await bcrypt.hash(body.password, config.bcryptRounds), lang: body.lang || 'uz' };
   const user = exists
     ? await prisma.user.update({ where: { id: exists.id }, data })
     : await prisma.user.create({ data: { ...data, email: body.email } });
-  res.status(202).json({ needCode: true, ...(await issueCode(user, 'register')) });
+  res.status(202).json({ needCode: true, ...(await issueCode(user, 'register', sends)) });
 });
 
 router.post('/login', loginIpLimiter, loginLimiter, async (req, res) => {
@@ -104,7 +117,8 @@ router.post('/login', loginIpLimiter, loginLimiter, async (req, res) => {
   const ok = await bcrypt.compare(body.password, user ? user.passwordHash : DUMMY_HASH);
   if (!user || !ok) throw new ApiError(401, 'INVALID_CREDENTIALS');
   if (user.blocked) throw new ApiError(403, 'BLOCKED');
-  res.status(202).json({ needCode: true, ...(await issueCode(user, 'login')) });
+  const sends = await sendQuota(user.id, 'login');
+  res.status(202).json({ needCode: true, ...(await issueCode(user, 'login', sends)) });
 });
 
 const ChallengeBody = z.object({ challenge: z.string().min(20).max(64) }).strict();
@@ -119,12 +133,14 @@ router.post('/verify', verifyLimiter, async (req, res) => {
     if (rec) await prisma.authCode.delete({ where: { id } }).catch(() => {});
     throw new ApiError(410, 'CODE_EXPIRED');
   }
+  // Urinish kod tekshirilishidan OLDIN atomik "band qilinadi" — parallel so'rovlar 5 ta chegarani aylanib o'ta olmaydi.
+  const slot = await prisma.authCode.updateMany({ where: { id, attempts: { lt: MAX_ATTEMPTS } }, data: { attempts: { increment: 1 } } });
+  if (!slot.count) { await prisma.authCode.deleteMany({ where: { id } }); throw new ApiError(429, 'TOO_MANY_ATTEMPTS'); }
   const good = crypto.timingSafeEqual(Buffer.from(codeHash(id, body.code)), Buffer.from(rec.codeHash));
   if (!good) {
-    const attempts = rec.attempts + 1;
-    if (attempts >= MAX_ATTEMPTS) { await prisma.authCode.delete({ where: { id } }).catch(() => {}); throw new ApiError(429, 'TOO_MANY_ATTEMPTS'); }
-    await prisma.authCode.update({ where: { id }, data: { attempts } });
-    throw new ApiError(400, 'WRONG_CODE', { left: MAX_ATTEMPTS - attempts });
+    const cur = await prisma.authCode.findUnique({ where: { id }, select: { attempts: true } });
+    if (!cur || cur.attempts >= MAX_ATTEMPTS) { await prisma.authCode.deleteMany({ where: { id } }); throw new ApiError(429, 'TOO_MANY_ATTEMPTS'); }
+    throw new ApiError(400, 'WRONG_CODE', { left: MAX_ATTEMPTS - cur.attempts });
   }
   await prisma.authCode.deleteMany({ where: { userId: rec.userId } });
   if (rec.user.blocked) throw new ApiError(403, 'BLOCKED');

@@ -29,6 +29,7 @@ export async function initPush() {
 
 // Bitta obunaga yuborish. 404/410 — obuna endi yo'q (brauzer bekor qilgan) → 'gone'
 export async function sendPush(sub, payload) {
+  if (!isPushEndpoint(sub.endpoint)) return 'gone';   // tuzatishdan oldin saqlangan begona manzil — o'chiriladi
   try {
     await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
       JSON.stringify(payload), { TTL: 900, urgency: 'high' });
@@ -97,9 +98,20 @@ const lim = (limit, windowMs) => rateLimit({ windowMs, limit, standardHeaders: '
   handler: (req, res) => res.status(429).json({ error: 'RATE_LIMIT' }) });
 
 const round1 = (x) => Math.round(x * 10) / 10;   // ~11 km — XKS o'tishi uchun yetarli, aniq manzil saqlanmaydi
+// Server obuna manziliga POST yuboradi — istalgan URL qabul qilinsa, serverni ichki tarmoq/begona saytlarga so'rov
+// yuborishga majburlash (SSRF) mumkin edi. Shu sababli faqat brauzerlarning haqiqiy push xizmatlari.
+const PUSH_HOSTS = ['fcm.googleapis.com', 'android.googleapis.com', 'updates.push.services.mozilla.com',
+  'push.services.mozilla.com', 'push.apple.com', 'notify.windows.com'];
+export function isPushEndpoint(u) {
+  let url;
+  try { url = new URL(u); } catch { return false; }
+  if (url.protocol !== 'https:' || url.port || url.username || url.password) return false;
+  const h = url.hostname.toLowerCase();
+  return PUSH_HOSTS.some((d) => h === d || h.endsWith('.' + d));
+}
 const SubBody = z.object({
   subscription: z.object({
-    endpoint: z.string().url().max(1000).refine((u) => u.startsWith('https://'), 'https only'),
+    endpoint: z.string().url().max(1000).refine(isPushEndpoint, 'unsupported push service'),
     keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
   }).passthrough(),
   lat: z.number().min(-90).max(90),

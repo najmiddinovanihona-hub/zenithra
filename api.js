@@ -4,7 +4,10 @@
    Sinxron: localStorage.setItem ustidan kuzatuv — `dz_prog` va sozlama kalitlari o'zgarsa, kirgan
    foydalanuvchida serverga (debounce bilan) yuboriladi. Shu sababli mavjud kodni o'zgartirish shart emas. */
 (function(){
-const LS = window.localStorage;
+// Brauzer xotirasi bloklangan bo'lsa (cookie/sayt ma'lumotlari taqiqlangan) window.localStorage xato otadi —
+// vaqtinchalik (sahifa yopilguncha) xotira ishlatiladi, sayt va kirish ishlayveradi.
+const MEM = (()=>{ const m = new Map(); return { getItem:k=>m.has(k)?m.get(k):null, setItem:(k,v)=>{ m.set(k,String(v)); }, removeItem:k=>{ m.delete(k); } }; })();
+const LS = (()=>{ try{ const s = window.localStorage; s.getItem('dz_prog'); return s; }catch(e){ return MEM; } })();
 const PROG = 'dz_prog';
 // localStorage kaliti → server sozlamasi
 const SET = {
@@ -34,7 +37,7 @@ async function req(method, url, body){
   if(!r.ok || !data){
     const err = { status:r.status, code:(data&&data.error)||'SERVER_ERROR', details:data&&data.details };
     // Sessiya kutilmaganda tugadi (muddati, bloklash, boshqa qurilmada parol almashtirildi) — chiqish kabi
-    if(r.status===401 && API.user && !/\/auth\/(login|register)$/.test(url)){ API.user=null; forgetLocalUser(); emit(); }
+    if(r.status===401 && API.user && !/\/auth\/(login|register)$/.test(url)){ const uid=String(API.user.id); API.user=null; forgetLocalUser(uid); emit(); }
     throw err;
   }
   return data;
@@ -43,6 +46,9 @@ async function req(method, url, body){
 /* ---------- localStorage kuzatuvi ---------- */
 let applying = false;            // serverdan kelgan qiymatni yozayotganda qayta yubormaslik uchun
 const rawSet = Storage.prototype.setItem, rawRemove = Storage.prototype.removeItem;
+// Kuzatuvsiz yozish/o'chirish (vaqtinchalik xotirada — oddiy chaqiruv)
+const rSet = (k, v) => { try{ LS===MEM ? MEM.setItem(k, v) : rawSet.call(LS, k, v); }catch(e){} };
+const rDel = k => { try{ LS===MEM ? MEM.removeItem(k) : rawRemove.call(LS, k); }catch(e){} };
 function quiet(fn){ applying=true; try{ fn(); }finally{ applying=false; } }
 function watch(key, removed){
   if(applying || !API.user) return;
@@ -65,9 +71,15 @@ function applyProgress(p){
 }
 // Qurilmadagi progress kimniki: umumiy (maktab) kompyuterida oldingi foydalanuvchi progressi keyingisiga o'tib ketmasin.
 const OWNER = 'dz_prog_uid';
-function forgetLocalUser(){
+// Sessiya kutilmaganda tugaganda serverga yetib bormagan belgilar yo'qolmasin: ekrandan olinadi (keyingi odam ko'rmaydi),
+// lekin {uid: progress} ko'rinishida saqlab qo'yiladi va AYNAN shu foydalanuvchi qayta kirganda serverga birlashtiriladi.
+const STASH = 'dz_prog_stash';
+function readStash(){ try{ const s = JSON.parse(LS.getItem(STASH)); return s && typeof s==='object' ? s : {}; }catch(e){ return {}; } }
+function writeStash(s){ if(Object.keys(s).length) rSet(STASH, JSON.stringify(s)); else rDel(STASH); }
+function forgetLocalUser(stashUid){
   clearTimeout(timers.prog); clearTimeout(timers.set); timers.prog = timers.set = null; pendingSettings = {};
-  applyProgress({}); try{ rawRemove.call(LS, OWNER); }catch(e){}
+  if(stashUid){ const p = localProgress(); if(Object.keys(p).length){ const s = readStash(); s[stashUid] = p; writeStash(s); } }
+  applyProgress({}); rDel(OWNER);
 }
 // mode: 'auto' — bo'sh progress = foydalanuvchi o'zi tozalagan (DZP.reset) → serverda ham tozalanadi;
 //       'merge' — kirish paytidagi sinxron: qurilma bo'sh bo'lsa ham serverdagi progress hech qachon o'chmaydi.
@@ -91,6 +103,11 @@ async function pushSettings(){
 async function syncAll(){
   const uid = API.user && String(API.user.id); if(!uid) return;
   const owner = LS.getItem(OWNER);
+  // Avvalgi sessiya tugaganda saqlab qo'yilgan shu foydalanuvchi belgilari — serverga birlashtiriladi
+  try{
+    const s = readStash();
+    if(s[uid]){ await req('PUT', '/api/me/progress', { progress:s[uid], mode:'merge' }); const s2 = readStash(); delete s2[uid]; writeStash(s2); }
+  }catch(e){}
   try{
     if(owner && owner!==uid){
       // Qurilmada BOSHQA foydalanuvchining qoldiq progressi — birlashtirilmaydi, serverdagisi olinadi.
@@ -99,7 +116,7 @@ async function syncAll(){
       // Mehmon progressi yoki shu foydalanuvchiniki — serverdagisi bilan birlashtiriladi (yo'qolmaydi).
       await pushProgress('merge');
     }
-    rawSet.call(LS, OWNER, uid);
+    rSet(OWNER, uid);
   }catch(e){}
   // Sozlamalar: serverda borlari qurilmaga yoziladi, serverda yo'qlari qurilmadan serverga yuboriladi.
   try{
@@ -125,7 +142,7 @@ async function syncAll(){
 // Ro'yxatdan o'tish va kirish ikki bosqichli: avval pochtaga kod yuboriladi ({challenge, email, resendIn}),
 // so'ng API.verify(challenge, kod) sessiyani ochadi.
 API.register = async (name, email, password) => {
-  const lang = LS.getItem('solar_lang') || 'uz';
+  const l = LS.getItem('solar_lang'), lang = VALID.lang(l) ? l : 'uz';
   return req('POST', '/api/auth/register', { name, email, password, lang });
 };
 API.login = (email, password) => req('POST', '/api/auth/login', { email, password });
@@ -169,15 +186,15 @@ API.quiz = (quizId, score, total) => {
 
 /* ---------- ishga tushish ---------- */
 // Eski demo-auth (localStorage'dagi zaif parol xeshlari) endi ishlatilmaydi — o'chiramiz.
-try{ rawRemove.call(LS, 'st_users'); rawRemove.call(LS, 'st_session'); }catch(e){}
+try{ rDel('st_users'); rDel('st_session'); }catch(e){}
 // Bir martalik tuzatish: oldingi versiya joylashuvni sinxronlab, serverdagi ESKI joyni qurilmadagi to'g'ri joy ustiga
 // yozib qo'ygan bo'lishi mumkin. GPS bilan aniqlanmagan saqlangan joy o'chiriladi — keyingi ochilishda qayta aniqlanadi.
 try{
   if(!LS.getItem('loc_fix_v1')){
     let cur=null; try{ cur=JSON.parse(LS.getItem('sky_loc')||'null'); }catch(e){}
-    if(!cur || cur.src!=='gps'){ rawRemove.call(LS,'sky_loc'); rawRemove.call(LS,'loc_manual'); }
+    if(!cur || cur.src!=='gps'){ rDel('sky_loc'); rDel('loc_manual'); }
     try{ sessionStorage.removeItem('loc_auto'); }catch(e){}
-    rawSet.call(LS,'loc_fix_v1','1');
+    rSet('loc_fix_v1','1');
   }
 }catch(e){}
 
@@ -185,14 +202,17 @@ async function probe(){
   const r = await req('GET', '/api/auth/me');   // mehmonda {user:null}
   API.online = 'user' in r; API.user = r.user || null;
   // Sessiya yo'q, lekin qurilmada kimningdir progressi qolgan (sessiya muddati tugagan/bloklangan) — tozalanadi
-  if(!API.user && LS.getItem(OWNER)) forgetLocalUser();
+  // (yuborilmay qolgan belgilar o'sha foydalanuvchi uchun saqlab qo'yiladi — qayta kirganda serverga qo'shiladi)
+  const owner = LS.getItem(OWNER);
+  if(!API.user && owner) forgetLocalUser(owner);
 }
 API.ready = (async ()=>{
   if(!/^https?:$/.test(location.protocol)) return;
   try{ await probe(); }
   catch(e){
-    // Server vaqtincha javob bermadi — bir necha marta qayta urinamiz (👤 tugma sessiya oxirigacha yashirin qolmasin)
-    if(e && e.status===0){ [5000,15000,45000].forEach(ms=>setTimeout(()=>{ if(!API.online) probe().then(()=>{ emit(); if(API.user) syncAll(); }).catch(()=>{}); }, ms)); }
+    // Server vaqtincha javob bermadi (tarmoq yoki 5xx — baza band/ishga tushmoqda) — bir necha marta qayta urinamiz
+    // (👤 tugma sessiya oxirigacha yashirin qolmasin)
+    if(e && (e.status===0 || e.status>=500)){ [5000,15000,45000].forEach(ms=>setTimeout(()=>{ if(!API.online) probe().then(()=>{ emit(); if(API.user) syncAll(); }).catch(()=>{}); }, ms)); }
   }
   emit();
   if(API.user) syncAll();

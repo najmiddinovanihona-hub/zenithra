@@ -56,7 +56,7 @@ register('spacewx',{ ico:'☀', group:GROUP, name:SW.name, sub:SW.sub,
       catch(e){ fail($('swKp'),load); }
     }
     function render(){ const D=lab.D;
-      const s=D.sc&&D.sc['0']; if(s) $('swSc').innerHTML=['R','S','G'].map(k=>{ const v=s[k]||{}; return `<div class="sp-sc" style="--c:${scCol(v.Scale)}"><b>${k}${v.Scale||0}</b><span>${esc(T(SW[k]))}</span></div>`; }).join('');
+      const s=D.sc&&D.sc['0']; if(s) $('swSc').innerHTML=['R','S','G'].map(k=>{ const v=s[k]||{}; return `<div class="sp-sc" style="--c:${scCol(v.Scale)}"><b>${k}${esc(v.Scale||0)}</b><span>${esc(T(SW[k]))}</span></div>`; }).join('');
       const rows=Array.isArray(D.kp)?D.kp.map(r=>Array.isArray(r)?{t:r[0],k:+r[1]}:{t:r.time_tag,k:+r.Kp}).filter(r=>isFinite(r.k)):[];
       const cur=rows[rows.length-1]||{k:0,t:''}, ki=Math.min(9,Math.round(cur.k));
       $('swKp').innerHTML=`<div class="k">${esc(T(SW.kp))}</div><div class="sp-kpv"><b style="color:${kpCol(cur.k)}">${fmt(cur.k,1)}</b><span>${esc(T(SW.lv)[ki])}</span></div><div class="sp-kpb"><i style="width:${cur.k/9*100}%;background:${kpCol(cur.k)}"></i></div><small>${cur.t?esc(hm(new Date(cur.t.replace(' ','T')+'Z'))+' · '+T(C.local)):''}</small>`;
@@ -301,7 +301,9 @@ register('launches',{ ico:'🚀', group:GROUP, name:LN.name, sub:LN.sub,
     // ---- Kompaniyalar
     async function coUI(){ const el=$('lnCo'); el.innerHTML=spin(); const AG=await agencies(); $('lnC_co').textContent=' '+AG.length;
       const a=lab.co&&AG.find(x=>x.id===lab.co), rate=x=>x.total_launch_count?(x.successful_launches/x.total_launch_count*100):0;
-      const logo=(x,big)=>'<span class="sp-col'+(big?' big':'')+'">'+(x.logo_url?'<img src="'+esc(x.logo_url)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(x.abbrev||'')+'\'" />':esc(x.abbrev||''))+'</span>';
+      // tashqi API ma'lumoti: faqat http(s) havolalar; rasm xatosi inline onerror emas, JS orqali (textContent)
+      const safeU=u=>/^https?:\/\//i.test(String(u||''))?String(u):'';
+      const logo=(x,big)=>'<span class="sp-col'+(big?' big':'')+'">'+(safeU(x.logo_url)?'<img src="'+esc(safeU(x.logo_url))+'" alt="" loading="lazy" data-ab="'+esc(x.abbrev||'')+'" />':esc(x.abbrev||''))+'</span>';
       const grid='<div class="sp-cog">'+AG.map(x=>'<button class="sp-coc'+(a&&a.id===x.id?' on':'')+'" data-id="'+x.id+'">'+logo(x)
           +'<span class="sp-con"><b>'+esc(short(x.name))+'</b><small>'+esc(ccN(x.country_code))+' · '+esc(x.founding_year||'')+'</small></span>'
           +'<span class="sp-cos"><b>'+fmt(x.total_launch_count||0,0)+'</b><i class="ed-mb"><i style="width:'+rate(x)+'%;background:#5fd39a"></i></i><small>'+fmt(rate(x),1)+'%</small></span></button>').join('')+'</div>';
@@ -316,8 +318,9 @@ register('launches',{ ico:'🚀', group:GROUP, name:LN.name, sub:LN.sub,
           +(info?'<p class="lab-p" style="margin-top:12px">'+esc(info[li])+'</p>':'')
           +(a.description?(info&&L()!=='en'?'<details class="sp-orig"><summary>'+esc(T(LN.orig))+'</summary><p class="lab-p">'+esc(a.description)+'</p></details>':(!info?'<p class="lab-p">'+esc(a.description)+'</p>':'')):'')
           +'<div class="lab-row"><button class="lab-chip on" id="coPast">📜 '+esc(T(LN.seePast))+'</button><button class="lab-chip" id="coUp">🚀 '+esc(T(LN.seeUp))+'</button>'
-            +(a.wiki_url?'<a class="lab-chip" href="'+esc(a.wiki_url)+'" target="_blank" rel="noopener">Wikipedia ↗</a>':'')+(a.info_url?'<a class="lab-chip" href="'+esc(a.info_url)+'" target="_blank" rel="noopener">'+esc(a.abbrev||short(a.name))+' ↗</a>':'')+'</div></div>'; }
+            +(safeU(a.wiki_url)?'<a class="lab-chip" href="'+esc(safeU(a.wiki_url))+'" target="_blank" rel="noopener">Wikipedia ↗</a>':'')+(safeU(a.info_url)?'<a class="lab-chip" href="'+esc(safeU(a.info_url))+'" target="_blank" rel="noopener">'+esc(a.abbrev||short(a.name))+' ↗</a>':'')+'</div></div>'; }
       el.innerHTML=det+grid;
+      el.querySelectorAll('.sp-col img').forEach(i=>i.onerror=()=>{ if(i.parentNode) i.parentNode.textContent=i.dataset.ab||''; });
       el.querySelectorAll('.sp-coc').forEach(b=>b.onclick=()=>{ lab.co=+b.dataset.id; click(780); coUI(); });
       if($('coBack')) $('coBack').onclick=()=>{ lab.co=null; click(700); coUI(); };
       if($('coPast')) $('coPast').onclick=()=>{ lab.pf={p:String(a.id),y:'',s:'',q:''}; lab.tab='past'; show(); };

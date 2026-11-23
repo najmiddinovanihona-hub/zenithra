@@ -219,6 +219,7 @@ register('tonight',{ ico:'🌃', group:{uz:'Osmon',ru:'Небо',en:'Sky'}, name
       if(b){ tip.textContent=b.t; tip.style.left=b.x+'px'; tip.style.top=(b.y-10)+'px'; tip.style.opacity=1; } else tip.style.opacity=0; });
     cv.addEventListener('pointerleave',()=>tip.style.opacity=0);
     lab.render=render; table();
+    clearInterval(lab.tick);   // qayta qurishda eski taymer qolmasin
     lab.tick=setInterval(()=>{ if(lab.isOpen && lab.live){ const prev=lab.ymd.join(); setNow(); render(lab.ymd.join()!==prev); } },20000);
   },
   open(){ if(this.live!==false && this.render){ const o=loc(), z=zoned(new Date(),o.tz); this.ymd=[z.y,z.m,z.d]; this.min=z.h*60+z.mi; } this.render&&this.render(true); }
