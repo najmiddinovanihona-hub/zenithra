@@ -73,14 +73,15 @@ function kit(el,api){
   const glHTML=GL=>`<dl class="t1-gl">${GL.map(g=>`<div class="dz-card"><dt>${T(g[0])}</dt><dd>${T(g[1])}</dd></div>`).join('')}</dl>`;
   const qaHTML=QA=>`<div class="t2-qa">${QA.map((q,i)=>`<div class="dz-card t2-qi"><div class="t2-qq"><span class="t2-qn">${i+1}</span><b>${T(q[0])}</b></div><div class="t2-ans" hidden>${T(q[1])}</div><button class="lab-chip t2-tog" data-qa="${i}">${T(U.show)}</button></div>`).join('')}</div>`;
   const bindQA=()=>$$('[data-qa]').forEach(b=>b.onclick=()=>{ click(720); const a=b.parentElement.querySelector('.t2-ans'); a.hidden=!a.hidden; b.textContent=T(a.hidden?U.show:U.hide); });
-  function quiz(box,QZ){ let qi=0, score=0, order=[];
+  // Mavzu testi. content.js (QCONTENT) bo'lsa — admin savollari qo'shiladi/yashirilganlari chiqadi; javoblar statistikaga ketadi
+  function quiz(box,QZ0){ let qi=0, score=0, order=[], QZ=QZ0, ans=[];
     const shuffle=a=>{ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
-    const start=()=>{ qi=0; score=0; order=shuffle(QZ.map((_,i)=>i)); show(); };
-    function show(){ if(qi>=order.length){ if(window.DZP&&api.id) window.DZP.score(api.id,score,order.length); box.innerHTML=`<div class="t1-qend"><div class="t1-qsc">${score} / ${order.length}</div><p class="t1-p">${T(U.qRes)}</p><button class="lab-chip on">↻ ${T(U.qAgain)}</button></div>`; box.querySelector('button').onclick=()=>{ click(720); start(); }; return; }
+    const start=()=>{ qi=0; score=0; ans=[]; QZ=window.QCONTENT&&api.id?window.QCONTENT.dzPool(api.id,QZ0,true):QZ0; order=shuffle(QZ.map((_,i)=>i)); show(); };
+    function show(){ if(qi>=order.length){ if(window.DZP&&api.id) window.DZP.score(api.id,score,order.length,ans); box.innerHTML=`<div class="t1-qend"><div class="t1-qsc">${score} / ${order.length}</div><p class="t1-p">${T(U.qRes)}</p><button class="lab-chip on">↻ ${T(U.qAgain)}</button></div>`; box.querySelector('button').onclick=()=>{ click(720); start(); }; return; }
       const q=QZ[order[qi]], opts=shuffle(q[1].map((o,i)=>[o,i]));
       box.innerHTML=`<div class="t1-qh"><span>${T(U.qOf)} ${qi+1} / ${order.length}</span><span>${score} ✦</span></div><div class="t1-qbar"><i style="width:${qi/order.length*100}%"></i></div><h4>${T(q[0])}</h4>
         <div class="t1-opts">${opts.map(([o,i])=>`<button class="t1-opt" data-k="${i}">${T(o)}</button>`).join('')}</div><div class="t1-qn"></div>`;
-      box.querySelectorAll('.t1-opt').forEach(b=>b.onclick=()=>{ const ok=b.dataset.k==='0'; if(ok) score++; click(ok?900:300);
+      box.querySelectorAll('.t1-opt').forEach(b=>b.onclick=()=>{ const ok=b.dataset.k==='0'; if(ok) score++; click(ok?900:300); if(q.m) ans.push(Object.assign({},q.m,{correct:ok}));
         box.querySelectorAll('.t1-opt').forEach(x=>{ x.disabled=true; if(x.dataset.k==='0') x.classList.add('ok'); else if(x===b) x.classList.add('no'); });
         const n=box.querySelector('.t1-qn'); n.innerHTML=`<button class="lab-chip on">${T(qi===order.length-1?U.qDone:U.qNext)} →</button>`; n.firstChild.onclick=()=>{ click(720); qi++; show(); }; }); }
     start(); }

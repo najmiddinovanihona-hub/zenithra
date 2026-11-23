@@ -87,9 +87,22 @@ frontend kod bo'yicha 3 tilli matnni o'zi tanlaydi.
 
 **Admin** (`role = admin`)
 - `GET /api/admin/stats` — foydalanuvchilar, faollik, 14 kunlik ro'yxatdan o'tishlar, top mavzular va testlar
-- `GET /api/admin/users?q=&role=&blocked=&page=` · `GET /api/admin/users/:id`
-- `PATCH /api/admin/users/:id` `{role?, blocked?}` · `DELETE /api/admin/users/:id`
+- `GET /api/admin/stats/daily?days=30` · `GET /api/admin/stats/topics` · `GET /api/admin/stats/questions?min=5&limit=20` — kunlik ko'rsatkichlar, mavzular o'zlashtirishi, eng qiyin savollar
+- `GET /api/admin/stats.csv?kind=daily|topics|questions` · `GET /api/admin/users.csv` (Excel uchun: UTF-8 BOM, `,`)
+- `GET /api/admin/users?q=&role=&blocked=&page=` · `GET /api/admin/users/:id` (profil, progress, natijalar, sessiyalar, jurnal)
+- `PATCH /api/admin/users/:id` `{name?, email?, role?, blocked?}` (email o'zgarsa sessiyalar yopiladi) · `DELETE /api/admin/users/:id`
+- `POST /api/admin/users/:id/revoke-sessions` · `POST /api/admin/users/:id/force-reset` (parol bekor qilinadi — foydalanuvchi «Parolni unutdim» orqali tiklaydi)
 - `GET /api/admin/quiz?userId=&quizId=&q=&page=` · `GET /api/admin/quiz.csv` (Excel uchun UTF-8)
+- `GET /api/admin/audit?action=&actor=&target=&from=&to=&page=` · `GET /api/admin/audit/actions` · `GET /api/admin/audit.csv` — harakatlar jurnali (`action` aniq nom yoki `admin.user.*` prefiks)
+- `GET /api/admin/content/meta` · `GET|POST /api/admin/content/questions` · `PUT|PATCH {active}|DELETE /api/admin/content/questions/:id` — admin savollari (3 tilli)
+- `GET /api/admin/content/builtin?scope=&level=&q=&hidden=` · `POST /api/admin/content/builtin/hidden` `{qid, hidden}` — kod ichidagi savollarni yashirish
+
+**Kontent** (ommaviy)
+- `GET /api/content/questions` → `{custom, hidden}` — saytdagi `content.js` testlarga qo'shadi / yashirilganlarini chiqaradi
+- `POST /api/content/answers` `{answers: [{qid, scope, level, text, correct}]}` — savollar statistikasi (≤ 50 ta, IP bo'yicha 10 daqiqada 15 so'rov);
+  kirgan foydalanuvchi uchun `POST /api/me/quiz` ham ixtiyoriy `answers` maydonini qabul qiladi
+
+Savol ID (qid, `quiz-ids.js`): admin savoli `c:<id>`, kod ichidagi savol `b:<quiz|dz>:<daraja yoki mavzu>:<o'zbekcha matndan FNV-1a, base36>`.
 
 Test ID'lari: `quiz:easy|medium|hard` (asosiy test), `quiz:dz:1-40` (darslik savollari), `topic:t07` (mavzu testi).
 

@@ -1,8 +1,8 @@
 /* Darslik fayllarini sahifa ochilgandan keyin, fonda ketma-ket yuklaydi (asosiy 3D sahifa tezroq ochilishi uchun).
    Darslik yoki test tugmasi bosilsa — darhol yuklashni boshlaydi. */
 (function(){
-const FILES=["labs/dz-t01.js?v=5",
- "labs/dz-t02.js?v=3",
+const FILES=["labs/dz-t01.js?v=6",
+ "labs/dz-t02.js?v=4",
  "labs/dz-t03.js?v=2",
  "labs/dz-t04.js?v=2",
  "labs/dz-t05.js?v=2",
@@ -53,7 +53,7 @@ const FILES=["labs/dz-t01.js?v=5",
  "labs/dz-extra.js?v=2",
  "labs/dz-masala.js?v=1",
  "labs/dz-tarix.js?v=1",
- "labs/dz-quizbridge.js?v=1"];
+ "labs/dz-quizbridge.js?v=2"];
 let started=false, done=0; const cbs=[];
 function start(){ if(started) return; started=true;
   FILES.forEach(f=>{ const s=document.createElement('script'); s.src=f; s.async=false; s.onload=s.onerror=()=>{ done++; if(done===FILES.length){ window.DZLOAD.ready=true; cbs.splice(0).forEach(c=>{ try{ c(); }catch(e){} }); } }; document.body.appendChild(s); }); }

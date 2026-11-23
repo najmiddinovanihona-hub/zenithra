@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex" />
   <title>Zenithra · Admin</title>
   <link rel="icon" href="logo.svg" />
-  <link rel="stylesheet" href="admin.css?v=2" />
+  <link rel="stylesheet" href="admin.css?v=3" />
 </head>
 <body>
   <header class="ad-top glass">
@@ -15,6 +15,8 @@
       <button class="ad-tab active" data-tab="stats" data-t="tabStats"></button>
       <button class="ad-tab" data-tab="users" data-t="tabUsers"></button>
       <button class="ad-tab" data-tab="quiz" data-t="tabQuiz"></button>
+      <button class="ad-tab" data-tab="content" data-t="tabContent"></button>
+      <button class="ad-tab" data-tab="audit" data-t="tabAudit"></button>
     </nav>
     <div class="ad-right">
       <div class="ad-langs"><button data-lang="uz">UZ</button><button data-lang="ru">RU</button><button data-lang="en">EN</button></div>
@@ -28,16 +30,36 @@
     <!-- Statistika -->
     <section id="tab-stats" class="ad-page">
       <div class="ad-kpis" id="kpis"></div>
+      <div class="glass ad-card ad-bar-row">
+        <label class="ad-inline"><span data-t="period"></span>
+          <select id="sDays"><option value="7" data-t="d7"></option><option value="30" selected data-t="d30"></option><option value="90" data-t="d90"></option></select></label>
+        <span class="ad-sp"></span>
+        <span class="ad-dim" data-t="export"></span>
+        <button class="ad-btn ghost sm" data-csv="users" data-t="csvUsers"></button>
+        <button class="ad-btn ghost sm" data-csv="daily" data-t="csvDaily"></button>
+        <button class="ad-btn ghost sm" data-csv="topics" data-t="csvTopics"></button>
+        <button class="ad-btn ghost sm" data-csv="questions" data-t="csvQuestions"></button>
+      </div>
       <div class="ad-grid">
-        <div class="glass ad-card">
-          <h3 data-t="regs14"></h3>
-          <div id="regChart" class="ad-bars"></div>
+        <div class="glass ad-card"><h3><span data-t="chRegs"></span><small id="chRegsSum"></small></h3><div id="chRegs" class="ad-chart"></div></div>
+        <div class="glass ad-card"><h3><span data-t="chActive"></span><small id="chActiveSum"></small></h3><div id="chActive" class="ad-chart"></div></div>
+        <div class="glass ad-card"><h3><span data-t="chAttempts"></span><small id="chAttemptsSum"></small></h3><div id="chAttempts" class="ad-chart"></div></div>
+        <div class="glass ad-card"><h3><span data-t="chAvg"></span><small id="chAvgSum"></small></h3><div id="chAvg" class="ad-chart"></div></div>
+        <details class="glass ad-card wide ad-details"><summary data-t="tableView"></summary><div class="ad-table-wrap"><table class="ad-table" id="dailyTable"></table></div></details>
+        <div class="glass ad-card wide">
+          <h3><span data-t="mastery"></span><small data-t="masteryHint"></small></h3>
+          <div class="ad-table-wrap ad-scroll"><table class="ad-table" id="mastery"></table></div>
+        </div>
+        <div class="glass ad-card wide">
+          <h3><span data-t="hardest"></span>
+            <label class="ad-inline sm"><span data-t="minAnswers"></span><select id="hMin"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>20</option><option>50</option></select></label></h3>
+          <div class="ad-table-wrap"><table class="ad-table" id="hardest"></table></div>
         </div>
         <div class="glass ad-card">
           <h3 data-t="topTopics"></h3>
           <div id="topTopics" class="ad-hbars"></div>
         </div>
-        <div class="glass ad-card wide">
+        <div class="glass ad-card">
           <h3 data-t="topQuizzes"></h3>
           <div class="ad-table-wrap"><table class="ad-table" id="topQuizzes"></table></div>
         </div>
@@ -52,6 +74,7 @@
           <select id="uRole"><option value="" data-t="allRoles"></option><option value="user" data-t="roleUser"></option><option value="admin" data-t="roleAdmin"></option></select>
           <select id="uBlocked"><option value="" data-t="allStatus"></option><option value="0" data-t="active"></option><option value="1" data-t="blocked"></option></select>
           <span class="ad-count" id="uCount"></span>
+          <button id="uCsv" class="ad-btn ghost" data-t="csv"></button>
         </div>
         <div class="ad-table-wrap"><table class="ad-table" id="uTable"></table></div>
         <div class="ad-pager" id="uPager"></div>
@@ -72,9 +95,81 @@
         <div class="ad-pager" id="qPager"></div>
       </div>
     </section>
+
+    <!-- Kontent: test savollari -->
+    <section id="tab-content" class="ad-page" hidden>
+      <div class="glass ad-card">
+        <div class="ad-seg" role="tablist">
+          <button data-src="custom" class="on" data-t="srcCustom"></button>
+          <button data-src="builtin" data-t="srcBuiltin"></button>
+        </div>
+        <p class="ad-note" id="cNote"></p>
+        <div class="ad-tools">
+          <select id="cScope"><option value="" data-t="allScopes"></option><option value="quiz" data-t="scopeQuiz"></option><option value="dz" data-t="scopeDz"></option></select>
+          <select id="cLevel"></select>
+          <input id="cQ" type="search" data-tp="searchQ" maxlength="100" />
+          <select id="cStatus"></select>
+          <span class="ad-count" id="cCount"></span>
+          <button id="cNew" class="ad-btn" data-t="newQ"></button>
+        </div>
+        <div class="ad-table-wrap"><table class="ad-table ad-qtable" id="cTable"></table></div>
+        <div class="ad-pager" id="cPager"></div>
+      </div>
+    </section>
+
+    <!-- Jurnal -->
+    <section id="tab-audit" class="ad-page" hidden>
+      <div class="glass ad-card">
+        <div class="ad-tools">
+          <select id="aAction"></select>
+          <input id="aActor" type="search" data-tp="actorPh" maxlength="100" />
+          <input id="aTarget" type="search" data-tp="targetPh" maxlength="100" />
+          <label class="ad-inline"><span data-t="from"></span><input id="aFrom" type="date" /></label>
+          <label class="ad-inline"><span data-t="to"></span><input id="aTo" type="date" /></label>
+          <button id="aReset" class="ad-btn ghost sm" data-t="resetF"></button>
+          <span class="ad-count" id="aCount"></span>
+          <button id="aCsv" class="ad-btn" data-t="csv"></button>
+        </div>
+        <div class="ad-table-wrap"><table class="ad-table" id="aTable"></table></div>
+        <div class="ad-pager" id="aPager"></div>
+      </div>
+    </section>
   </main>
 
+  <!-- Foydalanuvchi kartasi (o'ng tomondan chiqadigan panel) -->
+  <div id="udBack" class="ad-back" hidden></div>
+  <aside id="uDrawer" class="ad-drawer glass" hidden aria-modal="true" role="dialog" aria-labelledby="udTitle">
+    <div class="ad-dhead">
+      <div><h2 id="udTitle"></h2><div class="ad-dim" id="udSub"></div></div>
+      <button class="ad-x" id="udClose" aria-label="✕">✕</button>
+    </div>
+    <div id="udBody" class="ad-dbody"></div>
+  </aside>
+
+  <!-- Tasdiqlash oynasi -->
+  <dialog id="adAsk" class="ad-dialog glass">
+    <form method="dialog">
+      <p class="ad-ask-msg"></p>
+      <p class="ad-ask-note" hidden></p>
+      <div class="ad-dfoot"><button value="no" class="ad-btn ghost" data-t="cancel"></button><button value="yes" class="ad-btn ad-ask-ok"></button></div>
+    </form>
+  </dialog>
+
+  <!-- Savol muharriri -->
+  <dialog id="qEditor" class="ad-dialog ad-editor glass">
+    <form id="qeForm" method="dialog" novalidate>
+      <div class="ad-dhead"><h2 id="qeTitle"></h2><button type="button" class="ad-x" id="qeClose" aria-label="✕">✕</button></div>
+      <div class="ad-dbody" id="qeBody"></div>
+      <div class="ad-dfoot"><span class="ad-err" id="qeErr" role="alert"></span><button type="button" class="ad-btn ghost" id="qeCancel" data-t="cancel"></button><button type="submit" class="ad-btn" id="qeSave" data-t="save"></button></div>
+    </form>
+  </dialog>
+
+  <div id="adTip" class="ad-tip" role="status" hidden></div>
   <div id="adToast" class="ad-toast"></div>
-  <script src="admin.js?v=5" defer></script>
+  <script src="admin.js?v=6" defer></script>
+  <script src="admin-stats.js?v=1" defer></script>
+  <script src="admin-users.js?v=1" defer></script>
+  <script src="admin-content.js?v=1" defer></script>
+  <script src="admin-audit.js?v=1" defer></script>
 </body>
 </html>

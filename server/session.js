@@ -19,10 +19,11 @@ export function publicUser(u) {
   return { id: u.id, name: u.name, email: u.email, role: u.role, lang: u.lang };
 }
 
-// Yangi sessiya: brauzerga tasodifiy token, bazaga faqat uning xeshi.
-export async function startSession(res, userId) {
+// Yangi sessiya: brauzerga tasodifiy token, bazaga faqat uning xeshi. lifetimeMs — muddat (standart 30 kun;
+// admin paneli orqali kirishda qisqaroq).
+export async function startSession(res, userId, lifetimeMs = config.sessionDays * 864e5) {
   const token = crypto.randomBytes(32).toString('base64url');
-  const expiresAt = new Date(Date.now() + config.sessionDays * 864e5);
+  const expiresAt = new Date(Date.now() + lifetimeMs);
   await prisma.session.create({ data: { id: sha256(token), userId, expiresAt } });
   res.cookie(COOKIE, token, { ...cookieOpts(), expires: expiresAt });
 }

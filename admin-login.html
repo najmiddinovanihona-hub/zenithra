@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Zenithra · Admin</title>
+  <link rel="icon" href="logo.svg" />
+  <link rel="stylesheet" href="admin.css?v=3" />
+  <link rel="stylesheet" href="admin-login.css?v=1" />
+</head>
+<body class="al-body">
+  <!-- Admin paneliga kirish: email + parol → pochtaga kod → /admin (server endi admin.html ni beradi) -->
+  <header class="al-top">
+    <a class="ad-brand" href="/"><img src="logo.svg" alt="" width="26" height="26" /><span>ZENITHRA</span><b data-t="admin"></b></a>
+    <div class="ad-langs"><button type="button" data-lang="uz">UZ</button><button type="button" data-lang="ru">RU</button><button type="button" data-lang="en">EN</button></div>
+  </header>
+
+  <main class="al-wrap">
+    <section class="glass al-card" aria-labelledby="alTitle">
+      <div class="al-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg></div>
+      <h1 id="alTitle" data-t="title"></h1>
+      <p id="alSub" class="al-sub" data-t="sub"></p>
+      <p id="alNote" class="al-note" hidden></p>
+
+      <!-- 1-bosqich: email + parol -->
+      <form id="alForm" novalidate>
+        <label class="al-field"><span data-t="email"></span>
+          <input id="alEmail" type="email" autocomplete="username" inputmode="email" maxlength="254" />
+        </label>
+        <label class="al-field"><span data-t="pass"></span>
+          <span class="al-pw">
+            <input id="alPass" type="password" autocomplete="current-password" maxlength="128" />
+            <button id="alEye" class="al-eye" type="button"><svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.8 17.8 0 0 1-2.9 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg></button>
+          </span>
+        </label>
+        <div id="alErr" class="al-err" role="alert"></div>
+        <button id="alSubmit" class="ad-btn al-main" type="submit" data-t="sendCode"></button>
+        <a class="al-link al-forgot" href="/#reset" data-t="forgot"></a>
+      </form>
+
+      <!-- 2-bosqich: pochtaga yuborilgan 6 xonali kod -->
+      <form id="alCodeForm" novalidate hidden>
+        <p id="alSent" class="al-sent"></p>
+        <input id="alCode" class="al-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
+        <div id="alCodeErr" class="al-err" role="alert"></div>
+        <button id="alVerify" class="ad-btn al-main" type="submit" data-t="verify"></button>
+        <div class="al-links"><button id="alBack" class="al-link" type="button" data-t="back"></button><button id="alResend" class="al-link" type="button"></button></div>
+        <p class="al-hint" data-t="hint"></p>
+      </form>
+    </section>
+    <a class="al-link al-site" href="/" data-t="toSite"></a>
+  </main>
+
+  <script src="admin-login.js?v=1" defer></script>
+</body>
+</html>

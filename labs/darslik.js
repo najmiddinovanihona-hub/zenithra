@@ -25,8 +25,9 @@ const PK='dz_prog', pLoad=()=>{ try{ return JSON.parse(localStorage.getItem(PK))
 const pSave=p=>{ try{ localStorage.setItem(PK,JSON.stringify(p)); }catch(e){} pCbs.forEach(f=>{ try{ f(); }catch(e){} }); };
 window.DZP={ all:pLoad, get:id=>pLoad()[id]||null,
   seen(id){ const p=pLoad(); if(p[id]&&p[id].v) return; p[id]=Object.assign(p[id]||{},{v:1}); pSave(p); },
-  score(id,sc,tot){ if(!id) return; const p=pLoad(), o=p[id]||{}; o.v=1; o.s=sc; o.t=tot; o.b=Math.max(o.b||0,sc); o.d=Date.now(); p[id]=o; pSave(p);
-    if(window.API) window.API.quiz('topic:'+id,sc,tot); },
+  // answers — savollar bo'yicha javoblar (ixtiyoriy): content.js orqali natija bilan birga statistikaga yuboriladi
+  score(id,sc,tot,answers){ if(!id) return; const p=pLoad(), o=p[id]||{}; o.v=1; o.s=sc; o.t=tot; o.b=Math.max(o.b||0,sc); o.d=Date.now(); p[id]=o; pSave(p);
+    if(window.QCONTENT) window.QCONTENT.finish('topic:'+id,sc,tot,answers||[]); else if(window.API) window.API.quiz('topic:'+id,sc,tot); },
   reset(){ pSave({}); }, replace(p){ pSave(p||{}); },
   on:f=>{ pCbs.push(f); return ()=>{ const i=pCbs.indexOf(f); if(i>=0) pCbs.splice(i,1); }; } };   // qaytgan funksiya — obunani bekor qilish
 const isMain=t=>/^t\d+$/.test(t.id);

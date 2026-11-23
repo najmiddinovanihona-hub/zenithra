@@ -37,7 +37,7 @@ async function req(method, url, body){
   if(!r.ok || !data){
     const err = { status:r.status, code:(data&&data.error)||'SERVER_ERROR', details:data&&data.details };
     // Sessiya kutilmaganda tugadi (muddati, bloklash, boshqa qurilmada parol almashtirildi) — chiqish kabi
-    if(r.status===401 && API.user && !/\/auth\/(login|register)$/.test(url)){ const uid=String(API.user.id); API.user=null; forgetLocalUser(uid); emit(); }
+    if(r.status===401 && API.user && !/\/auth\/(login|register|reset|password|verify)$/.test(url)){ const uid=String(API.user.id); API.user=null; forgetLocalUser(uid); emit(); }
     throw err;
   }
   return data;
@@ -139,17 +139,20 @@ async function syncAll(){
 }
 
 /* ---------- ommaviy funksiyalar ---------- */
-// Ro'yxatdan o'tish va kirish ikki bosqichli: avval pochtaga kod yuboriladi ({challenge, email, resendIn}),
-// so'ng API.verify(challenge, kod) sessiyani ochadi.
-API.register = async (name, email, password) => {
-  const l = LS.getItem('solar_lang'), lang = VALID.lang(l) ? l : 'uz';
-  return req('POST', '/api/auth/register', { name, email, password, lang });
-};
+// Pochta kodi: avval kod yuboriladi ({challenge, email, resendIn}), so'ng API.verify(challenge, kod):
+//   kirish — sessiya ochiladi ({user}); ro'yxatdan o'tish / parolni tiklash — {setup, purpose} qaytadi,
+//   keyin API.setPassword(setup, parol, ism?) parolni o'rnatadi va sessiyani ochadi.
+const curLang = () => { const l = LS.getItem('solar_lang'); return VALID.lang(l) ? l : 'uz'; };
+const signedIn = (r) => { API.user = r.user; emit(); syncAll(); return r; };
+API.register = (email) => req('POST', '/api/auth/register', { email, lang:curLang() });
 API.login = (email, password) => req('POST', '/api/auth/login', { email, password });
+API.reset = (email) => req('POST', '/api/auth/reset', { email, lang:curLang() });
 API.verify = async (challenge, code) => {
   const r = await req('POST', '/api/auth/verify', { challenge, code });
-  API.user = r.user; emit(); syncAll(); return r.user;
+  return r.user ? signedIn(r) : r;
 };
+API.setPassword = async (setup, password, name) =>
+  signedIn(await req('POST', '/api/auth/password', name ? { setup, password, name } : { setup, password }));
 API.resend = (challenge) => req('POST', '/api/auth/resend', { challenge });
 // Chiqish: avval yuborilmagan o'zgarishlar saqlanadi. Server bilan aloqa bo'lmasa — xato qaytariladi va foydalanuvchi
 // kirgan holicha qoladi (aks holda saqlanmagan progress o'chib ketardi yoki cookie tirik qolib, "chiqdim" deb aldardi).
@@ -175,9 +178,11 @@ API.updateName = async (name) => {
 };
 API.changePassword = (currentPassword, newPassword) => req('POST', '/api/me/password', { currentPassword, newPassword });
 // Test natijasi: faqat kirgan foydalanuvchida serverga yoziladi (mehmonda jim o'tkazib yuboriladi).
-API.quiz = (quizId, score, total) => {
+// answers (ixtiyoriy) — savollar bo'yicha javoblar statistikasi (content.js tozalab beradi).
+API.quiz = (quizId, score, total, answers) => {
   if(!API.user || !(total>0)) return;
   const body = { quizId:String(quizId).slice(0,64), score, total };
+  if(Array.isArray(answers) && answers.length) body.answers = answers;
   // Tarmoq uzilishi yoki server band bo'lsa — bir marta qayta urinish (natija jimgina yo'qolmasin)
   req('POST', '/api/me/quiz', body).catch(e=>{
     if(e && (e.status===0 || e.status>=500 || e.status===429)) setTimeout(()=>{ if(API.user) req('POST','/api/me/quiz',body).catch(()=>{}); }, 15000);
