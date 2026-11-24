@@ -10,6 +10,7 @@ import { Page, IdParam, contains, daysAgo, pct, eventOut } from './admin-util.js
 import statsRoutes from './admin-stats.js';
 import auditRoutes from './admin-audit.js';
 import contentRoutes from './admin-content.js';
+import { adminErrors } from './errors.js';
 
 const router = Router();
 router.use(requireAdmin);
@@ -333,6 +334,7 @@ router.get('/quiz.csv', async (req, res) => {
 /* ---------------- Kengaytirilgan statistika, jurnal, kontent ---------------- */
 router.use(statsRoutes);
 router.use(auditRoutes);
+router.use(adminErrors);   // xatolar monitori: /errors, /errors/:fp, /errors/:fp/resolve, /errors.csv
 router.use('/content', contentRoutes);
 
 export default router;

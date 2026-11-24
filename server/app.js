@@ -13,6 +13,7 @@ import meRoutes from './routes/me.js';
 import adminRoutes from './routes/admin.js';
 import pushRoutes from './push.js';
 import contentRoutes from './routes/content.js';
+import errorRoutes, { reportServerError } from './routes/errors.js';
 
 // Brauzerga beriladigan fayllar: faqat shular (server/, prisma/, .env, uploads/ va h.k. hech qachon berilmaydi).
 // MUHIM: har bir ochiq papka O'ZINING ildizidan beriladi. Avval butun loyiha ildizi regex bilan cheklangan edi —
@@ -46,6 +47,48 @@ function sameOrigin(req, res, next) {
   next();
 }
 
+/* ---------- Content-Security-Policy ----------
+   Inline <script> va onclick="..." kabi atributlar taqiqlangan (index.html dagi skriptlar boot.js, vendor-fallback.js
+   fayllariga ko'chirilgan). three.js / OrbitControls / Leaflet zaxirasi — faqat aniq fayl manzillari (butun CDN emas:
+   CDN'dagi boshqa paketlar orqali CSP aylanib o'tilmasin); CDN fayllari SRI (integrity) bilan ham tekshiriladi.
+   style-src 'unsafe-inline' — style="..." atributlari va JS bilan o'rnatiladigan uslublar juda ko'p (xavfi kichik). */
+const SITE_CSP = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'",
+    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'],   // labs/weather.js: mahalliy Leaflet yuklanmasa
+  scriptSrcAttr: ["'none'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  imgSrc: ["'self'", 'data:', 'blob:',
+    'https://sdo.gsfc.nasa.gov',                              // Quyosh suratlari (kosmik ob-havo)
+    'https://server.arcgisonline.com',                         // xarita plitkalari (ob-havo xaritasi)
+    'https://thespacedevs-prod.nyc3.digitaloceanspaces.com',  // Launch Library: raketa/agentlik rasmlari
+    'https://spacelaunchnow-prod-east.nyc3.digitaloceanspaces.com'],   // (eski yozuvlardagi rasmlar)
+  fontSrc: ["'self'", 'data:'],
+  connectSrc: ["'self'",
+    'https://api.open-meteo.com',                // ob-havo
+    'https://services.swpc.noaa.gov',            // kosmik ob-havo (NOAA SWPC)
+    'https://ll.thespacedevs.com', 'https://lldev.thespacedevs.com',   // raketa uchirilishlari
+    'https://celestrak.org', 'https://api.wheretheiss.at',             // XKS orbitasi (TLE)
+    'https://api.bigdatacloud.net', 'https://nominatim.openstreetmap.org',   // joy nomi (teskari geokodlash)
+    'https://ipwho.is', 'https://get.geojs.io'],                       // taxminiy joylashuv (IP bo'yicha)
+  workerSrc: ["'self'", 'blob:'],   // sw.js + Blob URL'dan yaratiladigan Worker'lar (yuklanish animatsiyasi, teksturalar)
+  childSrc: ["'self'", 'blob:'],    // worker-src ni bilmaydigan eski Safari uchun
+  frameSrc: ['https://najmiddinovanihona-hub.github.io'],   // muallif portfoliosi (iframe)
+  mediaSrc: ["'self'", 'blob:'],
+  manifestSrc: ["'self'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  frameAncestors: ["'none'"],
+  ...(config.isProd ? { upgradeInsecureRequests: [] } : {}),   // lokal http://localhost da yoqilmaydi
+};
+const ADMIN_CSP = ["default-src 'self'", "script-src 'self'", "script-src-attr 'none'", "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:", "font-src 'self'", "connect-src 'self'", "worker-src 'none'", "frame-src 'none'",
+  "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
+  ...(config.isProd ? ['upgrade-insecure-requests'] : [])].join('; ');
+
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
@@ -53,10 +96,19 @@ export function createApp() {
 
   app.use(compression());   // JS/CSS/JSON gzip bilan — ~1.2 MB skriptlar bir necha baravar kichrayadi
   app.use(helmet({
-    // Sayt CDN (three.js), tashqi API'lar va inline skriptlardan foydalanadi — CSP keyinroq alohida sozlanadi.
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
+    // Content-Security-Policy: sahifa faqat ro'yxatdagi manbalardan skript/ma'lumot/rasm yuklay oladi (XSS himoyasi).
+    // Yangi tashqi API yoki rasm manbai qo'shilsa — SITE_CSP ga ham qo'shilishi SHART, aks holda brauzer bloklaydi.
+    contentSecurityPolicy: { useDefaults: false, directives: SITE_CSP },
+    crossOriginEmbedderPolicy: false,   // tashqi rasmlar (NASA SDO, xarita plitkalari) CORP sarlavhasisiz keladi
+    // Tashqi API'larga faqat sayt manzili (origin) yuboriladi, sahifa yo'li emas. "no-referrer" (standart) ba'zi
+    // bepul xizmatlar (Nominatim, Esri plitkalari) talab qiladigan ilova identifikatsiyasini butunlay olib tashlardi.
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
+  // Admin sahifalari (/admin — kirish sahifasi ham shu manzilda) tashqi manbalarga umuman murojaat qilmaydi — qattiqroq siyosat
+  app.use((req, res, next) => {
+    if (req.path === '/admin' || req.path === '/admin.html') res.setHeader('Content-Security-Policy', ADMIN_CSP);
+    next();
+  });
 
   /* ---------- API ---------- */
   const api = express.Router();
@@ -78,6 +130,7 @@ export function createApp() {
   api.use('/admin', adminRoutes);
   api.use('/push', pushRoutes);   // osmon hodisalari eslatmalari (Web Push)
   api.use('/content', contentRoutes);   // admin qo'shgan test savollari (ommaviy, faqat o'qish)
+  api.use('/errors', errorRoutes);   // brauzer xatolari (xatolar monitori, admin "Xatolar" bo'limi)
   api.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
   api.use((err, req, res, next) => {
     if (err instanceof ApiError) {
@@ -90,6 +143,7 @@ export function createApp() {
     if (err.code === 'P2025') return res.status(404).json({ error: 'NOT_FOUND' });
     if (err.code === 'P2034' || err.code === 'P2028') return res.status(503).json({ error: 'BUSY' });
     console.error(err);
+    reportServerError(err, req);   // admin panelidagi "Xatolar" bo'limi uchun (hech qachon xato tashlamaydi)
     res.status(500).json({ error: 'SERVER_ERROR' });
   });
   app.use('/api', api);

@@ -1,6 +1,68 @@
 /* Zenithra · Admin paneli — yadro: tillar, API, umumiy yordamchilar, foydalanuvchilar ro'yxati va test natijalari.
    Bo'limlar alohida fayllarda: admin-stats.js, admin-users.js (foydalanuvchi kartasi), admin-content.js, admin-audit.js.
    Ular window.ADM orqali ulanadi: ADM.addTX({...}) — matnlar, ADM.tabs.<nom> = yuklovchi. Ruxsat server tomonda tekshiriladi. */
+
+/* Xatolar monitori (admin sahifasi): api.js dagi bilan bir xil qoidalar — takrorsiz, sessiyada ≤ 10 ta,
+   shaxsiy ma'lumot tozalanadi, POST /api/errors. O'zi hech qachon xato otmaydi. */
+(function(){
+  try{
+    if(!/^https?:$/.test(location.protocol) || !window.fetch) return;
+    const me = document.currentScript, APPV = (me && /[?&]v=([\w.-]{1,20})/.exec(me.src) || [])[1];
+    const origin = location.origin, sent = new Set(); let n = 0, busy = false;
+    const clean = (s, max) => {
+      s = String(s == null ? '' : s).split(origin).join('')
+        .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[email]')
+        .replace(/\b(bearer\s+|(?:token|password|parol|secret|session)\s*[:=]\s*["']?)[^\s"',;&]+/gi, '$1[hidden]')
+        .replace(/([^\s?#'"()]*[/.][^\s?#'"()]*)[?#][^\s'"():]*/g, '$1')
+        .replace(/\b(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[\w-]{24,}\b/g, '[token]');
+      return s.length > max ? s.slice(0, max - 1) + '…' : s;
+    };
+    function send(kind, message, source, line, col, stack){
+      if(busy) return; busy = true;
+      try{
+        message = clean(message, 500);
+        if(!message || /ResizeObserver loop/i.test(message) || (/^(Uncaught )?Script error\.?$/i.test(message.trim()) && !source)) return;
+        if(/-extension:\/\//.test(String(source) + String(stack))) return;
+        const v = (/[?&]v=([\w.-]{1,20})/.exec(String(source || '')) || [])[1] || APPV;
+        source = source ? clean(source, 300) : '';
+        const key = message + '|' + source;
+        if(n >= 10 || sent.has(key)) return;
+        n++; sent.add(key);
+        const body = { kind, message, page: location.pathname.slice(0, 200), auth: true };
+        if(source) body.source = source;
+        if(line >= 0) body.line = Math.min(1e7, line | 0);
+        if(col >= 0) body.col = Math.min(1e7, col | 0);
+        if(stack) body.stack = clean(stack, 2000);
+        body.ua = 'admin';
+        if(v) body.v = v;
+        fetch('/api/errors', { method:'POST', keepalive:true, credentials:'same-origin',
+          headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+      }catch(e){}
+      finally{ busy = false; }
+    }
+    window.addEventListener('error', e => {
+      try{
+        const t = e.target;
+        if(t && t !== window && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')){
+          const url = t.src || t.href || '';
+          if(url.indexOf(origin + '/') === 0) send('resource', 'Resource failed to load: ' + url, url);
+          return;
+        }
+        if(t && t !== window) return;
+        send('error', e.message || 'Error', e.filename, e.lineno, e.colno, e.error && e.error.stack);
+      }catch(x){}
+    }, true);
+    window.addEventListener('unhandledrejection', e => {
+      try{
+        const r = e.reason;
+        if(r instanceof Error && (r.message === 'auth' || r.message === 'NETWORK')) return;   // admin api() ning kutilgan holatlari
+        const msg = r instanceof Error ? (r.name && r.name !== 'Error' ? r.name + ': ' : '') + r.message : String(r);
+        send('rejection', 'Unhandled rejection: ' + msg, '', -1, -1, r && r.stack);
+      }catch(x){}
+    });
+  }catch(e){}
+})();
+
 (function(){
 const TX = {
   admin:{uz:'Admin',ru:'Админ',en:'Admin'},
@@ -9,6 +71,7 @@ const TX = {
   tabQuiz:{uz:'Test natijalari',ru:'Результаты тестов',en:'Quiz results'},
   tabContent:{uz:'Kontent',ru:'Контент',en:'Content'},
   tabAudit:{uz:'Jurnal',ru:'Журнал',en:'Audit log'},
+  tabErrors:{uz:'Xatolar',ru:'Ошибки',en:'Errors'},
   toSite:{uz:'← Saytga',ru:'← На сайт',en:'← To site'},
   logout:{uz:'Chiqish',ru:'Выйти',en:'Log out'},
   searchUser:{uz:'Ism yoki email bo‘yicha qidirish…',ru:'Поиск по имени или email…',en:'Search by name or email…'},
@@ -125,7 +188,7 @@ function ask({ text, note, ok, danger }){
 }
 
 /* ---------------- til ---------------- */
-const langCbs = [];
+const langCbs = [], bootCbs = [];
 function applyLang(){
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T(TX[el.dataset.t]); });
@@ -142,7 +205,7 @@ document.querySelectorAll('.ad-langs button').forEach(b => b.onclick = () => {
 });
 
 /* ---------------- tablar ---------------- */
-const TABS = ['stats','users','quiz','content','audit'];
+const TABS = ['stats','users','quiz','content','audit','errors'];
 const tabs = {};   // nom → yuklovchi (Promise qaytaradi)
 let cur = 'stats';
 function show(tab){
@@ -304,6 +367,7 @@ window.ADM = {
   quizName, topicName, levelName, userAction, showResultsFor, show, tabs, LANGS,
   addTX: o => Object.assign(TX, o),
   onLang: f => langCbs.push(f),
+  onBoot: f => bootCbs.push(f),   // admin aniqlangandan keyin bir marta (masalan, "Xatolar" nishonchasi)
   reloadUsers: () => cur==='users' ? loadUsers().catch(fail) : Promise.resolve(),
   get LANG(){ return LANG; }, get LOCALE(){ return LOCALE[LANG]; }, get ME(){ return ME; }, get TOPICS(){ return TOPICS; }, get cur(){ return cur; },
 };
@@ -322,6 +386,7 @@ async function boot(){
   }catch(e){ return fail(e); }
   const h = location.hash.slice(1);
   show(TABS.includes(h) ? h : 'stats');
+  bootCbs.forEach(f => { try{ f(); }catch(e){ console.error(e); } });
 }
 if(document.readyState==='complete') boot(); else document.addEventListener('DOMContentLoaded', boot, { once:true });
 })();

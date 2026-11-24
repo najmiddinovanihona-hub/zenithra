@@ -3,6 +3,88 @@
    faqat localStorage bilan ishlaydi.
    Sinxron: localStorage.setItem ustidan kuzatuv — `dz_prog` va sozlama kalitlari o'zgarsa, kirgan
    foydalanuvchida serverga (debounce bilan) yuboriladi. Shu sababli mavjud kodni o'zgartirish shart emas. */
+
+/* ---------- Xatolar monitori: brauzerdagi xatolar → POST /api/errors (admin "Xatolar" bo'limi) ----------
+   window 'error' (skript xatolari va o'z saytimizdagi skript/CSS yuklanmasligi) va 'unhandledrejection'.
+   Takrorlar yuborilmaydi (xabar+manba bo'yicha), sessiyada ko'pi bilan 10 ta. Shaxsiy ma'lumot olib tashlanadi:
+   emaillar, URL so'rov qatorlari (?...), tokenlar; foydalanuvchidan faqat "kirganmi" (true/false).
+   Bu kodning o'zi hech qachon xato otmaydi va o'zini qayta chaqirmaydi. */
+(function(){
+  try{
+    if(!/^https?:$/.test(location.protocol) || !window.fetch) return;
+    const MAX = 10, KEY = 'dz_err_sent';
+    const me = document.currentScript, APPV = (me && /[?&]v=([\w.-]{1,20})/.exec(me.src) || [])[1];
+    let busy = false, mem = { n:0, k:[] };
+    const store = () => { try{ return JSON.parse(sessionStorage.getItem(KEY)) || mem; }catch(e){ return mem; } };
+    const save = s => { mem = s; try{ sessionStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} };
+    const origin = location.origin;
+    // Shaxsiy ma'lumotni tozalash (server ham qayta tozalaydi)
+    const clean = (s, max) => {
+      s = String(s == null ? '' : s).split(origin).join('')
+        .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[email]')
+        .replace(/\b(bearer\s+|(?:token|password|parol|secret|session)\s*[:=]\s*["']?)[^\s"',;&]+/gi, '$1[hidden]')
+        .replace(/([^\s?#'"()]*[/.][^\s?#'"()]*)[?#][^\s'"():]*/g, '$1')
+        .replace(/\b(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[\w-]{24,}\b/g, '[token]');
+      return s.length > max ? s.slice(0, max - 1) + '…' : s;
+    };
+    const ua = (() => { try{
+      const u = navigator.userAgent, b = /Edg\//.test(u)?'Edge':/OPR\/|Opera/.test(u)?'Opera':/SamsungBrowser/.test(u)?'Samsung':
+        /YaBrowser/.test(u)?'Yandex':/Firefox\//.test(u)?'Firefox':/Chrome\//.test(u)?'Chrome':/Safari\//.test(u)?'Safari':'Other';
+      const o = /Android/.test(u)?'Android':/iPhone|iPad|iPod/.test(u)?'iOS':/Windows/.test(u)?'Windows':/Mac OS X/.test(u)?'macOS':/Linux/.test(u)?'Linux':'Other';
+      const v = (new RegExp((b==='Edge'?'Edg':b==='Opera'?'OPR':b==='Samsung'?'SamsungBrowser':b==='Yandex'?'YaBrowser':b==='Safari'?'Version':b)+'/(\\d+)').exec(u) || [])[1];
+      return b + (v ? ' ' + v : '') + ' · ' + o;
+    }catch(e){ return ''; } })();
+    function send(kind, message, source, line, col, stack){
+      if(busy) return; busy = true;
+      try{
+        message = clean(message, 500);
+        if(!message || /ResizeObserver loop/i.test(message)) return;
+        if(/^(Uncaught )?Script error\.?$/i.test(message.trim()) && !source) return;
+        if(/-extension:\/\//.test(String(source) + String(stack))) return;
+        const v = (/[?&]v=([\w.-]{1,20})/.exec(String(source || '')) || [])[1] || APPV;
+        source = source ? clean(source, 300) : '';
+        const s = store(), key = (message + '|' + source).slice(0, 300);
+        if(s.n >= MAX || s.k.indexOf(key) >= 0) return;
+        s.n++; s.k.push(key); save(s);
+        const body = { kind, message, page: location.pathname.slice(0, 200), auth: !!(window.API && window.API.user) };
+        if(source) body.source = source;
+        if(line >= 0) body.line = Math.min(1e7, line | 0);
+        if(col >= 0) body.col = Math.min(1e7, col | 0);
+        if(stack) body.stack = clean(stack, 2000);
+        if(ua) body.ua = ua.slice(0, 80);
+        if(v) body.v = v;
+        fetch('/api/errors', { method:'POST', keepalive:true, credentials:'same-origin',
+          headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+      }catch(e){}
+      finally{ busy = false; }
+    }
+    window.addEventListener('error', e => {
+      try{
+        const t = e.target;
+        // Resurs yuklanmadi (capture bosqichida keladi): faqat o'z saytimizdagi skript va CSS
+        if(t && t !== window && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')){
+          const url = t.src || t.href || '';
+          if(url.indexOf(origin + '/') === 0 && (t.tagName === 'SCRIPT' || /stylesheet/i.test(t.rel || '')))
+            send('resource', 'Resource failed to load: ' + url, url);
+          return;
+        }
+        if(t && t !== window) return;
+        send('error', e.message || (e.error && e.error.message) || 'Error', e.filename, e.lineno, e.colno, e.error && e.error.stack);
+      }catch(x){}
+    }, true);
+    window.addEventListener('unhandledrejection', e => {
+      try{
+        const r = e.reason;
+        const msg = r instanceof Error ? (r.name && r.name !== 'Error' ? r.name + ': ' : '') + r.message
+          : typeof r === 'string' ? r : (() => { try{ return JSON.stringify(r); }catch(x){ return String(r); } })();
+        // api.js ning o'z tarmoq xatolari ({status, code}) — kutilgan holat, xato emas
+        if(r && typeof r === 'object' && !(r instanceof Error) && 'status' in r && 'code' in r) return;
+        send('rejection', 'Unhandled rejection: ' + msg, '', -1, -1, r && r.stack);
+      }catch(x){}
+    });
+  }catch(e){}
+})();
+
 (function(){
 // Brauzer xotirasi bloklangan bo'lsa (cookie/sayt ma'lumotlari taqiqlangan) window.localStorage xato otadi —
 // vaqtinchalik (sahifa yopilguncha) xotira ishlatiladi, sayt va kirish ishlayveradi.

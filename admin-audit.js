@@ -8,7 +8,9 @@ A.addTX({
   actorPh:{uz:'Bajaruvchi email…',ru:'Email исполнителя…',en:'Actor email…'}, targetPh:{uz:'Nishon: foydalanuvchi ID yoki email…',ru:'Цель: ID или email пользователя…',en:'Target: user ID or email…'},
   from:{uz:'dan',ru:'с',en:'from'}, to:{uz:'gacha',ru:'по',en:'to'}, resetF:{uz:'Tozalash',ru:'Сбросить',en:'Reset'},
   target:{uz:'Nishon',ru:'Цель',en:'Target'}, detailsH:{uz:'Tafsilotlar',ru:'Подробности',en:'Details'},
-  system:{uz:'tizim / mehmon',ru:'система / гость',en:'system / guest'}, goneUser:{uz:'o‘chirilgan foydalanuvchi',ru:'удалённый пользователь',en:'deleted user'},
+  system:{uz:'tizim / mehmon',ru:'система / гость',en:'system / guest'},
+  showSys:{uz:'Xatolar yozuvlarini ham ko‘rsatish',ru:'Показывать записи об ошибках',en:'Show error entries'},
+  gClientErr:{uz:'Brauzer xatolari',ru:'Ошибки браузера',en:'Browser errors'}, gServerErr:{uz:'Server xatolari',ru:'Ошибки сервера',en:'Server errors'}, goneUser:{uz:'o‘chirilgan foydalanuvchi',ru:'удалённый пользователь',en:'deleted user'},
 });
 // Amal nomlari: noma'lumi xom kod bilan ko'rsatiladi
 const ACT = {
@@ -38,8 +40,11 @@ const ACT = {
   'content.question.deactivate':{uz:'Savol o‘chirib qo‘yildi',ru:'Вопрос отключён',en:'Question deactivated'},
   'content.builtin.hide':{uz:'O‘rnatilgan savol yashirildi',ru:'Встроенный вопрос скрыт',en:'Built-in question hidden'},
   'content.builtin.unhide':{uz:'O‘rnatilgan savol qaytarildi',ru:'Встроенный вопрос возвращён',en:'Built-in question restored'},
+  'client.error':{uz:'Brauzerda xato',ru:'Ошибка в браузере',en:'Browser error'},
+  'server.error':{uz:'Serverda xato (500)',ru:'Ошибка сервера (500)',en:'Server error (500)'},
+  'admin.error.resolve':{uz:'Admin: xato hal qilindi',ru:'Админ: ошибка решена',en:'Admin: error resolved'},
 };
-const GROUPS = [['auth.*','gAuth'],['admin.user.*','gAdminUser'],['content.*','gContent'],['me.*','gMe']];
+const GROUPS = [['auth.*','gAuth'],['admin.user.*','gAdminUser'],['content.*','gContent'],['me.*','gMe'],['client.*','gClientErr'],['server.*','gServerErr']];
 // Tafsilotlardagi kalitlar
 const KEY = {
   name:{uz:'ism',ru:'имя',en:'name'}, email:{uz:'email',ru:'email',en:'email'}, role:{uz:'rol',ru:'роль',en:'role'},
@@ -74,9 +79,19 @@ A.detailsText = detailsText;
 
 /* ---------------- ro'yxat ---------------- */
 const S = { page:1, pageSize:30, seq:0, actions:null };
+// Xatolar monitori yozuvlari (client.* / server.*) standart bo'yicha yashirin — ular "Xatolar" bo'limida.
+// Belgi katakchasi admin.html ga tegmaslik uchun shu yerda yaratiladi.
+const sysBox = (() => {
+  const l = document.createElement('label'); l.className = 'ad-check-inline';
+  l.innerHTML = '<input type="checkbox" id="aSys" /><span data-t="showSys"></span>';
+  $('aReset').before(l);
+  l.querySelector('span').textContent = T(TX.showSys);
+  return l.querySelector('input');
+})();
 function params(){
   const qs = new URLSearchParams();
   if($('aAction').value) qs.set('action', $('aAction').value);
+  if(sysBox.checked) qs.set('sys', '1');
   if($('aActor').value.trim()) qs.set('actor', $('aActor').value.trim());
   if($('aTarget').value.trim()) qs.set('target', $('aTarget').value.trim());
   // Sanalar mahalliy vaqt bo'yicha: "dan" — kun boshi, "gacha" — kun oxiri
@@ -135,9 +150,9 @@ async function load(){
 
 const again = () => { S.page = 1; load().catch(fail); };
 $('aAction').onchange = again;
-$('aFrom').onchange = $('aTo').onchange = again;
+$('aFrom').onchange = $('aTo').onchange = sysBox.onchange = again;
 $('aActor').oninput = $('aTarget').oninput = debounce(again, 300);
-$('aReset').onclick = () => { ['aAction','aActor','aTarget','aFrom','aTo'].forEach(id => { $(id).value = ''; }); again(); };
+$('aReset').onclick = () => { ['aAction','aActor','aTarget','aFrom','aTo'].forEach(id => { $(id).value = ''; }); sysBox.checked = false; again(); };
 $('aCsv').onclick = () => A.download('/api/admin/audit.csv?' + params());
 
 A.tabs.audit = () => { S.actions = null; return load(); };

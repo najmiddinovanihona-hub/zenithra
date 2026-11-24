@@ -15,12 +15,19 @@ const AuditFilter = z.object({
   target: z.string().trim().max(100).optional(),              // foydalanuvchi ID yoki email qismi
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
+  // Xatolar monitori yozuvlari (client.* / server.*) standart bo'yicha yashiriladi — "Xatolar" bo'limida ko'rinadi.
+  // sys=1 — ularni ham ko'rsatish; amal filtri aniq "client."/"server." bo'lsa ham ko'rsatiladi.
+  sys: z.enum(['0', '1']).optional(),
 });
 const AuditQuery = Page.extend(AuditFilter.shape);
 
-async function auditWhere({ action, actor, target, from, to }) {
+const SYS_PREFIXES = ['client.', 'server.'];
+async function auditWhere({ action, actor, target, from, to, sys }) {
   const w = {};
   if (action) w.action = /[*.]$/.test(action) ? { startsWith: action.replace(/\*$/, '') } : action;
+  if (sys !== '1' && !(action && SYS_PREFIXES.some((p) => action.startsWith(p)))) {
+    w.NOT = SYS_PREFIXES.map((p) => ({ action: { startsWith: p } }));
+  }
   if (actor) w.actorEmail = contains(actor.toLowerCase());
   if (target) {
     w.targetType = 'user';

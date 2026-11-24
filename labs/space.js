@@ -248,7 +248,7 @@ register('launches',{ ico:'🚀', group:GROUP, name:LN.name, sub:LN.sub,
       $('lnF').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{ lab.f=b.dataset.f; click(740); renderUp(); });
       const fl=rs.filter(r=>lab.f==='all'||prov(r)===lab.f), n=fl[0];
       if(n){ const st=(n.status&&n.status.abbrev)||'TBD', m=n.mission||{}, nd=new Date(n.net), tbd=n.net_precision&&/Month|Day|Week|Quarter/.test(n.net_precision.name||'');
-        $('lnNext').innerHTML='<div class="sp-ln">'+(n.image?'<div class="sp-lim"><img src="'+esc(n.image)+'" alt="" loading="lazy" onerror="this.parentNode.remove()" /></div>':'')
+        $('lnNext').innerHTML='<div class="sp-ln">'+(n.image?'<div class="sp-lim"><img src="'+esc(n.image)+'" alt="" loading="lazy" data-err="parent" /></div>':'')
           +'<div class="sp-lb"><div class="k">'+esc(T(LN.next))+'</div><h4 class="ed-mnm" style="margin:2px 0 4px">'+esc(n.name)+'</h4><div class="sp-cd" id="lnCd"></div>'
           +'<div class="sp-ld">'+esc(dLong(nd))+', <b>'+hm(nd)+'</b> '+tzLabel(loc().tz)+(tbd?' · '+esc(T(LN.tbd)):'')+' <span class="sp-st" style="--c:'+stCol(st)+'">'+esc(stT(st))+'</span>'+(n.webcast_live?'<span class="sp-st" style="--c:#ff4d6a">● '+esc(T(LN.live))+'</span>':'')+'</div>'
           +'<div class="lab-kv" style="margin-top:10px"><div><div class="k">'+esc(T(LN.prov))+'</div><div class="v"><button class="sp-alink" data-ag="'+esc(prov(n))+'">'+esc(short(prov(n)))+' ↗</button></div></div>'
@@ -293,7 +293,7 @@ register('launches',{ ico:'🚀', group:GROUP, name:LN.name, sub:LN.sub,
     async function detail(i){ const box=$('lpd'+i), x=lab.pl[i]; if(!box) return; if(box.innerHTML){ box.innerHTML=''; return; } click(780); box.innerHTML=spin();
       let d=null, limited=false; if(!lab.rateUntil||Date.now()>lab.rateUntil){ try{ d=(await llGet('launch/'+x.id+'/?mode=normal','l'+x.id,0)).d; }catch(e){ if(e.message==='rate'){ limited=true; lab.rateUntil=Date.now()+10*60000; } } } else { d=lcGet('l'+x.id,0); limited=!d; }
       const m=(d&&d.mission)||{}, img=(d&&d.image)||x.image;
-      box.innerHTML='<div class="sp-pdi'+(img?'':' noimg')+'">'+(img?'<img src="'+esc(img)+'" alt="" loading="lazy" onerror="this.remove()" />':'')+'<div><div class="lab-kv">'
+      box.innerHTML='<div class="sp-pdi'+(img?'':' noimg')+'">'+(img?'<img src="'+esc(img)+'" alt="" loading="lazy" data-err="self" />':'')+'<div><div class="lab-kv">'
         +kv(LN.prov,x.lsp_name)+kv(LN.rocket,d&&d.rocket&&d.rocket.configuration&&(d.rocket.configuration.full_name||d.rocket.configuration.name))+kv(LN.padL,x.location||x.pad)+kv(LN.orbit,x.orbit||(m.orbit&&m.orbit.name))+kv(LN.mis,x.mission||m.name)
         +kv(LN.landing,x.landing?x.landing+(x.landing_success===true?' ✓':x.landing_success===false?' ✕':''):'')+'</div>'
         +(m.description?'<p class="lab-p" style="margin-top:8px">'+esc(m.description)+'</p>':'')+(d&&d.failreason?'<p class="lab-p" style="color:#ff8a8a">⚠ '+esc(d.failreason)+'</p>':'')

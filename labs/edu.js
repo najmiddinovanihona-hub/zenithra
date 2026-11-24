@@ -30,7 +30,7 @@ const U={
 function focus(key){ const k=key==='moon'?'earth':key; const b=document.querySelector('#dock .dock-item[data-key="'+k+'"]'); if(b){ b.click(); return true; } return false; }
 const hasFocus=key=>!!document.querySelector('#dock .dock-item[data-key="'+(key==='moon'?'earth':key)+'"]');
 function thumb(k,size){ const z=k==='saturn'?1.45:1.06;
-  return `<span class="ed-th" style="width:${size}px;height:${size}px"><img src="${IMG(k)}" alt="" style="transform:scale(${z})" loading="lazy" onerror="this.remove()" /></span>`; }
+  return `<span class="ed-th" style="width:${size}px;height:${size}px"><img src="${IMG(k)}" alt="" style="transform:scale(${z})" loading="lazy" data-err="self" /></span>`; }
 
 /* ---------------- 1. SAYYORADA MEN ---------------- */
 const W={
@@ -216,7 +216,7 @@ register('missions',{ ico:'🛰', group:GROUP, name:M.name, sub:M.sub,
       $('mL').querySelectorAll('.ed-mi').forEach(b=>b.onclick=()=>{ lab.i=+b.dataset.i; click(820); render(); });
       const m=MS[lab.i], ph=P[m.t]?m.t:(m.t==='l2'?'earth':(m.t==='dimorphos'?null:null));
       const canFly=hasFocus(m.t)||(m.t==='pluto'&&hasFocus('pluto'));
-      $('mD').innerHTML=`${m.p?`<figure class="ed-mph"><img src="${(window.PHOTO_BASE||'')+'photos/'+m.p}" alt="${esc(m.n)}" onerror="this.parentNode.remove()" /><figcaption>${esc(m.cr)}</figcaption></figure>`:''}<div class="ed-mh">${ph?thumb(ph,84):`<span class="ed-th ed-thx" style="width:84px;height:84px">${m.t==='pluto'?'♇':'☄'}</span>`}
+      $('mD').innerHTML=`${m.p?`<figure class="ed-mph"><img src="${(window.PHOTO_BASE||'')+'photos/'+m.p}" alt="${esc(m.n)}" data-err="parent" /><figcaption>${esc(m.cr)}</figcaption></figure>`:''}<div class="ed-mh">${ph?thumb(ph,84):`<span class="ed-th ed-thx" style="width:84px;height:84px">${m.t==='pluto'?'♇':'☄'}</span>`}
           <div><div class="ed-myr">${m.y}</div><h4 class="ed-mnm">${esc(m.n)}</h4></div></div>
         <p class="lab-p">${esc(T(m.d))}</p>
         <div class="lab-kv"><div><div class="k">${esc(T(M.ag))}</div><div class="v">${esc(m.a)}</div></div><div><div class="k">${esc(T(M.tg))}</div><div class="v">${esc(nm(m.t))}</div></div></div>
