@@ -86,14 +86,38 @@ void main(){float r=length(vP)/5.0;vec3 c;
  c*=1.0-0.35*exp(-pow((r-0.25)/0.006,2.0))-0.35*exp(-pow((r-0.7)/0.006,2.0));
  c=mix(c,vec3(1.8,0.8,0.17),smoothstep(0.975,0.997,r));gl_FragColor=vec4(c,1.0);}`;
 // Toj: kameraga qaragan halqa-nur — faqat yulduz diskidan tashqarida (ichida chizilmaydi: kesim yuzasida iz qolmaydi), nurli oqimlar bilan
-const COR_F=`uniform vec3 uC;uniform float uR,uI;varying vec2 vQ;
-void main(){float r=length(vQ),x=r/uR;if(x<0.9)discard;float th=atan(vQ.y,vQ.x);float st=0.7+0.3*sin(th*6.0+1.3)*sin(th*3.0-0.7);
- float I=(0.55*pow(1.0/x,4.0)+0.45*exp(-(x-1.0)*3.0)*st)*smoothstep(0.9,1.01,x)*(1.0-smoothstep(0.7,1.0,r));gl_FragColor=vec4(uC*uI*I,1.0);}`;
+// K-toj (r⁻⁴) + tarqoq yorug'lik + radial nur oqimlari (streamer): burchak bo'yicha davriy shovqin, tashqariga cho'zilgan, sekin o'zgaradi
+const COR_F=`uniform vec3 uC;uniform float uR,uI,uT;varying vec2 vQ;
+float h1(float n){return fract(sin(n*12.9898+4.1)*43758.5453);}
+float an(float a,float N){float i=floor(a),f=fract(a);f=f*f*(3.0-2.0*f);return mix(h1(mod(i,N)),h1(mod(i+1.0,N)),f);}
+void main(){float r=length(vQ),x=r/uR;if(x<0.9)discard;float t=atan(vQ.y,vQ.x)/6.2831853+0.5;
+ float s=0.5*an(t*9.0+uT*0.011,9.0)+0.32*an(t*23.0-uT*0.017,23.0)+0.18*an(t*61.0+uT*0.03,61.0);   // nur oqimlari (davriy)
+ float ray=pow(s,2.2)*exp(-(x-1.0)*1.25)*(1.0+0.6*an(t*61.0-x*0.6+uT*0.05,61.0));
+ float I=(0.5*pow(1.0/x,4.0)+0.28*exp(-(x-1.0)*2.6)+0.42*ray)*smoothstep(0.9,1.01,x)*(1.0-smoothstep(0.62,1.0,r));gl_FragColor=vec4(uC*uI*I,1.0);}`;
+// Toj massasi otilishi (CME): "lampochka" shaklidagi plazma qobig'i — chetlari yorqin (qobiq yon tomondan qalinroq ko'rinadi),
+// ichi siyrak bo'shliq, shovqinli tolali tuzilma; Quyosh tomondagi asosi xira. Additiv, yumshoq.
+const CME_V='varying vec3 vN,vV,vO;void main(){vO=position;vec4 mv=modelViewMatrix*vec4(position,1.0);vN=normalize(normalMatrix*normal);vV=-mv.xyz;gl_Position=projectionMatrix*mv;}';
+const CME_F=`uniform vec3 uC,uC2;uniform float uI,uT;varying vec3 vN,vV,vO;
+float h3(vec3 p){p=fract(p*vec3(0.1031,0.1030,0.0973));p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
+float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);
+ return mix(mix(mix(h3(i),h3(i+vec3(1.0,0.0,0.0)),f.x),mix(h3(i+vec3(0.0,1.0,0.0)),h3(i+vec3(1.0,1.0,0.0)),f.x),f.y),
+            mix(mix(h3(i+vec3(0.0,0.0,1.0)),h3(i+vec3(1.0,0.0,1.0)),f.x),mix(h3(i+vec3(0.0,1.0,1.0)),h3(i+vec3(1.0,1.0,1.0)),f.x),f.y),f.z);}
+void main(){vec3 N=normalize(vN),V=normalize(vV);float f=1.0-abs(dot(N,V));
+ vec3 p=normalize(vO)*vec3(4.5,2.0,4.5)+vec3(0.0,-uT*0.25,0.0);float n=0.55*vn(p)+0.3*vn(p*2.3+7.1)+0.15*vn(p*5.1+2.3);
+ float fil=smoothstep(0.35,0.85,n);float rim=pow(f,4.5);
+ float base=smoothstep(-0.7,0.25,normalize(vO).y);                       // Quyoshga yaqin asos — xira
+ float I=1.9*rim*(0.25+1.2*fil)*base;
+ gl_FragColor=vec4(mix(uC2,uC,rim)*uI*I,1.0);}`;
 function sunTex(U){const RT=window.REALTEX&&window.REALTEX.ok?window.REALTEX:null;if(RT)RT.texture('sun',{srgb:false}).then(t=>{if(t){U.tS.value=t;U.uHas.value=1;}}).catch(()=>{});}
 const SPOTS=[[.3,.25,.92,.012],[.38,.18,.9,.006],[-.4,-.2,.89,.009],[.7,-.3,.65,.007],[-.75,.3,.6,.01],[.1,-.45,.88,.005]];
 function spotU(on){return {uSp:{value:SPOTS.map(a=>new THREE.Vector3(a[0],a[1],a[2]).normalize())},uSpR:{value:SPOTS.map(a=>on?a[3]:0)}};}
-function corona(H,R,I){const U={uS:{value:R*3.2},uR:{value:1/3.2},uI:{value:I||1},uC:{value:H.lin(0xffc078)}};
- const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),SM(Object.assign({uniforms:U,vertexShader:RING_V,fragmentShader:COR_F},ADD)));m.frustumCulled=false;m.renderOrder=4;m.U=U;return m;}
+function corona(H,R,I){const U={uS:{value:R*3.2},uR:{value:1/3.2},uI:{value:I||1},uT:{value:0},uC:{value:H.lin(0xffc078)}};
+ const m=new THREE.Mesh(new THREE.PlaneGeometry(2,2),SM(Object.assign({uniforms:U,vertexShader:RING_V,fragmentShader:COR_F},ADD)));m.frustumCulled=false;m.renderOrder=4;m.U=U;
+ m.onBeforeRender=()=>{U.uT.value=performance.now()*.001;};return m;}
+// Tojning hajmli tumani: kam sonli katta, xira, yumshoq zarralar (nuqta-nuqta emas — yaxlit nur)
+function coronaHaze(H,R,n,I){const P=H.particles(n,{size:R*.34,color:0xffd2a0,intensity:I||.035});
+ for(let i=0;i<n;i++){const r=R*(1.02+Math.pow(Math.random(),2.2)*.85),a=Math.random()*6.283,b=Math.acos(2*Math.random()-1);P.pos.set([r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a)],i*3);P.size[i]=.6+Math.random()*.9;}
+ P.upd();return P;}
 function sunBall(H,r,I){const U=Object.assign({tS:{value:null},uHas:{value:0},uI:{value:I||2},uT:{value:0}},spotU(true));sunTex(U);
  const m=new THREE.Mesh(new THREE.SphereGeometry(r,H.seg(64),H.seg(32)),SM({uniforms:U,vertexShader:PH_V,fragmentShader:PH_F}));m.U=U;m.add(corona(H,r,.8));return m;}
 // Bow shock: Quyosh tomonga qaragan paraboloid qobiq (chetlari yorqin)
@@ -107,9 +131,7 @@ ILM3D.add('☀',{title:{uz:"Quyosh — 3D ko'rgazma",ru:"Солнце — 3D-д�
    const ph=new THREE.Mesh(new THREE.SphereGeometry(5,H.seg(72),H.seg(36),Math.PI*.5,Math.PI*1.5),SM({uniforms:PU,vertexShader:PH_V,fragmentShader:PH_F}));G.add(ph);
    const cm=SM({uniforms:CU,vertexShader:CUT_V,fragmentShader:CUT_F,side:THREE.DoubleSide});
    [0,1].forEach(k=>{const m=new THREE.Mesh(new THREE.CircleGeometry(5,H.seg(96),k?Math.PI/2:-Math.PI/2,Math.PI),cm);if(!k)m.rotation.y=-Math.PI/2;G.add(m);});
-      const nC=H.n(3000),co=H.particles(nC,{size:.12,color:0xffd8a8,intensity:.3,twinkle:.3});
-   for(let i=0;i<nC;i++){const r=5.1+Math.pow(Math.random(),2.6)*4.5,a=Math.random()*6.283,b=Math.acos(2*Math.random()-1);co.pos.set([r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a)],i*3);co.size[i]=.5+Math.random();}co.upd();
-   const halo=corona(H,5,.6);G.add(co,halo);
+   const co=coronaHaze(H,5,H.n(420),.03),halo=corona(H,5,.75);G.add(co,halo);
    const L=tr({uz:["Yadro","Nurlanish zonasi","Konveksiya zonasi","Fotosfera","Toj"],ru:["Ядро","Зона лучистого переноса","Конвективная зона","Фотосфера","Корона"],en:["Core","Radiative zone","Convective zone","Photosphere","Corona"]})||[];
    [[0,-.15,.1],[0,-2.3,1.5],[0,-3.7,2.7],[-3.6,4.1,-1.6],[-6.2,5.4,-5]].forEach((p,i)=>{if(!L[i])return;const s=H.label(L[i],'#ffffff',1);s.position.set(...p);G.add(s);});
    return {G,cam:[-13,5,13],tg:[0,0,0],bloom:{strength:.7,threshold:1,radius:1},u(t){PU.uT.value=CU.uT.value=t;co.rotation.y=t*.03;}};}},
@@ -133,12 +155,16 @@ ILM3D.add('☀',{title:{uz:"Quyosh — 3D ko'rgazma",ru:"Солнце — 3D-д�
    for(let k=0;k<NL;k++){const j=k>>1,dir=AR[k%2].clone().add(new THREE.Vector3(gauss(),gauss(),gauss()).multiplyScalar(.04)).normalize(),l=H.fatLine(NP,k%3?0xffa040:0xff7a30,{width:2.4,glow:.9,intensity:1.7}),w=.8+j*.25,h=.6+j*.32,rot=gauss()*.12;
     q.setFromUnitVectors(up,dir);const p=new Float32Array(NP*3);for(let i=0;i<NP;i++){const a=i/(NP-1)*Math.PI;v.set(Math.cos(a)*w,0,0).applyAxisAngle(up,rot);v.y=Math.sqrt(25-v.x*v.x-v.z*v.z)+Math.sin(a)*h;v.applyQuaternion(q);p[i*3]=v.x;p[i*3+1]=v.y;p[i*3+2]=v.z;}l.set(p);G.add(l);loops.push([l,p]);}
    G.add(pl);
-   const n=H.n(2600),C=H.particles(n,{size:.13,color:0xffc890,intensity:.9,twinkle:.3}),u=[];for(let i=0;i<n;i++){const a=Math.random()*6.283,b=Math.random()*.9;u.push(Math.sin(b)*Math.cos(a),Math.cos(b),Math.sin(b)*Math.sin(a));C.size[i]=.5+Math.random();}C.upd();G.add(C);
+   // CME: yumshoq hajmli plazma buluti — qobiq (CME_F) + kam sonli katta xira zarralar (avval mayda nuqtalar edi)
+   const n=H.n(600),C=H.particles(n,{size:1.1,color:0xffc890,intensity:.006}),u=[];for(let i=0;i<n;i++){const a=Math.random()*6.283,b=Math.random()*.9,q=.93+Math.random()*.09;u.push(Math.sin(b)*Math.cos(a)*q,Math.cos(b)*q,Math.sin(b)*Math.sin(a)*q);C.size[i]=.5+Math.random();}C.upd();G.add(C);
+   const CU={uC:{value:H.lin(0xffe6c0)},uC2:{value:H.lin(0xff9a40)},uI:{value:.8},uT:{value:0}};
+   const cme=new THREE.Mesh(new THREE.SphereGeometry(1,H.seg(48),H.seg(24),0,Math.PI*2,0,Math.PI*.62),SM(Object.assign({uniforms:CU,vertexShader:CME_V,fragmentShader:CME_F,side:THREE.DoubleSide},ADD)));cme.renderOrder=3;G.add(cme);
    return {G,cam:[0,4,24],tg:[0,2,0],bloom:{strength:.75,threshold:1,radius:1},u(t){loops.forEach(([l],i)=>{l.uniforms.uOp.value=.55+.45*Math.sin(t*2+i);});
     // halqalar bo'ylab oqayotgan plazma
     const pp=pl.pos;for(let k=0;k<NL;k++){const a=loops[k][1];for(let j=0;j<PP;j++){const f=((j/PP+t*.18*(k%2?1:-1))%1+1)%1,x=f*(NP-1),i0=x|0,i1=Math.min(i0+1,NP-1),w=x-i0,o=(k*PP+j)*3;
      pp[o]=lerp(a[i0*3],a[i1*3],w);pp[o+1]=lerp(a[i0*3+1],a[i1*3+1],w);pp[o+2]=lerp(a[i0*3+2],a[i1*3+2],w);}}pl.upd();
-    const s=(t*.15)%1,r=5+s*16,p=C.pos;for(let i=0;i<n;i++){const k=1+(i%7)*.03;p[i*3]=u[i*3]*r*.55*k+r*.15;p[i*3+1]=u[i*3+1]*r*k;p[i*3+2]=u[i*3+2]*r*.55*k;}C.upd();C.uniforms.uOp.value=1-s;sun.rotation.y=t*.03;}};}}
+    const s=(t*.15)%1,r=5+s*16,p=C.pos;for(let i=0;i<n;i++){const k=1+(i%7)*.03;p[i*3]=u[i*3]*r*.55*k+r*.15;p[i*3+1]=u[i*3+1]*r*k;p[i*3+2]=u[i*3+2]*r*.55*k;}C.upd();C.uniforms.uOp.value=1-s;sun.rotation.y=t*.03;
+    cme.position.set(r*.15,r*.6,0);cme.scale.set(r*.42,r*.45,r*.42);CU.uI.value=.8*(1-s)*sm(s/.08);CU.uT.value=t;}};}}
 ]});
 function circ(r,n,y){const a=[];for(let i=0;i<n;i++){const t=i/(n-1)*Math.PI*2;a.push(r*Math.cos(t),y||0,r*Math.sin(t));}return a;}
 })();

@@ -5,7 +5,8 @@ if(!window.ILM3D||!window.WAVES_TXT)return;
 const KM={},keepM=(k,f)=>{let m=KM[k];if(!m){m=f();m.dispose=()=>{};KM[k]=m;}return m;};
 const kStd=(H,c,o)=>keepM('s'+c+JSON.stringify(o||{}),()=>H.std(c,o)),kB=(H,c,k)=>keepM('b'+c+'|'+k,()=>new THREE.MeshBasicMaterial({color:H.lin(c).multiplyScalar(k)}));
 const warmStd=()=>{if(window.__ilmStdW)return;const R=window.ILM3D.renderer&&window.ILM3D.renderer();if(!R)return;window.__ilmStdW=1;   // MeshStandard dasturini bo'sh vaqtda oldindan kompilyatsiya (bir marta)
- (window.requestIdleCallback||(f=>setTimeout(f,60)))(()=>{try{const s=new THREE.Scene(),m=new THREE.MeshStandardMaterial();m.dispose=()=>{};s.add(new THREE.AmbientLight(),new THREE.PointLight(),new THREE.Mesh(new THREE.BoxGeometry(),m));R.compile(s,new THREE.PerspectiveCamera());}catch(e){}},{timeout:1500});};
+ const m=new THREE.MeshStandardMaterial();m.dispose=()=>{};   // fonda (KHR_parallel_shader_compile) — asosiy oqim to'xtamaydi
+ if(window.ILM3D.prewarm)window.ILM3D.prewarm([new THREE.Mesh(new THREE.BoxGeometry(),m)]);};
 const B=[
  // 0 — Elektromagnit to'lqin: E (qizil) va B (ko'k) maydonlar, vektor strelkalari, tarqalish yo'nalishi
  H=>{const G=new THREE.Group(),N=240,NS=40,cE=0xff4a5e,cB=0x4ea8ff,E=H.fatLine(N,cE,{width:3,glow:.8,intensity:1.6}),Bm=H.fatLine(N,cB,{width:3,glow:.8,intensity:1.6});G.add(E,Bm);
@@ -40,13 +41,28 @@ const B=[
  // 2 — Tovush (bo'ylama) to'lqin: karnay membranasi havo zarralarini siqib-siyraklashtiradi
  H=>{const nx=70,ny=7,nz=7,N=nx*ny*nz,P=H.particles(N,{size:.17,intensity:1.5}),G=new THREE.Group();G.add(P);
   const c1=H.lin(0x12306e),c2=H.lin(0x8ff0ff);
-  // karnay: korpus, membrana (konus) va magnit
-  const spk=new THREE.Group(),box=new THREE.Mesh(new THREE.BoxGeometry(1.4,4.4,4.4),kStd(H,0x1a1d24,{roughness:.6,metalness:.2})),cone=new THREE.Mesh(new THREE.ConeGeometry(1.7,.7,40,1,true),kStd(H,0x30343c,{roughness:.8})),cap=new THREE.Mesh(new THREE.SphereGeometry(.45,24,12,0,Math.PI*2,0,Math.PI/2),kStd(H,0x50555e,{roughness:.5,metalness:.3}));
-  box.position.x=-.75;cone.rotation.z=-Math.PI/2;cone.position.x=.25;cap.rotation.z=-Math.PI/2;cap.position.x=.05;const mem=new THREE.Group();mem.add(cone,cap);spk.add(box,mem);spk.position.x=-12.6;G.add(spk);G.position.set(6,-8,-10);;
-  return {G,cam:[9,-3,6],tg:[6,-8,-10],bg:'space',bloom:{strength:.6,threshold:1,radius:1},u(t){const p=P.pos,cl=P.col;let k=0;
+  // karnay (dinamik): metall rama-savat, rezina chekka (surround), gofrirlangan qog'oz konus, chang qalpoqchasi, magnit tizimi.
+  // Lathe profillari Y o'qi atrofida aylantiriladi, so'ng rotation.z=-π/2 bilan o'q +X ga (tovush yo'nalishi) buriladi.
+  const spk=new THREE.Group(),V2=(a,b)=>new THREE.Vector2(a,b),ax=m=>{m.rotation.z=-Math.PI/2;return m;};
+  const ds=(k,c,o)=>keepM('d'+k,()=>{const m=H.std(c,o);m.side=THREE.DoubleSide;return m;});
+  const cp=[];for(let i=0;i<=40;i++){const f=i/40,r=.42+f*1.0;cp.push(V2(r,-.56*Math.pow(1-f,1.45)+(f>.55?.012*Math.sin((f-.55)*70):0)));}   // konus: egri profil + tashqi gofrlar
+  const cone=ax(new THREE.Mesh(new THREE.LatheGeometry(cp,72),ds('cone',0x2c3038,{roughness:.88})));cone.position.x=-.07;
+  const cap=ax(new THREE.Mesh(new THREE.SphereGeometry(.46,36,12,0,Math.PI*2,0,Math.PI/2),kStd(H,0x3b4048,{roughness:.32,metalness:.15})));cap.scale.set(1,.45,1);cap.position.x=-.62;
+  const sur=new THREE.Mesh(new THREE.TorusGeometry(1.55,.13,14,72),kStd(H,0x121315,{roughness:.5}));sur.rotation.y=Math.PI/2;sur.position.x=-.07;
+  const fl=ax(new THREE.Mesh(new THREE.LatheGeometry([V2(1.66,0),V2(1.95,0),V2(1.95,-.08),V2(1.66,-.08),V2(1.66,0)],72),kStd(H,0x6d737d,{roughness:.36,metalness:.55})));fl.position.x=-.05;
+  const basket=new THREE.Group(),up=new THREE.Vector3(0,1,0);
+  for(let k=0;k<4;k++){const a=k*Math.PI/2+Math.PI/4,S=new THREE.Vector3(-.12,1.7*Math.cos(a),1.7*Math.sin(a)),E=new THREE.Vector3(-1.18,.8*Math.cos(a),.8*Math.sin(a)),d=E.clone().sub(S);
+   const s=new THREE.Mesh(new THREE.BoxGeometry(.2,d.length(),.05),kStd(H,0x6d737d,{roughness:.36,metalness:.55}));s.position.copy(S).add(E).multiplyScalar(.5);s.quaternion.setFromUnitVectors(up,d.normalize());basket.add(s);}
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.82,.06,8,48),kStd(H,0x6d737d,{roughness:.36,metalness:.55}));ring.rotation.y=Math.PI/2;ring.position.x=-1.18;basket.add(ring);
+  const tp=ax(new THREE.Mesh(new THREE.CylinderGeometry(1.02,1.02,.08,48),kStd(H,0xa4aab2,{roughness:.26,metalness:.8})));tp.position.x=-1.26;
+  const mag=ax(new THREE.Mesh(new THREE.CylinderGeometry(.98,.98,.46,48),kStd(H,0x2a2b2f,{roughness:.62,metalness:.15})));mag.position.x=-1.53;
+  const bp=ax(new THREE.Mesh(new THREE.CylinderGeometry(1.02,1.02,.08,48),kStd(H,0xa4aab2,{roughness:.26,metalness:.8})));bp.position.x=-1.8;
+  const pole=ax(new THREE.Mesh(new THREE.CylinderGeometry(.3,.34,.12,32),kStd(H,0xa4aab2,{roughness:.26,metalness:.8})));pole.position.x=-1.9;
+  const mem=new THREE.Group();mem.add(cone,cap);spk.add(fl,sur,basket,tp,mag,bp,pole,mem);spk.position.x=-12.9;spk.rotation.y=-.35;spk.scale.setScalar(1.2);G.add(spk);G.position.set(6,-8,-10);
+  return {G,cam:[9,-3,6],tg:[6,-8,-10],bg:'space',amb:.22,bloom:{strength:.6,threshold:1,radius:1},u(t){const p=P.pos,cl=P.col;let k=0;
    for(let i=0;i<nx;i++){const x0=-11+22*i/(nx-1),ph=1.2*x0-3*t,x=x0+.42*Math.sin(ph),d=(1-Math.cos(ph))/2,I=.45+1.5*d*d,r=(c1.r+(c2.r-c1.r)*d)*I,g=(c1.g+(c2.g-c1.g)*d)*I,bb=(c1.b+(c2.b-c1.b)*d)*I;
     for(let j=0;j<ny;j++)for(let l=0;l<nz;l++){const o=k*3;p[o]=x;p[o+1]=-1.5+3*j/(ny-1);p[o+2]=-1.5+3*l/(nz-1);cl[o]=r;cl[o+1]=g;cl[o+2]=bb;k++;}}P.upd();
-   mem.position.x=.42*Math.sin(1.2*-12.6-3*t)*.6;}};},
+   mem.position.x=.13*Math.sin(1.2*-12.6-3*t);}};},
  // 3 — Seysmik (Reley) yuza to'lqini: grunt yuzasi va zarralar ellips bo'ylab aylanadi, chuqurlikda so'nadi
  H=>{const nx=60,ny=9,nz=10,N=nx*ny*nz,P=H.particles(N,{size:.16,intensity:.9}),G=new THREE.Group();G.add(P);const top=H.lin(0xffc861),bot=H.lin(0x6b3a1c);
   const SX=120,SZ=12,sg=new THREE.PlaneGeometry(22,6,SX,SZ);sg.rotateX(-Math.PI/2);const base=sg.attributes.position.array.slice();

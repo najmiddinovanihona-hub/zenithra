@@ -24,7 +24,10 @@ function galaxy(H,n,Rg,arms,bar,o){o=o||{};const P=H.particles(n,{size:o.size||.
  const nd=Math.round(n*.14),D=H.particles(nd,{size:(o.size||.09)*3.2,color:0x0a0603,opacity:.55,blend:'normal'});
  for(let i=0;i<nd;i++){const r=Rg*(.2+Math.pow(Math.random(),.8)*.75),th=armPt(r)-.16+gauss()*.08;D.pos.set([r*Math.cos(th),gauss()*.05,r*Math.sin(th)],i*3);D.size[i]=R(.6,1.4);}
  D.upd();D.renderOrder=6;
- const g=new THREE.Group();g.add(P,D);const core=H.glow(0xffd9a8,Rg*.55,.9);g.add(core);g.stars=P;return g;}
+ // yutuvchi qatlam: qo'llarning ichki chekkasidagi ingichka qoramtir yo'laklar (to'siq bo'lsa — uning oldingi chekkalarida ham)
+ const dl=H.dustLanes(Rg*.15,Rg,{arms,r0:Rg*.15,k:2.1,off:-.16,width:.11,opacity:.92,bar:bar?Rg*.27:0});
+ const dg=H.galaxyGlow(Rg*.15,Rg,{arms,r0:Rg*.15,k:2.1,intensity:.5,bar:bar?Rg*.27:0});   // tarqoq nur — yo'laklar uning fonida ko'rinadi
+ const g=new THREE.Group();g.add(dg,P,D,dl);const core=H.glow(0xffd9a8,Rg*.55,.9);g.add(core);g.stars=P;return g;}
 function elliptical(H,n,Rg){const P=H.particles(n,{size:.08,twinkle:.1});
  for(let i=0;i<n;i++){const r=Math.pow(Math.random(),2.2)*Rg+Math.abs(gauss())*Rg*.05,a=Math.random()*6.283,b=Math.acos(2*Math.random()-1);
   P.pos.set([r*Math.sin(b)*Math.cos(a)*1.4,r*Math.cos(b),r*Math.sin(b)*Math.sin(a)],i*3);const c=H.bb(R(3300,4900)),k=.5;P.col.set([c.r*k,c.g*k,c.b*k],i*3);P.size[i]=R(.6,1.2);}

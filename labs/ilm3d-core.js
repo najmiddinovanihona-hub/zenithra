@@ -42,12 +42,21 @@
    H.fatLine(n, rang, {width:3(px), glow:.6, intensity:1.2, opacity:1, fade:0, additive:true}) → Mesh
         qalin, silliq (AA) va nurli chiziq; L.set(arr) — [x,y,z,...] yoki Vector3[]; fade:1 — boshi (0-indeks) xiralashadi; L.setWidth(px)
    H.tube(nuqtalar, r, rang, {glow:0, seg}) → Mesh  — 3D quvur (glow>0 bo'lsa nurlanuvchi)
+   H.dustLanes(ichki, tashqi, {arms:2, r0, k:2, off:0, width:.12, opacity:.8, color, bar:0}) → Mesh (XZ tekisligi)
+        spiral galaktikaning chang yo'laklari — yorug'likni yutuvchi qatlam (oddiy aralashtirish, renderOrder 6).
+        Yo'lak markazi: θ = k·ln(r/r0) + off (+ 2π/arms karrali); bar>0 — to'siq yarim uzunligi (uning yo'laklari ham)
+   H.galaxyGlow(ichki, tashqi, {arms, r0, k, off, intensity:.3, bar, warm, cool}) → Mesh — ajralmagan yulduzlarning tarqoq
+        nuri (additiv disk + qo'llar + bulj); chang yo'laklari aynan shu nur fonida ko'rinadi
    H.std(rang, {roughness,metalness,emissive}) → MeshStandardMaterial (chiziqli rang bilan)
    H.sunLight(pos, rang, kuch, masofa) → PointLight (masofa berilsa — 2-darajali so'nish)
    H.label(matn, rang|{color,scale}, sc) → Sprite — eski rejimda tiniq sprite; realistik rejimda HTML yorliq
         (tone mapping'dan o'tmaydi, har doim o'qiladi). lb.visible / lb.material.opacity ishlaydi. Yorliqlarni build ichida yarating.
  Eski yordamchilar (o'zgarmagan): pts, line, segs, ball, lit, upd, fib, C. Realistik sahnada pts o'rniga particles, line o'rniga fatLine.
  Element almashganda G ichidagi hamma narsa dispose qilinadi (umumiy NASA teksturalari va dvigatel teksturalari bundan mustasno).
+ Yangi element shaderlari FONDA kompilyatsiya qilinadi (KHR_parallel_shader_compile, pastdagi prep); tayyor bo'lguncha eski
+ element ko'rinib turadi (yangi mavzuda — kutish belgisi). Boshqa fayllar: ILM3D.prewarm([obyektlar]) → Promise.
+ MUHIM (r128): sahnaga yangi chiroq (PointLight/DirectionalLight/H.sunLight) QO'SHMANG — chiroqlar soni har bir shader
+ dasturi kalitida bor, qo'shilsa hamma dasturlar qayta kompilyatsiya qilinadi.
  ========================================================================================== */
 (function(){
 if(typeof THREE==='undefined')return;
@@ -154,6 +163,35 @@ void main(){float r=length(vP.xz);float x=clamp((r-uIn)/(uOut-uIn),0.0,1.0);floa
   float il=pow(clamp(uIn*1.6/r,0.0,1.0),1.3);
   vec3 c=mix(uDust,uDust*uLit*1.6,0.5)*il*uInt+bbc(uT*pow(rr,-0.75))*exp(-x*25.0)*uInt*0.6;
   gl_FragColor=vec4(c,clamp(dens*uOp,0.0,1.0));}}`;
+// ---- Galaktika chang yo'laklari: yutuvchi qatlam (oddiy aralashtirish), logarifmik spiral bo'ylab ingichka tolali yo'laklar ----
+const DUST_V='varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
+const DUST_F=`uniform float uIn,uOut,uArms,uR0,uK,uOff,uW,uOp,uBar,uSeed;uniform vec3 uCol;varying vec3 vP;
+float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 x){vec2 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);return mix(mix(h2(i),h2(i+vec2(1.0,0.0)),f.x),mix(h2(i+vec2(0.0,1.0)),h2(i+vec2(1.0,1.0)),f.x),f.y);}
+float fb(vec2 p){return 0.5*vn(p)+0.3*vn(p*2.13+5.2)+0.2*vn(p*4.37+1.7);}
+void main(){vec2 q=vP.xz;float r=max(length(q),1e-3),th=atan(q.y,q.x);
+ float ph=th-uK*log(r/uR0)-uOff,d=(fract(ph*uArms/6.2831853+0.5)-0.5)*6.2831853/uArms;   // eng yaqin yo'lakkacha burchak
+ vec2 p=q/uOut*7.0+uSeed;float n1=fb(p),n2=fb(p*2.7+3.1);
+ float w=uW*(0.65+0.7*n1),lane=exp(-d*d/(w*w));
+ float fil=smoothstep(0.3,0.8,n2);                                       // tolali, uzuq-uzuq tuzilma
+ float dens=lane*(0.35+0.9*fil)+0.18*fil*smoothstep(0.35,0.7,n1);       // + diskdagi siyrak tarqoq chang
+ float env=smoothstep(uIn,uIn*1.7,r)*(1.0-smoothstep(uOut*0.72,uOut,r));
+ if(uBar>0.0){float bx=abs(q.x)/uBar,bz=(q.y-sign(q.x)*uBar*0.12)/uBar;   // to'siqning oldingi chekkalari bo'ylab ikki to'g'ri yo'lak
+  dens=max(dens*env,exp(-bz*bz/0.0035)*smoothstep(0.12,0.3,bx)*(1.0-smoothstep(0.8,1.05,bx))*(0.55+0.6*fil));env=1.0;}
+ gl_FragColor=vec4(uCol,clamp(dens*env*uOp,0.0,0.92));}`;
+// Galaktikaning tarqoq nuri (ajralmagan yulduzlar): eksponensial disk + spiral qo'llar + bulj/to'siq — chang yo'laklari shu nurni to'sadi
+const GLOWD_F=`uniform float uIn,uOut,uArms,uR0,uK,uOff,uI,uBar,uSeed;uniform vec3 uCa,uCb;varying vec3 vP;
+float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 x){vec2 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);return mix(mix(h2(i),h2(i+vec2(1.0,0.0)),f.x),mix(h2(i+vec2(0.0,1.0)),h2(i+vec2(1.0,1.0)),f.x),f.y);}
+void main(){vec2 q=vP.xz;float r=max(length(q),1e-3),th=atan(q.y,q.x);
+ float d=(fract((th-uK*log(r/uR0)-uOff)*uArms/6.2831853+0.5)-0.5)*6.2831853/uArms;
+ float n=0.6*vn(q/uOut*9.0+uSeed)+0.4*vn(q/uOut*23.0+uSeed*1.7);
+ float arm=exp(-d*d/0.075)*smoothstep(uIn*0.7,uIn*1.5,r);
+ float disk=exp(-r/(uOut*0.3))*(1.0-smoothstep(uOut*0.75,uOut,r));
+ float bul=exp(-r*r/(uIn*uIn*1.4));
+ if(uBar>0.0)bul=max(bul,0.7*exp(-q.y*q.y/(uBar*uBar*0.012))*(1.0-smoothstep(0.7,1.05,abs(q.x)/uBar)));
+ float I=disk*(0.18+0.9*arm*(0.55+0.7*n))+1.2*bul;
+ gl_FragColor=vec4(mix(uCb,uCa,clamp(bul*1.6+0.25*(1.0-arm),0.0,1.0))*I*uI,1.0);}`;
 // ---- Fazo-vaqt varag'i ----
 const SURF_V='varying vec3 vL,vW,vN;void main(){vL=position;vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*w;}';
 const SURF_F=`uniform vec3 uCol,uLine,uDeep;uniform float uCell,uOp,uDepth,uHalf,uGlow;varying vec3 vL,vW,vN;
@@ -208,14 +246,7 @@ const SKYP_F='varying vec3 vC;varying float vA;void main(){vec2 q=gl_PointCoord*
 const SKYB_V='varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*vec4(mat3(viewMatrix)*position,1.0);p.z=p.w*0.99999;gl_Position=p;}';
 const SKYB_F='uniform samplerCube tSky;uniform float uI;varying vec3 vD;void main(){gl_FragColor=vec4(textureCube(tSky,normalize(vD)).rgb*uI,1.0);}';
 const GN=new THREE.Vector3(-.35,1,.25).normalize();   // galaktika tekisligi normali (yulduzlar zichligi ham shunga mos)
-const BAKE_F=`uniform vec3 uGN;varying vec3 vD;${NOISE}
-float fbm(vec3 p){float s=0.0,a=0.5;for(int i=0;i<5;i++){s+=a*snoise(p);p*=2.03;a*=0.5;}return s;}
-void main(){vec3 d=normalize(vD);vec3 gc=normalize(cross(uGN,vec3(0.0,0.0,1.0)));float lat=dot(d,uGN);float lon=dot(normalize(d-uGN*lat+1e-5),gc);
- float n=fbm(d*3.0),n2=fbm(d*7.0+11.0);float w=0.11+0.05*n;float band=exp(-lat*lat/(w*w));
- float bul=exp(-(1.0-lon)*2.2)*exp(-lat*lat/0.035);float dust=smoothstep(-0.05,0.45,n2)*exp(-lat*lat/0.006);
- vec3 c=vec3(0.55,0.62,0.85)*band*(0.55+0.45*n)+vec3(1.0,0.8,0.58)*bul*1.3;c*=1.0-0.8*dust;
- c+=vec3(0.7,0.16,0.22)*smoothstep(0.3,0.7,fbm(d*2.3+3.0))*band*0.6+vec3(0.12,0.2,0.45)*smoothstep(0.35,0.8,fbm(d*1.4+7.0))*0.35;
- gl_FragColor=vec4(c*0.55,1.0);}`;
+// (Somon yo'li kubi endi CPU'da pishiriladi — pastdagi skyBake, avvalgi BAKE_F shaderining aynan nusxasi)
 // ---- Post-ishlov: bloom (dual-filter piramida) + ACES + sRGB ----
 const FS_V='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}';
 const PRE_F='uniform sampler2D tSrc;uniform vec2 uTx;uniform float uTh,uKnee;varying vec2 vUv;vec3 tp(vec2 o){vec3 c=texture2D(tSrc,vUv+o*uTx).rgb;return c/(1.0+max(c.r,max(c.g,c.b))*0.25);}void main(){vec3 c=(tp(vec2(-1.0,-1.0))+tp(vec2(1.0,-1.0))+tp(vec2(-1.0,1.0))+tp(vec2(1.0,1.0)))*0.25;float br=max(c.r,max(c.g,c.b));float s=clamp(br-uTh+uKnee,0.0,2.0*uKnee);s=s*s/(4.0*uKnee+1e-4);c*=max(s,br-uTh)/max(br,1e-4);gl_FragColor=vec4(c,1.0);}';
@@ -323,6 +354,14 @@ const H={
   return new THREE.Mesh(geo,mat);},
  std(col,o){o=o||{};real();return new THREE.MeshStandardMaterial({color:linC(col),roughness:o.roughness!=null?o.roughness:.85,metalness:o.metalness||0,emissive:o.emissive!=null?linC(o.emissive):0x000000,emissiveIntensity:o.emissiveIntensity||1});},
 grid(...a){return H.surface(...a);},
+ dustLanes(rin,rout,o){o=o||{};real();const geo=new THREE.RingGeometry(rin*.6,rout,TIER==='low'?128:200,12);geo.rotateX(-Math.PI/2);
+  const U={uIn:{value:rin},uOut:{value:rout},uArms:{value:o.arms||2},uR0:{value:o.r0||rin},uK:{value:o.k!=null?o.k:2},uOff:{value:o.off||0},uW:{value:o.width||.12},
+   uOp:{value:o.opacity!=null?o.opacity:.8},uBar:{value:o.bar||0},uSeed:{value:Math.random()*40},uCol:{value:linC(o.color!=null?o.color:0x2a1a10)}};
+  const m=new THREE.Mesh(geo,SM({uniforms:U,vertexShader:DUST_V,fragmentShader:DUST_F,transparent:true,depthWrite:false,side:THREE.DoubleSide}));m.renderOrder=6;m.uniforms=U;return m;},
+ galaxyGlow(rin,rout,o){o=o||{};real();const geo=new THREE.CircleGeometry(rout,TIER==='low'?128:200);geo.rotateX(-Math.PI/2);
+  const U={uIn:{value:rin},uOut:{value:rout},uArms:{value:o.arms||2},uR0:{value:o.r0||rin},uK:{value:o.k!=null?o.k:2},uOff:{value:o.off||0},uI:{value:o.intensity!=null?o.intensity:.3},
+   uBar:{value:o.bar||0},uSeed:{value:Math.random()*40},uCa:{value:linC(o.warm!=null?o.warm:0xffd8a8)},uCb:{value:linC(o.cool!=null?o.cool:0xa8c0ff)}};
+  const m=new THREE.Mesh(geo,SM({uniforms:U,vertexShader:DUST_V,fragmentShader:GLOWD_F,transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));m.renderOrder=-1;m.uniforms=U;return m;},
  sunLight(pos,col,I,dist){real();const l=new THREE.PointLight(linC(col!=null?col:0xffffff),I!=null?I:1.5,dist||0,dist?2:0);if(pos)l.position.set(...pos);return l;},
  planet(name,r,o){o=o||{};real();const key=typeof name==='string'?name:null,pr=Object.assign({},PRESET[key]||{base:typeof name==='number'?name:0x888888},o);
   const ring=!!(o.ring!=null?o.ring:pr.ring),S=sunU(o);
@@ -350,7 +389,7 @@ grid(...a){return H.surface(...a);},
 let R=null,scene,cam,ctl,amb,pl,obj=null,box=null,raf=0,t0=performance.now(),last=t0;const curBy={};
 let act=cur;            // hozir ko'rsatilayotgan elementning konteksti
 let FX={real:false,bg:'space',bloom:{strength:.7,threshold:1,radius:1},exposure:1,amb:.05};
-const ST={warm:[],sky:0,pipe:0};let skyQ=0,pipe=null,skyPts=null,skyBox=null,skyRT=null,lblLayer=null,clearA=0;
+const ST={warm:[],sky:0,pipe:0,prep:[]};let skyQ=0,skyOK=0,pipe=null,skyPts=null,skyBox=null,skyRT=null,lblLayer=null,clearA=0;
 function init(){
  R=new THREE.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,QL.dpr||2));clearA=R.getClearAlpha();
  scene=new THREE.Scene();cam=new THREE.PerspectiveCamera(45,1,.1,400);
@@ -360,7 +399,7 @@ function init(){
  new ResizeObserver(fit).observe(R.domElement);
  lblLayer=document.createElement('div');lblLayer.className='i3-lbl';lblLayer.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden;font:600 13px system-ui,sans-serif';
 }
-function fit(){if(!box)return;const w=box.clientWidth,h=box.clientHeight;if(w&&h){R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+function fit(){if(!box)return;const w=box.clientWidth,h=box.clientHeight;if(w&&h){R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();lbW=w;lbH=h;}
  const v=new THREE.Vector2();R.getDrawingBufferSize(v);GU.vp.value.copy(v);GU.pr.value=R.getPixelRatio();}
 // Post-ishlov konveyeri (realistik rejim birinchi kerak bo'lganda yaratiladi)
 function mkPipe(){
@@ -395,24 +434,55 @@ function mkSky(){const t0s=performance.now();
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('aCol',new THREE.BufferAttribute(col,3));g.setAttribute('aSize',new THREE.BufferAttribute(siz,1));
  skyPts=new THREE.Points(g,SM({uniforms:{uPR:GU.pr},vertexShader:SKYP_V,fragmentShader:SKYP_F,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending}));   // shaffof emas — opaque ro'yxatda birinchi chiziladi
  skyPts.frustumCulled=false;skyPts.renderOrder=-1000;skyPts.visible=false;scene.add(skyPts);
- // Somon yo'li: bir marta kub teksturaga pishiriladi, keyin har kadr — bitta tekstura o'qish
- skyRT=new THREE.WebGLCubeRenderTarget(TQ.sky,{format:THREE.RGBAFormat,generateMipmaps:false,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});
- const bs=new THREE.Scene(),bm=new THREE.Mesh(new THREE.SphereGeometry(1,32,16),SM({uniforms:{uGN:{value:GN}},vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position*50.0,1.0);}',fragmentShader:BAKE_F,side:THREE.BackSide,depthWrite:false}));
- bs.add(bm);const cc=new THREE.CubeCamera(.1,100,skyRT);cc.updateMatrixWorld();
- const sU={tSky:{value:skyRT.texture},uI:{value:0}};
- const steps=[()=>{const c0=new THREE.Scene();c0.add(new THREE.Mesh(bm.geometry,bm.material));R.compile(c0,cc.children[0]);}];
- for(let i=0;i<6;i++)steps.push(()=>{const rt=R.getRenderTarget();R.setRenderTarget(skyRT,i);R.render(bs,cc.children[i]);R.setRenderTarget(rt);
-  if(i===5){bm.geometry.dispose();bm.material.dispose();sU.uI.value=.07;}});
- idle(steps,true);
+ // Somon yo'li: bir marta kub teksturaga "pishiriladi" (Worker'da, CPU — skyBake), keyin har kadr bitta tekstura o'qish.
+ // Avval GPU'da pishirilardi: og'ir shovqinli shaderning birinchi chizilishi asosiy oqimni 0.7–0.85 s to'xtatardi.
+ const N=TQ.sky,sU={tSky:{value:null},uI:{value:0}};
  skyBox=new THREE.Mesh(new THREE.SphereGeometry(1,24,12),SM({uniforms:sU,vertexShader:SKYB_V,fragmentShader:SKYB_F,side:THREE.BackSide,depthTest:false,depthWrite:false}));
- skyBox.frustumCulled=false;skyBox.renderOrder=-1001;skyBox.visible=false;scene.add(skyBox);ST.sky=performance.now()-t0s;}
+ skyBox.frustumCulled=false;skyBox.renderOrder=-1001;skyBox.visible=false;scene.add(skyBox);
+ const done=f=>{const ct=new THREE.CubeTexture(f.map(d=>new THREE.DataTexture(d,N,N,THREE.RGBAFormat)));ct.format=THREE.RGBAFormat;ct.generateMipmaps=false;
+  ct.minFilter=ct.magFilter=THREE.LinearFilter;ct.needsUpdate=true;sU.tSky.value=ct;sU.uI.value=.07;};   // 6×N² RGBA — birinchi kadrda bir zumda yuklanadi
+ const gn=[GN.x,GN.y,GN.z];let wk=null;
+ try{const u=URL.createObjectURL(new Blob([`const skyBake=${skyBake};onmessage=e=>{const N=e.data.N,f=[];for(let i=0;i<6;i++){const o=new Uint8Array(N*N*4);skyBake(i,0,N,N,o,e.data.gn);f.push(o);}postMessage(f,f.map(x=>x.buffer));};`],{type:'text/javascript'}));
+  wk=new Worker(u);URL.revokeObjectURL(u);wk.onmessage=e=>{wk.terminate();done(e.data);};wk.onerror=()=>{wk.terminate();wk=null;fb();};wk.postMessage({N,gn});}catch(e){wk=null;}
+ // zaxira (Worker bo'lmasa): bo'sh vaqtda, har vazifa N/8 qator
+ function fb(){const f=[],S=Math.max(8,N>>3);for(let i=0;i<6;i++){const o=new Uint8Array(N*N*4);f.push(o);for(let r=0;r<N;r+=S)idle(()=>skyBake(i,r,Math.min(N,r+S),N,o,gn));}idle(()=>done(f));}
+ if(!wk)fb();
+ // nuqta va kub shaderlari fonda tayyorlanadi; fon faqat shundan keyin ko'rinadi
+ idle(()=>prep([skyPts,skyBox]).then(()=>{skyOK=1;applyFx();}),true);ST.sky=performance.now()-t0s;}
+// BAKE_F ning CPU nusxasi (Worker ichida ham ishlaydi — tashqi o'zgaruvchilarga tayanmaydi): 3D simpleks shovqin
+// (Ashima Arts / S. Gustavson, MIT — GLSL bilan bir xil), fbm 5 oktava. Natija — GL kub teksturasi tomoni, chiziqli RGBA8.
+function skyBake(face,r0,r1,N,out,gn){
+ const fl=Math.floor,m289=x=>x-fl(x*(1/289))*289,perm=x=>m289((x*34+1)*x),PX=[0,0,0,0],PY=[0,0,0,0],PZ=[0,0,0,0],XX=[0,0,0,0],XY=[0,0,0,0],XZ=[0,0,0,0];
+ function sn(vx,vy,vz){const s=(vx+vy+vz)/3;let ix=fl(vx+s),iy=fl(vy+s),iz=fl(vz+s);const t=(ix+iy+iz)/6,x0=vx-ix+t,y0=vy-iy+t,z0=vz-iz+t;
+  const gx=x0>=y0?1:0,gy=y0>=z0?1:0,gz=z0>=x0?1:0,lx=1-gx,ly=1-gy,lz=1-gz;
+  const ax=Math.min(gx,lz),ay=Math.min(gy,lx),az=Math.min(gz,ly),bx=Math.max(gx,lz),by=Math.max(gy,lx),bz=Math.max(gz,ly);
+  XX[0]=x0;XY[0]=y0;XZ[0]=z0;XX[1]=x0-ax+1/6;XY[1]=y0-ay+1/6;XZ[1]=z0-az+1/6;XX[2]=x0-bx+1/3;XY[2]=y0-by+1/3;XZ[2]=z0-bz+1/3;XX[3]=x0-.5;XY[3]=y0-.5;XZ[3]=z0-.5;
+  ix=m289(ix);iy=m289(iy);iz=m289(iz);PX[0]=0;PX[1]=ax;PX[2]=bx;PX[3]=1;PY[0]=0;PY[1]=ay;PY[2]=by;PY[3]=1;PZ[0]=0;PZ[1]=az;PZ[2]=bz;PZ[3]=1;
+  let r=0;for(let k=0;k<4;k++){const p=perm(perm(perm(iz+PZ[k])+iy+PY[k])+ix+PX[k]),j=p-49*fl(p*0.142857142857*0.142857142857),x_=fl(j*0.142857142857),y_=fl(j-7*x_);
+   const X=x_*0.285714285714-0.9285714285715,Y=y_*0.285714285714-0.9285714285715,h=1-Math.abs(X)-Math.abs(Y),sh=h<=0?-1:0;
+   let qx=X+(fl(X)*2+1)*sh,qy=Y+(fl(Y)*2+1)*sh,qz=h;const nr=1.79284291400159-0.85373472095314*(qx*qx+qy*qy+qz*qz);qx*=nr;qy*=nr;qz*=nr;
+   let m=Math.max(.6-(XX[k]*XX[k]+XY[k]*XY[k]+XZ[k]*XZ[k]),0);m*=m;r+=m*m*(qx*XX[k]+qy*XY[k]+qz*XZ[k]);}
+  return 42*r;}
+ const fbm=(x,y,z)=>{let s=0,a=.5;for(let i=0;i<5;i++){s+=a*sn(x,y,z);x*=2.03;y*=2.03;z*=2.03;a*=.5;}return s;};
+ const ss=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+ let cx=gn[1],cy=-gn[0];const cl=Math.hypot(cx,cy)||1;cx/=cl;cy/=cl;   // gc = normalize(cross(GN,(0,0,1)))
+ for(let row=r0;row<r1;row++){const v=2*(row+.5)/N-1;for(let col=0;col<N;col++){const u=2*(col+.5)/N-1;
+  let dx,dy,dz;switch(face){case 0:dx=1;dy=-v;dz=-u;break;case 1:dx=-1;dy=-v;dz=u;break;case 2:dx=u;dy=1;dz=v;break;case 3:dx=u;dy=-1;dz=-v;break;case 4:dx=u;dy=-v;dz=1;break;default:dx=-u;dy=-v;dz=-1;}
+  const dl=Math.hypot(dx,dy,dz);dx/=dl;dy/=dl;dz/=dl;
+  const lat=dx*gn[0]+dy*gn[1]+dz*gn[2],L2=lat*lat;let qx=dx-gn[0]*lat+1e-5,qy=dy-gn[1]*lat+1e-5,qz=dz-gn[2]*lat+1e-5;const ql=Math.hypot(qx,qy,qz);
+  const lon=(qx*cx+qy*cy)/ql,n=fbm(dx*3,dy*3,dz*3),w=.11+.05*n,band=Math.exp(-L2/(w*w));
+  const bul=Math.exp(-(1-lon)*2.2)*Math.exp(-L2/.035),dust=L2<.1?ss(-.05,.45,fbm(dx*7+11,dy*7+11,dz*7+11))*Math.exp(-L2/.006):0;   // |lat|>.32 — chang hissasi < e^-16
+  const k=(.55+.45*n)*band,dm=1-.8*dust;let R_=(.55*k+1.3*bul)*dm,G_=(.62*k+.8*1.3*bul)*dm,B_=(.85*k+.58*1.3*bul)*dm;
+  if(band>1e-4){const e=ss(.3,.7,fbm(dx*2.3+3,dy*2.3+3,dz*2.3+3))*band*.6;R_+=.7*e;G_+=.16*e;B_+=.22*e;}
+  const f2=ss(.35,.8,fbm(dx*1.4+7,dy*1.4+7,dz*1.4+7))*.35;R_+=.12*f2;G_+=.2*f2;B_+=.45*f2;
+  const o=(row*N+col)*4;out[o]=Math.round(Math.min(1,Math.max(0,R_*.55))*255);out[o+1]=Math.round(Math.min(1,Math.max(0,G_*.55))*255);out[o+2]=Math.round(Math.min(1,Math.max(0,B_*.55))*255);out[o+3]=255;}}}
 function applyFx(){const f=Object.assign({},FX,act.fx);
  FX.cur=f;f.real=!!f.real;const bl=f.bloom;f.bl=bl===false||bl===0?null:Object.assign({strength:.7,threshold:1,radius:1},typeof bl==='number'?{strength:bl}:bl);
  amb.intensity=f.real?(f.amb!=null?f.amb:.05):.35;
  const sky=f.real&&(f.bg==='space'||f.bg==='stars');
  // fon alohida vazifalarda quriladi — element tanlash (pick) uzun to'xtamasin
  if(sky&&!skyPts&&!skyQ){skyQ=1;idle(()=>{if(!skyPts)mkSky();applyFx();},true);}
- if(skyPts){skyPts.visible=sky;skyBox.visible=sky&&f.bg==='space';}}
+ if(skyPts){skyPts.visible=sky&&!!skyOK;skyBox.visible=sky&&!!skyOK&&f.bg==='space';}}
 const vS=new THREE.Vector2();
 function renderReal(f){
  if(!pipe)pipe=mkPipe();const P=pipe;R.getDrawingBufferSize(vS);P.size(vS.x,vS.y);
@@ -431,48 +501,113 @@ function mkLabels(list){lblLayer.textContent='';lbls=[];
  list.forEach(s=>{const d=s.userData.lbl;if(!d)return;s.layers.set(1);const e=document.createElement('div');e.textContent=d.txt;
   e.style.cssText=`position:absolute;left:0;top:0;white-space:nowrap;color:${d.col};font-size:${Math.round(13*d.sc)}px;text-shadow:0 0 4px #000,0 0 2px #000;will-change:transform`;lblLayer.appendChild(e);lbls.push({s,e,k:''});});}
 function visUp(o){for(;o;o=o.parent)if(!o.visible)return false;return true;}
-function updLabels(){if(!lbls.length)return;const w=box.clientWidth,h=box.clientHeight;
- for(const L of lbls){vL.setFromMatrixPosition(L.s.matrixWorld).project(cam);const op=L.s.material.opacity;const on=visUp(L.s)&&vL.z<1&&op>.02;
-  const k=on?`translate(-50%,-50%) translate(${((vL.x*.5+.5)*w).toFixed(1)}px,${((-vL.y*.5+.5)*h).toFixed(1)}px)|${op.toFixed(2)}`:'off';
-  if(k!==L.k){L.k=k;if(on){L.e.style.display='';const p=k.split('|');L.e.style.transform=p[0];L.e.style.opacity=p[1];}else L.e.style.display='none';}}}
+// har kadr: satr yasash/bo'lish yo'q (axlat yig'ish kamayadi), quti o'lchami fit() da saqlanadi (layout o'qilmaydi)
+let lbW=1,lbH=1;
+function updLabels(){if(!lbls.length)return;
+ for(const L of lbls){vL.setFromMatrixPosition(L.s.matrixWorld).project(cam);const op=L.s.material.opacity,on=visUp(L.s)&&vL.z<1&&op>.02;
+  if(!on){if(L.on!==0){L.on=0;L.e.style.display='none';}continue;}
+  if(L.on!==1){L.on=1;L.e.style.display='';}
+  const x=Math.round((vL.x*.5+.5)*lbW*10)/10,y=Math.round((-vL.y*.5+.5)*lbH*10)/10,o=Math.round(op*100)/100;
+  if(x!==L.x||y!==L.y){L.x=x;L.y=y;L.e.style.transform='translate(-50%,-50%) translate('+x+'px,'+y+'px)';}
+  if(o!==L.o){L.o=o;L.e.style.opacity=o;}}}
 // Tab almashganda o'z teksturalari ham (yorliqlar, chiziqlar) bo'shatiladi; umumiy NASA teksturalari va nur saqlanadi
 const ownTex=t=>t&&t.isTexture&&!(t.userData&&t.userData.shared)&&!(window.REALTEX&&window.REALTEX.isShared&&window.REALTEX.isShared(t));
 function dispose(o){o.traverse(m=>{m.geometry&&m.geometry.dispose();if(m.material)(Array.isArray(m.material)?m.material:[m.material]).forEach(x=>{[x.map,x.alphaMap].forEach(t=>{if(ownTex(t))t.dispose();});
  if(x.uniforms)for(const k in x.uniforms){const v=x.uniforms[k]&&x.uniforms[k].value;if(ownTex(v))v.dispose();}x.dispose();});});}
-function pick(cfg,i){const ts=performance.now();
- if(obj){scene.remove(obj.G);dispose(obj.G);}
- cur={ticks:[],real:false,fx:{},labels:[]};
- obj=cfg.items[i].build(H);
- const r=obj;['real','bg','bloom','exposure','amb'].forEach(k=>{if(r[k]!==undefined&&cur.fx[k]===undefined)cur.fx[k]=r[k];});
- if(cur.fx.real===undefined)cur.fx.real=cur.real;
- act=cur;applyFx();mkLabels(cur.fx.real?cur.labels:[]);
- scene.add(obj.G);cam.position.set(...obj.cam);if(ctl){ctl.target.set(...obj.tg);ctl.update();}else cam.lookAt(...obj.tg);t0=last=performance.now();
- window.ILM3D.lastPick={ms:performance.now()-ts,real:cur.fx.real};}
+// Element tanlash: yangi sahna quriladi, uning shaderlari FONDA tayyorlanadi (prep), shu vaqt eski element ko'rinib turadi
+// (yangi mavzuda — bo'sh quti va kutish belgisi). Tayyor bo'lgach almashtiriladi — birinchi kadr kompilyatsiya qilmaydi.
+let pend=0,waitEl=null,waitT=0;
+function waitUI(on){clearTimeout(waitT);if(!waitEl)return;if(on)waitT=setTimeout(()=>{waitEl.style.display='flex';},120);else waitEl.style.display='none';}
+function pick(cfg,i,fresh){const ts=performance.now(),tok=++pend;
+ if(fresh&&obj){scene.remove(obj.G);dispose(obj.G);obj=null;mkLabels([]);}
+ const nc={ticks:[],real:false,fx:{},labels:[]};cur=nc;let nx;
+ try{nx=cfg.items[i].build(H);}finally{cur=act;}   // eski element u(t) ichidagi H.fx o'z kontekstiga yozsin
+ ['real','bg','bloom','exposure','amb'].forEach(k=>{if(nx[k]!==undefined&&nc.fx[k]===undefined)nc.fx[k]=nx[k];});
+ if(nc.fx.real===undefined)nc.fx.real=nc.real;
+ const bms=performance.now()-ts,show=()=>{if(tok!==pend){dispose(nx.G);return;}
+  if(obj){scene.remove(obj.G);dispose(obj.G);}
+  obj=nx;cur=act=nc;applyFx();mkLabels(nc.fx.real?nc.labels:[]);waitUI(false);
+  scene.add(obj.G);cam.position.set(...obj.cam);if(ctl){ctl.target.set(...obj.tg);ctl.update();}else cam.lookAt(...obj.tg);t0=last=performance.now();
+  window.ILM3D.lastPick={ms:bms,real:nc.fx.real,ready:performance.now()-ts};};
+ window.ILM3D.lastPick={ms:bms,real:nc.fx.real,ready:-1};
+ waitUI(true);
+ if(nc.fx.real&&!pipe)pipe=mkPipe();
+ // post-ishlov kvadrati yorug'liksiz sahnada chiziladi — yorug'liklar soni dastur kalitida bor, shuning uchun alohida
+ const pp=nc.fx.real&&!pipe.ok?prep([pipeObjs()],{lights:[]}).then(()=>{pipe.ok=1;}):Promise.resolve();
+ Promise.all([pp,prep([nx.G])]).then(show,e=>{console.warn('[ilm3d prep] '+(e&&e.stack||e));show();});}
 // Faqat ilmiy oyna ochiq bo'lganda chiziladi (avval yopiq oynada ham har kadrda yashirin canvas chizilardi)
 function loop(){raf=0;if(!box||!box.isConnected||!box.closest('.open'))return;const now=performance.now(),t=(now-t0)/1000,dt=Math.min(.1,(now-last)/1000);last=now;GU.time.value=t;
  obj&&obj.u&&obj.u(t);for(const f of act.ticks)f(t,dt);ctl&&ctl.update();
- const f=FX.cur;if(f&&f.real)renderReal(f);else R.render(scene,cam);
+ const f=FX.cur;if(!obj){R.setRenderTarget(null);R.setClearColor(0x000000,clearA);R.clear();}   // yangi mavzu shaderlari tayyorlanmoqda — CSS fon ko'rinadi
+ else if(f&&f.real)renderReal(f);else R.render(scene,cam);
  updLabels();raf=requestAnimationFrame(loop);}
 // Shader dasturlarini bo'sh vaqtda oldindan kompilyatsiya qilish — element almashganda uzun to'xtash bo'lmasin
 // Bo'sh vaqt navbati: har vazifa alohida (requestIdleCallback) — uzun to'xtashlar bo'lib tashlanadi
 const IQ=[];let iqOn=0;const ric=window.requestIdleCallback||(f=>setTimeout(f,40));
 function idle(fn,front){const a=Array.isArray(fn)?fn:[fn];front?IQ.unshift(...a):IQ.push(...a);if(!iqOn){iqOn=1;ric(runIQ,{timeout:800});}}
-function runIQ(){iqOn=0;const fn=IQ.shift();if(!fn||!R)return;const tj=performance.now();
- try{fn();}catch(e){console.warn('[ilm3d idle] '+(e&&e.message||e));}ST.warm.push(Math.round(performance.now()-tj));
- if(IQ.length){iqOn=1;ric(runIQ,{timeout:800});}}
-// Shader dasturlarini oldindan kompilyatsiya qilish: har materialga bitta vazifa; materiallar saqlanadi (dastur keshda qoladi)
+// vazifa Promise qaytarsa — navbatdagisi u tugagach boshlanadi (fondagi kompilyatsiyani kutish)
+function runIQ(){iqOn=0;const fn=IQ.shift();if(!fn||!R)return;const tj=performance.now();let r;
+ try{r=fn();}catch(e){console.warn('[ilm3d idle] '+(e&&e.message||e));}ST.warm.push(Math.round(performance.now()-tj));
+ const nx=()=>{iqOn=0;if(IQ.length){iqOn=1;ric(runIQ,{timeout:800});}};
+ if(r&&r.then){iqOn=1;r.then(nx,nx);}else nx();}
+// ---------- Shaderlarni asosiy oqimni to'xtatmasdan tayyorlash (KHR_parallel_shader_compile) ----------
+// Sabab: r128 dasturni yaratganda getProgramInfoLog va getUniforms (ACTIVE_UNIFORMS) bilan bog'lash TUGASHINI kutadi —
+// og'ir shovqinli shaderlarda asosiy oqim 0.1–1.4 s to'xtaydi. (Ikkinchi kontekst + umumiy dastur keshi usuli bu yerda
+// ishonchsiz: GPU jarayonining dastur keshi kichik, bir nechta og'ir dastur birga kelsa eskilari siqib chiqariladi.)
+// Shuning uchun AYNI kontekstda ikki bosqich:
+//  1) material NUSXASI ("sharpa", xuddi shu dastur kaliti) kompilyatsiya qilinadi — xato tekshiruvi va uniform so'rovlari
+//     shu chaqiruv davomida o'chiq, gl.linkProgram darhol qaytadi, GPU fon oqimida bog'laydi;
+//  2) COMPLETION_STATUS_KHR tayyor bo'lgach dasturning uniform ro'yxati qayta o'qiladi (endi kutmaydi), so'ng haqiqiy
+//     materiallar kompilyatsiya qilinadi — three.js tayyor dasturni kalit bo'yicha qayta ishlatadi (millisekundlar).
+// Kengaytma bo'lmasa — avvalgidek (bloklovchi), lekin bo'laklab.
+let gl=null,KP=null,gpp=null;const pend2=new Set();
+function kpInit(){if(!gl){gl=R.getContext();KP=gl.getExtension('KHR_parallel_shader_compile');gpp=gl.getProgramParameter.bind(gl);}return !!KP;}
+function ghosts(list){const seen=new Map(),gm=m=>{let g=seen.get(m);if(!g){g=m.clone();seen.set(m,g);}return g;};
+ const out=list.map(o=>{const s=Object.create(o);s.material=Array.isArray(o.material)?o.material.map(gm):gm(o.material);return s;});return {out,mats:[...seen.values()]};}
+// tayyor dastur: bog'lash natijasi tekshiriladi, uniform ro'yxati to'g'ri kontekst so'rovi bilan qayta quriladi
+function fixProg(p){pend2.delete(p);if(!p.program)return;
+ if(!gpp(p.program,gl.LINK_STATUS))console.error('[ilm3d] shader: '+gl.getProgramInfoLog(p.program));
+ const U=p.getUniforms().constructor,real=new U(gl,p.program);p.getUniforms=()=>real;
+ p.getAttributes();}   // atribut joylari ham hozir (sinxron so'rov) — birinchi kadrda GPU jarayonini kutib qolmasin
+function waitProgs(np){return new Promise(res=>{const ts=performance.now();(function poll(){let all=true;
+ for(const p of np){if(!pend2.has(p))continue;if(!p.program){pend2.delete(p);continue;}   // dispose qilingan (three: program=undefined)
+  if(gpp(p.program,KP.COMPLETION_STATUS_KHR))fixProg(p);else all=false;}
+ if(all)res();else if(performance.now()-ts>20000){np.forEach(p=>{if(pend2.has(p))fixProg(p);});res();}else setTimeout(poll,16);})();});}
+// 1-bosqich: sharpalarni "kutmasdan" kompilyatsiya — yangi dasturlar ro'yxati
+function compileAsync(list,lights){const {out,mats}=ghosts(list),before=new Set(R.info.programs),AU=gl.ACTIVE_UNIFORMS,AA=gl.ACTIVE_ATTRIBUTES;
+ return new Promise(res=>{let i=0;(function step(){const t=performance.now(),chk=R.debug.checkShaderErrors;
+  gl.getProgramParameter=(p,n)=>(n===AU||n===AA)?0:gpp(p,n);R.debug.checkShaderErrors=false;
+  try{while(i<out.length){R.compile(proxy(lights,[out[i++]]),cam);if(performance.now()-t>12)break;}}catch(e){console.warn('[ilm3d compile]',e);i=out.length;}
+  finally{gl.getProgramParameter=gpp;R.debug.checkShaderErrors=chk;}
+  if(i<out.length)setTimeout(step,0);else{const np=R.info.programs.filter(p=>!before.has(p));np.forEach(p=>pend2.add(p));res({np,mats});}})();});}
+// Materialli obyektlar (har materialga bittadan; ko'rinmaydiganlari ham — u(t) ularni keyin yoqadi)
+function matObjs(roots){const a=[],seen=new Set();roots.forEach(r=>r&&r.traverse(o=>{const m=o.material;if(!m)return;const arr=Array.isArray(m)?m:[m];
+ if(arr.every(x=>seen.has(x)))return;arr.forEach(x=>seen.add(x));a.push(o);}));return a;}
+// Sahna o'rnida — o'sha fon/tuman, lekin faqat berilgan obyektlar va yorug'liklar (yorug'liklar soni dastur kalitining qismi)
+function proxy(lights,list){const ps=Object.create(scene);ps.traverse=f=>{list.forEach(f);};ps.traverseVisible=f=>{lights.forEach(f);};return ps;}
+// Bo'laklab kompilyatsiya: har vazifa ~budget ms, orasida brauzer kadr chizadi
+function chunked(RR,list,lights,budget){return new Promise(res=>{const one=[],ps=proxy(lights,one);let i=0;
+ (function step(){const t=performance.now();try{while(i<list.length){one[0]=list[i++];RR.compile(ps,cam);if(performance.now()-t>budget)break;}}
+  catch(e){console.warn('[ilm3d compile]',e);i=list.length;}if(i<list.length)setTimeout(step,0);else res();})();});}
+// prep(ildizlar, {lights, budget}) → Promise: shaderlar fonda tayyorlanadi, so'ng haqiqiy materiallar bo'laklab ulanadi
+function prep(roots,o){o=o||{};const list=matObjs(roots);if(!list.length||!R)return Promise.resolve();
+ let lights=o.lights;if(!lights){lights=[amb,pl];roots.forEach(r=>r&&r.traverse(x=>{if(x.isLight&&lights.indexOf(x)<0)lights.push(x);}));}
+ const ts=performance.now(),S={n:list.length},main=()=>{S.wait=Math.round(performance.now()-ts);const t1=performance.now();
+  return chunked(R,list,lights,o.budget||30).then(()=>{S.main=Math.round(performance.now()-t1);ST.prep.push(S);if(ST.prep.length>40)ST.prep.shift();});};
+ if(!kpInit())return main();
+ return compileAsync(list,lights).then(({np,mats})=>{S.np=np.length;return waitProgs(np).then(main).then(()=>{mats.forEach(m=>m.dispose());});});}
+let pipeG=null;const pipeObjs=()=>pipeG||(pipeG=new THREE.Group().add(...[pipe.cmp,pipe.pre,pipe.dn,pipe.up].map(m=>new THREE.Mesh(pipe.quad.geometry,m))));
+// Dvigatel shablonlari (yulduz, sayyora, disk, zarra…) — materiallar saqlanadi, dasturlar R keshida qoladi
 let warmed=false;
 function warm(){if(warmed)return;warmed=true;
- const comp=objs=>{objs.forEach(o=>o.traverse(m=>{if(!m.material)return;const sc=new THREE.Scene();sc.add(new THREE.AmbientLight(),new THREE.PointLight());const c=m.isPoints?new THREE.Points(m.geometry,m.material):new THREE.Mesh(m.geometry,m.material);
-  c.frustumCulled=false;sc.add(c);keep.push(m.material);idle(()=>R.compile(sc,cam));}));};
- const mk=f=>idle(()=>{const sv=cur;cur={ticks:[],real:false,fx:{},labels:[]};try{comp(f());}finally{cur=sv;}});
- mk(()=>{if(!pipe)pipe=mkPipe();return [pipe.cmp,pipe.pre,pipe.dn,pipe.up].map(m=>new THREE.Mesh(pipe.quad.geometry,m));});
- [()=>[H.star(1,5800)],()=>[H.planet(0x888888,1,{atm:false})],()=>[H.planet(0x888888,1,{ring:true,atmI:1})],()=>[H.disk(1,3)],()=>[H.particles(4)],()=>[H.surface(2,4)],()=>[H.fatLine(4,0xffffff)]].forEach(mk);
- mk(()=>{if(!skyPts){skyQ=1;mkSky();}return [skyPts,skyBox];});}
+ // har shablon — alohida bo'sh-vaqt vazifasi (qurish + fonda kompilyatsiya), birinchi element ko'ringandan keyin
+ [()=>H.star(1,5800,{seg:16}),()=>H.planet(0x888888,1,{atm:false,seg:16}),()=>H.planet(0x888888,1,{ring:true,atmI:1,seg:16}),()=>H.disk(1,3),()=>H.particles(4),()=>H.surface(2,4),
+  ()=>H.fatLine(4,0xffffff),()=>new THREE.Mesh(new THREE.BoxGeometry(),H.std(0xffffff)),()=>H.label('·')].forEach(f=>idle(()=>{const sv=cur;cur={ticks:[],real:false,fx:{},labels:[]};let o;
+  try{o=f();}finally{cur=sv;}o.traverse(m=>{if(m.material)keep.push(m.material);});return prep([o],{budget:25});}));}
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const HINT={uz:"Sichqoncha bilan aylantiring, g'ildirakcha bilan yaqinlashtiring",ru:"Вращайте мышью, приближайте колёсиком",en:"Drag to rotate, scroll to zoom"};
 const DEF={uz:"3D ko'rgazma",ru:"3D-демонстрация",en:"3D demonstration"};
-window.ILM3D={H,reg:{},add(ico,cfg){this.reg[ico]=cfg;},fx:()=>FX.cur,stats:ST,idleLeft:()=>IQ.length+iqOn,pipe:()=>pipe&&{hf:pipe.hf,w:pipe.w,h:pipe.h,ms:pipe.rt&&pipe.rt.samples||0,mips:pipe.mips.length},renderer:()=>R};
+window.ILM3D={H,reg:{},add(ico,cfg){this.reg[ico]=cfg;},fx:()=>FX.cur,stats:ST,idleLeft:()=>IQ.length+iqOn,preinit:()=>{if(!R)init();},prewarm:(objs,o)=>R?prep(objs,o):Promise.resolve(),pipe:()=>pipe&&{hf:pipe.hf,w:pipe.w,h:pipe.h,ms:pipe.rt&&pipe.rt.samples||0,mips:pipe.mips.length},renderer:()=>R};
 const tx=(o,l)=>o==null?'':(typeof o==='string'?o:(o[l]||o.uz));
 window.ILMIY_HOOK=function(T,l,art){
  const cfg=window.ILM3D.reg[T.ico];if(!cfg)return;
@@ -485,11 +620,16 @@ window.ILMIY_HOOK=function(T,l,art){
  <div class="ilm-box i3-info" style="margin-top:12px"></div>${cfg.extra?cfg.extra(l):''}`;
  const hs=art.querySelectorAll('h4');(hs[1]?art.insertBefore(sec,hs[1]):art.appendChild(sec));
  box=sec.querySelector('.i3-box');box.prepend(R.domElement);box.appendChild(lblLayer);fit();
+ if(!document.getElementById('i3-wait-css')){const st=document.createElement('style');st.id='i3-wait-css';st.textContent='@keyframes i3spin{to{transform:rotate(360deg)}}';document.head.appendChild(st);}
+ waitEl=document.createElement('div');waitEl.style.cssText='position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:1';
+ waitEl.innerHTML='<div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(160,190,255,.18);border-top-color:rgba(170,200,255,.75);animation:i3spin .9s linear infinite"></div>';box.appendChild(waitEl);
  const inf=sec.querySelector('.i3-info');
  const info=i=>{const it=cfg.items[i];inf.innerHTML=cfg.info?cfg.info(l,i):`<div style="font-size:20px;font-weight:800;margin-bottom:8px">${esc(tx(it.n,l))}</div><p style="margin:0">${esc(tx(it.d,l))}</p>`;};
  sec.querySelector('.i3-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-i3]');if(!b)return;const i=+b.dataset.i3;curBy[T.ico]=i;pick(cfg,i);sec.querySelectorAll('[data-i3]').forEach(x=>x.classList.toggle('on',x===b));info(i);});
- pick(cfg,ci);info(ci);requestAnimationFrame(fit);
+ // sahna qurilishi keyingi vazifada — maqola matni/grafigi bilan bitta uzun vazifaga qo'shilmasin
+ info(ci);requestAnimationFrame(fit);if(obj){scene.remove(obj.G);dispose(obj.G);obj=null;mkLabels([]);}
+ const tok=++pend;setTimeout(()=>{if(tok===pend&&sec.isConnected)pick(cfg,ci,true);},0);
  if(!raf)raf=requestAnimationFrame(loop);
- warm();
+ setTimeout(warm,1500);   // shablonlar — birinchi element ochilib bo'lgach
 };
 })();

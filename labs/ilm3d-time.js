@@ -26,7 +26,8 @@ function barSVG(vals,labels,l){const n=vals.length,rowH=36,lw=110,W=600,bw=W-lw-
  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;vals.forEach((v,i)=>{const y=i*rowH+4,w=Math.max(4,(Math.log10(v)-lo)/(hi-lo)*bw);
   s+=`<text x="${lw-10}" y="${y+20}" text-anchor="end" fill="currentColor" font-size="13" opacity=".85">${labels[i]}</text><rect x="${lw}" y="${y+5}" width="${bw}" height="22" rx="6" fill="rgba(255,255,255,.05)"></rect><rect x="${lw}" y="${y+5}" width="${w}" height="22" rx="6" fill="${COL[i]}"></rect><text x="${lw+w+8}" y="${y+21}" fill="currentColor" font-size="13" font-weight="700">×${new Intl.NumberFormat({uz:'uz-UZ',ru:'ru-RU',en:'en-US'}[l],{maximumSignificantDigits:4}).format(v)}</text>`;});return s+'</svg>';}
 const warmStd=()=>{if(window.__ilmStdW)return;const R=window.ILM3D.renderer&&window.ILM3D.renderer();if(!R)return;window.__ilmStdW=1;   // MeshStandard dasturini bo'sh vaqtda oldindan kompilyatsiya (bir marta)
- (window.requestIdleCallback||(f=>setTimeout(f,60)))(()=>{try{const s=new THREE.Scene(),m=new THREE.MeshStandardMaterial();m.dispose=()=>{};s.add(new THREE.AmbientLight(),new THREE.PointLight(),new THREE.Mesh(new THREE.BoxGeometry(),m));R.compile(s,new THREE.PerspectiveCamera());}catch(e){}},{timeout:1500});};
+ const m=new THREE.MeshStandardMaterial();m.dispose=()=>{};   // fonda (KHR_parallel_shader_compile) — asosiy oqim to'xtamaydi
+ if(window.ILM3D.prewarm)window.ILM3D.prewarm([new THREE.Mesh(new THREE.BoxGeometry(),m)]);};
 const tbl=(h,r)=>`<div class="ilm-box" style="overflow-x:auto"><table class="ilm-tbl"><thead><tr>${h.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.map(x=>`<tr>${x.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
 // Realistik soat: metall gardish, qora siferblat, nurlanuvchi belgilar va mil (HDR — bloom beradi)
@@ -99,7 +100,7 @@ ILM3D.add('⏳',{title:{uz:"Vaqt — 3D ko'rgazma",ru:"Время — 3D-дем�
     BM.forEach((l,i)=>{const c=cand[i];l.visible=!!c;if(c)l.set([rp.x,rp.y,rp.z,c[1].x,c[1].y,c[1].z]);});}};}},
  {n:{uz:"O'tmishga nazar",ru:"Взгляд в прошлое",en:"Looking into the past"},
   d:{uz:"Markazda Yer. Har bir halqa — yorug'lik bizga qancha vaqtda yetib kelishi (logarifmik masshtab): Oy 1,3 soniya, Quyosh 8,3 daqiqa, Neptun ~4 soat, Proksima 4,2 yil, Galaktika markazi ~26 ming yil, Andromeda 2,5 mln yil, relikt nurlanish ~13,8 mlrd yil. Uzoqqa qaragan sari biz koinotning qadimroq holatini ko'ramiz.",ru:"В центре — Земля. Каждое кольцо — время, за которое свет доходит до нас (логарифмический масштаб): Луна 1,3 с, Солнце 8,3 мин, Нептун ~4 ч, Проксима 4,2 года, центр Галактики ~26 тыс. лет, Андромеда 2,5 млн лет, реликтовое излучение ~13,8 млрд лет. Чем дальше смотрим, тем более древнюю Вселенную видим.",en:"Earth is at the centre. Each ring is how long light takes to reach us (log scale): Moon 1.3 s, Sun 8.3 min, Neptune ~4 h, Proxima 4.2 years, galactic centre ~26,000 years, Andromeda 2.5 million years, background radiation ~13.8 billion years. The farther we look, the older the Universe we see."},
-  build(H){const G=new THREE.Group(),earth=H.planet('earth',.6,{sunDir:[.8,.35,.5],spin:.15,seg:H.seg(56)});G.add(earth);const L=lg();
+  build(H){const G=new THREE.Group(),LG=new THREE.Group(),Root=new THREE.Group(),earth=H.planet('earth',.6,{sunDir:[.8,.35,.5],spin:.15,seg:H.seg(56)});G.add(earth);Root.add(G,LG);const L=lg();
    const D=[[1.28,{uz:"Oy · 1,3 s",ru:"Луна · 1,3 с",en:"Moon · 1.3 s"},0xcfd6e6],[499,{uz:"Quyosh · 8,3 daq",ru:"Солнце · 8,3 мин",en:"Sun · 8.3 min"},0xffc861],[14800,{uz:"Neptun · ~4 soat",ru:"Нептун · ~4 ч",en:"Neptune · ~4 h"},0x5f8fff],[1.34e8,{uz:"Proksima · 4,2 yil",ru:"Проксима · 4,2 года",en:"Proxima · 4.2 yr"},0xff9a5a],[8.2e11,{uz:"Galaktika markazi · 26 ming yil",ru:"Центр Галактики · 26 тыс. лет",en:"Galactic centre · 26,000 yr"},0xffe08a],[7.9e13,{uz:"Andromeda · 2,5 mln yil",ru:"Андромеда · 2,5 млн лет",en:"Andromeda · 2.5 Myr"},0xa26bff],[4.35e17,{uz:"Relikt nurlanish · 13,8 mlrd yil",ru:"Реликтовое излучение · 13,8 млрд лет",en:"Background radiation · 13.8 Gyr"},0xff7a8a]];
    // har bir halqadagi manba — realistik ko'rinishda (yorug'lik shu joydan Yerga yo'l oladi)
    const SRC=[
@@ -114,13 +115,18 @@ ILM3D.add('⏳',{title:{uz:"Vaqt — 3D ko'rgazma",ru:"Время — 3D-дем�
     null];
    const P=[];D.forEach(([s,n,c],i)=>{const r=1+Math.log10(s)*.92,a=Math.random()*6.283,ra=[];for(let k=0;k<=160;k++){const b=k/160*6.2832;ra.push(r*Math.cos(b),0,r*Math.sin(b));}
     G.add(H.fatLine(161,c,{width:1.5,glow:.5,intensity:.8,opacity:.75}).set(ra));
-    const lb=H.label(n[L]||n.uz,'#'+c.toString(16).padStart(6,'0'),1.25);const la=[-1.95,-.45,.55,.79,.79,.79,.79][i];lb.position.set(r*Math.cos(la),.55,r*Math.sin(la));lb.scale.set(6.5,1.6,1);G.add(lb);
+    // yorliqlar aylanmaydigan guruhda (halqa doira — belgi joyi o'zgarmasa ham to'g'ri); ichki ikki halqa markazga juda yaqin —
+    // ularning yorlig'i chetga va yuqoriga chiqarilib, halqaga ingichka ko'rsatkich chiziq bilan bog'lanadi (ustma-ust tushmaydi)
+    const lb=H.label(n[L]||n.uz,'#'+c.toString(16).padStart(6,'0'),1.25);lb.scale.set(6.5,1.6,1);LG.add(lb);
+    if(i<2){const la=i?-.9:-2.3,ax=r*Math.cos(la),az=r*Math.sin(la),E=i?[4.1,1.7,-3.7]:[-3.4,2.3,-2.9];
+     LG.add(H.fatLine(2,c,{width:1.1,glow:.3,intensity:.7,opacity:.8}).set([ax,.05,az,...E]));lb.position.set(E[0],E[1]+.5,E[2]);}
+    else{const la=[0,0,.55,.79,.79,.79,.79][i];lb.position.set(r*Math.cos(la),.55,r*Math.sin(la));}
     if(SRC[i]){const o=SRC[i]();o.position.set(r*Math.cos(a),0,r*Math.sin(a));G.add(o);}
     const ph=H.glow(c,1.1,1.8);G.add(ph);P.push([ph,r,a]);});
    // relikt nurlanish — eng chekka halqa bo'ylab notekis (anizotrop) issiq-sovuq dog'lar
    {const r=1+Math.log10(4.35e17)*.92,n=H.n(1400),p=H.particles(n,{size:.3,intensity:.6,opacity:.8});for(let i=0;i<n;i++){const t=Math.random()*6.2832,rr=r+(Math.random()-.5)*1.1,y=(Math.random()-.5)*.6;p.pos.set([rr*Math.cos(t),y,rr*Math.sin(t)],i*3);
      const v=Math.sin(t*7.0)+Math.sin(t*17.0+1.3)*.6+(Math.random()-.5)*.8;p.setColor(i,v>.4?0xff8a5c:v<-.4?0x4a7dff:0xffd2a0);}p.upd();G.add(p);}
-   return {G,cam:[0,19,24],tg:[0,0,0],bg:'space',bloom:{strength:.7,threshold:1,radius:1},amb:.02,u(t){P.forEach(([ph,r,a],i)=>{const k=((t*.18+i*.13)%1),rr=lerp(r,.6,k);ph.position.set(rr*Math.cos(a),0,rr*Math.sin(a));ph.uniforms.uInt.value=1.8*(1-k*.6)*Math.min(1,(1-k)*8);});G.rotation.y=t*.04;}};}}
+   return {G:Root,cam:[0,19,24],tg:[0,0,0],bg:'space',bloom:{strength:.7,threshold:1,radius:1},amb:.02,u(t){P.forEach(([ph,r,a],i)=>{const k=((t*.18+i*.13)%1),rr=lerp(r,.6,k);ph.position.set(rr*Math.cos(a),0,rr*Math.sin(a));ph.uniforms.uInt.value=1.8*(1-k*.6)*Math.min(1,(1-k)*8);});G.rotation.y=t*.04;}};}}
  ]});
 window.ILM3D.reg['⏳'].items.forEach(it=>{const b=it.build;it.build=H=>{warmStd();return b(H);};});
 })();

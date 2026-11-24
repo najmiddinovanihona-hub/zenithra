@@ -137,7 +137,7 @@ function mount(fig,T,x,l){
  fig.addEventListener('keydown',e=>{const g=e.target.closest('.m');if(!g)return;   // ← → / ↑ ↓ belgilar orasida yurish
   const all=[...fig.querySelectorAll('.m')],i=all.indexOf(g),d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];
   if(d){e.preventDefault();const nx=all[(i+d+all.length)%all.length];nx&&nx.focus();}else if(e.key==='Escape'){hide();}});
- fig._draw();if(RO){RO.disconnect();RO.observe(fig);}
+ if(RO){RO.disconnect();RO.observe(fig);}else fig._draw();   // RO birinchi kuzatuvda (tabiiy layoutdan keyin) chizadi — maqola layouti bilan bitta uzun vazifa bo'lmasin
 }
 // Grafik ma'lumotlari jadvali (ochiladigan) — qiymatlar tooltipsiz ham o'qiladi
 function dataTbl(c,x,l){const u=UI[l],hd=[c.x?x.ax2:u.item,x.ax];if(c.err)hd.push('± 1σ');
@@ -251,7 +251,12 @@ const close=()=>{ov.classList.remove('open');window.__labCover=false;};   // aso
 $('ilmBack').onclick=close;
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&ov.classList.contains('open'))close();});
 // Avval ochiladi, keyin chiziladi — 3D ko'rgazma faqat ochiq oynada quriladi; orqadagi asosiy sahna pauza
+// WebGL konteksti (0,1–0,3 s) maqola+grafik vazifasiga qo'shilmasin: kursor tugmaga yetganda bo'sh vaqtda,
+// bo'lmasa bosilgandan keyin alohida vazifada (ma'lumot yuklanayotganda) yaratiladi
+const pre3d=()=>{if(window.ILM3D&&window.ILM3D.preinit)window.ILM3D.preinit();};
+btn.addEventListener('pointerenter',()=>{(window.requestIdleCallback||(f=>setTimeout(f,50)))(pre3d,{timeout:400});},{once:true});
 btn.onclick=()=>{ov.classList.add('open');window.__labCover=true;
+ setTimeout(()=>{if(ov.classList.contains('open'))pre3d();},0);
  if(!(window.ILMIY||[]).length){$('ilmArt').innerHTML='<p style="opacity:.6;padding:24px">…</p>';}
  (window.LAZY?window.LAZY.load('ilmiy'):Promise.resolve()).then(render);};   // ma'lumot fayllari birinchi ochilishda (labs/lazy.js)
 const ub=document.getElementById('ubBtn');

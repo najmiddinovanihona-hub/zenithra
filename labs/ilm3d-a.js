@@ -188,7 +188,9 @@ ILM3D.add('🌑',{title:{uz:"Qorong'i materiya — 3D ko'rgazma",ru:"Тёмна�
    for(let i=0;i<nH;i++){const r=2+7*Math.random(),th=arm(i%2,r)+.06+gn()*.06;HII.pos.set([r*Math.cos(th)+gn()*.12,gn()*.05,r*Math.sin(th)+gn()*.12],i*3);HII.size[i]=R(.5,1.3);}
    const nU=H.n(1300),Du=H.particles(nU,{size:.4,color:0x1c120a,opacity:.2,blend:'normal'});Du.renderOrder=3;
    for(let i=0;i<nU;i++){const r=1.4+7.4*Math.pow(Math.random(),.9),th=arm(i%2,r)-.2+gn()*.06;Du.pos.set([r*Math.cos(th),gn()*.04,r*Math.sin(th)],i*3);Du.size[i]=R(.6,1.4);}
-   A.upd();HII.upd();Du.upd();arms.add(A,HII,Du);G.add(arms);
+   // yutuvchi chang qatlami — qo'llar bilan birga aylanadi (θ = −pk·ln(r/1.6) + aπ − 0.2)
+   const DL=H.dustLanes(1.6,9.2,{arms:2,r0:1.6,k:-pk,off:-.24,width:.16,opacity:.95}),DG=H.galaxyGlow(1.6,9.2,{arms:2,r0:1.6,k:-pk,intensity:.55});
+   A.upd();HII.upd();Du.upd();arms.add(DG,A,HII,Du,DL);G.add(arms);
    // Qorong'i materiya galasi — yumshoq hajmli binafsha tuman (markazga zichlashgan)
    const nX=H.n(700),X=H.particles(nX,{size:3.2,intensity:.022,color:0x8a55ff}),v=new THREE.Vector3();
    for(let i=0;i<nX;i++){v.set(gn(),gn(),gn()).normalize().multiplyScalar(13*Math.pow(Math.random(),.6));X.pos.set([v.x,v.y,v.z],i*3);X.size[i]=R(.6,1.4);}X.upd();

@@ -2,7 +2,7 @@
 window.ILMIY=window.ILMIY||[];
 window.ILMIY.push(
 {ico:'🪐',
- chart:{type:'bar',pct:true,vals:[74,19,4,2,1],src:'NASA Exoplanet Archive'},   // taxminiy ulush; kichik ulushlarni solishtirish uchun ustunlar
+ chart:{type:'bar',pct:true,vals:[74.3,18.7,4.5,1.5,1.0],src:'NASA Exoplanet Archive'},   // ulush (jami 100 %): NASA Exoplanet Archive counts_detail sahifasidagi usullar bo'yicha sonlardan hisoblangan (2026-11-24 tekshirildi): tranzit 4799, radial tezlik 1205, mikrolinzalanish 294, tasvirlash 98, qolgan usullar ~64 (jami ~6460; ba'zi sayyoralar bir necha usul bilan topilgan — taxminiy)
  uz:{t:"Ekzosayyoralar",
   d:["Ekzosayyora — Quyoshdan boshqa yulduz atrofida aylanadigan sayyora. 2025-yil sentabrida NASA tasdiqlangan ekzosayyoralar soni 6000 dan oshganini e'lon qildi.","Ularning aksariyati bevosita ko'rinmaydi. Tranzit usulida sayyora yulduz oldidan o'tganda yorug'lik biroz xiralashadi; radial tezlik usulida esa sayyora tortishi yulduzni «tebratadi».","Asosiy maqsad — hayot uchun qulay sayyoralarni topish. James Webb teleskopi ekzosayyoralar atmosferasidagi suv bug'i, karbonat angidrid va metanni aniqlay boshladi."],
   res:[["1992","Volshan va Freyl pulsar atrofida birinchi ekzosayyoralarni topgan."],["1995","Mayor va Kelo Quyoshsimon yulduz atrofidagi birinchi sayyorani — 51 Pegas b ni kashf etgan (2019-yil Nobel)."],["2009–2018","Kepler teleskopi 2600 dan ortiq sayyora topib, ularning Galaktikada juda ko'p ekanini ko'rsatgan."],["2016","Bizga eng yaqin yulduz atrofida Proksima b sayyorasi topilgan."],["2017","TRAPPIST-1 tizimida Yer o'lchamidagi 7 ta sayyora aniqlangan."],["2022","James Webb WASP-39b atmosferasida karbonat angidridni birinchi marta aniq qayd etgan."]],
