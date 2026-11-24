@@ -6624,19 +6624,28 @@ const AUTH_X={
     resetCodeSent:'Agar bu pochtada hisob bo‘lsa, unga tasdiqlash kodi yuborildi:', backToIn:'← Kirishga qaytish',
     setupTitle:'Pochta tasdiqlandi ✓', setupSubUp:'Endi ismingiz va parolingizni kiriting', setupSubReset:'Yangi parolni kiriting',
     finishUp:'Ro‘yxatdan o‘tishni yakunlash', savePass:'Parolni saqlash va kirish', newPass:'Yangi parol', newPass2:'Yangi parolni tasdiqlang',
-    restart:'← Boshidan boshlash', errSetupExpired:'Vaqt tugadi — qaytadan boshlang', resetDone:'Parol yangilandi. Boshqa qurilmalardagi sessiyalar yopildi.' },
+    restart:'← Boshidan boshlash', errSetupExpired:'Vaqt tugadi — qaytadan boshlang', resetDone:'Parol yangilandi. Boshqa qurilmalardagi sessiyalar yopildi.',
+    privacy:'Maxfiylik siyosati', consentPre:'Men ', consentLink:'maxfiylik siyosati', consentPost:'ga roziman',
+    errConsent:'Davom etish uchun maxfiylik siyosatiga rozilik bildiring', pvLoading:'Yuklanmoqda…',
+    pvLoadErr:'Matnni yuklab bo‘lmadi — internetni tekshiring. Savollar bo‘lsa, yozing: ' },
   ru:{ stepNames:['Почта','Код','Пароль'], resetSteps:['Почта','Код','Новый пароль'], upSub:'Введите почту — мы отправим на неё код подтверждения',
     forgot:'Забыли пароль?', resetTitle:'Восстановление пароля', resetSub:'Введите почту аккаунта — мы отправим код для восстановления пароля',
     resetCodeSent:'Если на эту почту есть аккаунт, код подтверждения отправлен на', backToIn:'← Вернуться ко входу',
     setupTitle:'Почта подтверждена ✓', setupSubUp:'Теперь введите имя и пароль', setupSubReset:'Введите новый пароль',
     finishUp:'Завершить регистрацию', savePass:'Сохранить пароль и войти', newPass:'Новый пароль', newPass2:'Подтвердите новый пароль',
-    restart:'← Начать заново', errSetupExpired:'Время истекло — начните заново', resetDone:'Пароль обновлён. Сеансы на других устройствах завершены.' },
+    restart:'← Начать заново', errSetupExpired:'Время истекло — начните заново', resetDone:'Пароль обновлён. Сеансы на других устройствах завершены.',
+    privacy:'Политика конфиденциальности', consentPre:'Я согласен(на) с ', consentLink:'политикой конфиденциальности', consentPost:'',
+    errConsent:'Чтобы продолжить, примите политику конфиденциальности', pvLoading:'Загрузка…',
+    pvLoadErr:'Не удалось загрузить текст — проверьте интернет. Вопросы можно отправить на ' },
   en:{ stepNames:['Email','Code','Password'], resetSteps:['Email','Code','New password'], upSub:'Enter your email — we will send a verification code to it',
     forgot:'Forgot password?', resetTitle:'Reset password', resetSub:'Enter your account email — we will send a code to reset your password',
     resetCodeSent:'If an account exists for this email, a verification code was sent to', backToIn:'← Back to sign in',
     setupTitle:'Email verified ✓', setupSubUp:'Now enter your name and a password', setupSubReset:'Enter a new password',
     finishUp:'Finish sign-up', savePass:'Save password and sign in', newPass:'New password', newPass2:'Confirm new password',
-    restart:'← Start over', errSetupExpired:'Time is up — please start again', resetDone:'Password updated. Sessions on other devices were signed out.' },
+    restart:'← Start over', errSetupExpired:'Time is up — please start again', resetDone:'Password updated. Sessions on other devices were signed out.',
+    privacy:'Privacy Policy', consentPre:'I agree to the ', consentLink:'Privacy Policy', consentPost:'',
+    errConsent:'Please accept the Privacy Policy to continue', pvLoading:'Loading…',
+    pvLoadErr:'Could not load the text — check your connection. For questions, write to ' },
 };
 let authTc=null, authTl='';
 function authT(){ if(authTl!==LANG||!authTc){ authTl=LANG; authTc=Object.assign({},window.LOC[LANG].auth||window.LOC.uz.auth,AUTH_X[LANG]||AUTH_X.uz); } return authTc; }
@@ -6644,6 +6653,71 @@ const authEl=id=>document.getElementById(id);
 // "Parolni unutdim?" havolasi (index.html da yo'q — shu yerda qo'shiladi, mavjud .ac-link uslubida)
 const authForgot=(()=>{ const b=document.createElement('button'); b.type='button'; b.id='authForgot'; b.className='ac-link auth-back';
   authEl('authSubmit').after(b); return b; })();
+/* ---------- Maxfiylik siyosati: rozilik belgisi (ro'yxatdan o'tish, 1-bosqich), kartochka pastidagi havola va
+   siyosat oynasi. Matn (privacy.js) faqat birinchi ochilganda yuklanadi. Matn o'zgarsa — PRIVACY_V ni oshiring. ---------- */
+const PRIVACY_V=1, PRIVACY_MAIL='najmiddinovanihona@gmail.com';
+const authConsentWrap=(()=>{ const w=document.createElement('div'); w.className='auth-consent'; w.id='authConsentWrap'; w.style.display='none';
+  w.innerHTML='<input type="checkbox" id="authConsent" /><label for="authConsent"><span></span><a href="#" class="pv-open"></a><span></span></label>';
+  authEl('authFields').after(w); return w; })();
+const authLegal=(()=>{ const b=document.createElement('button'); b.type='button'; b.id='authPrivacy'; b.className='ac-link auth-legal';
+  authEl('authCard').appendChild(b); return b; })();
+// Ro'yxatdan o'tishda rozilik belgilanmaguncha "Kod yuborish" tugmasi xira (bosilsa — sababi aytiladi)
+function authConsentSync(){
+  const need=authMode==='up'&&!authSetup&&!authCh&&!authEl('authConsent').checked, b=authEl('authSubmit');
+  b.classList.toggle('need-consent',need); if(need) b.setAttribute('aria-disabled','true'); else b.removeAttribute('aria-disabled');
+}
+authEl('authConsent').addEventListener('change',()=>{ authConsentSync(); if(authEl('authConsent').checked) authEl('authErr').classList.remove('on'); });
+let pvEl=null, pvPrevFocus=null, pvState='';
+const pvIsOpen=()=>!!pvEl&&!pvEl.classList.contains('off');
+function pvLoad(){
+  if(window.ZEN_PRIVACY) return Promise.resolve(window.ZEN_PRIVACY);
+  if(!pvLoad.p) pvLoad.p=new Promise((ok,no)=>{ const s=document.createElement('script'); s.src='privacy.js?v='+PRIVACY_V;
+    s.onload=()=>window.ZEN_PRIVACY?ok(window.ZEN_PRIVACY):no(new Error('privacy'));
+    s.onerror=()=>{ s.remove(); pvLoad.p=null; no(new Error('privacy')); }; document.head.appendChild(s); });
+  return pvLoad.p;
+}
+// Matndagi email manzillari mailto: havolaga aylanadi (hammasi textContent orqali — HTML kiritilmaydi)
+function pvText(el,str){ String(str).split(/([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/).forEach((part,i)=>{
+  if(i%2){ const a=document.createElement('a'); a.href='mailto:'+part; a.textContent=part; el.appendChild(a); }
+  else if(part) el.appendChild(document.createTextNode(part)); }); }
+function pvRender(){
+  if(!pvEl) return;
+  const t=authT(), P=window.ZEN_PRIVACY, L=P&&(P[LANG]||P.uz), body=authEl('pvBody'), cl=authEl('pvClose');
+  cl.title=t.close; cl.setAttribute('aria-label',t.close);
+  authEl('pvTitle').textContent=L?L.title:t.privacy; authEl('pvUpd').textContent=L?L.updatedL:'';
+  body.textContent='';
+  if(!L){ const p=document.createElement('p'); pvText(p,pvState==='error'?t.pvLoadErr+PRIVACY_MAIL:t.pvLoading); body.appendChild(p); return; }
+  L.s.forEach(([h,items])=>{
+    const h3=document.createElement('h3'); h3.textContent=h; body.appendChild(h3);
+    items.forEach(it=>{
+      if(Array.isArray(it)){ const ul=document.createElement('ul'); it.slice(1).forEach(x=>{ const li=document.createElement('li'); pvText(li,x); ul.appendChild(li); }); body.appendChild(ul); }
+      else { const p=document.createElement('p'); pvText(p,it); body.appendChild(p); }
+    });
+  });
+}
+function pvBuild(){
+  if(pvEl) return;
+  pvEl=document.createElement('div'); pvEl.id='privacyView'; pvEl.className='off';
+  pvEl.setAttribute('role','dialog'); pvEl.setAttribute('aria-modal','true'); pvEl.setAttribute('aria-labelledby','pvTitle');
+  pvEl.innerHTML='<div id="pvCard"><div class="pv-head"><h2 id="pvTitle"></h2><button id="pvClose" class="panel-close" type="button">✕</button></div>'
+    +'<p id="pvUpd" class="pv-upd"></p><div id="pvBody" class="pv-body" tabindex="0"></div></div>';
+  document.body.appendChild(pvEl);
+  pvEl.addEventListener('click',e=>{ if(e.target===pvEl) privacyClose(); });
+  authEl('pvClose').addEventListener('click',()=>{ playClick(440); privacyClose(); });
+}
+async function privacyOpen(){
+  pvBuild(); pvPrevFocus=document.activeElement; pvState='loading';
+  pvRender(); pvEl.classList.remove('off');
+  setTimeout(()=>authEl('pvClose').focus({preventScroll:true}),60);
+  try{ await pvLoad(); pvState='ok'; }catch(e){ pvState='error'; }
+  if(pvIsOpen()){ pvRender(); authEl('pvBody').scrollTop=0; }
+}
+function privacyClose(){
+  if(!pvIsOpen()) return; pvEl.classList.add('off');
+  if(pvPrevFocus&&pvPrevFocus.focus&&document.contains(pvPrevFocus)) pvPrevFocus.focus({preventScroll:true}); pvPrevFocus=null;
+}
+authLegal.addEventListener('click',()=>{ playClick(620); privacyOpen(); });
+authConsentWrap.querySelector('.pv-open').addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); playClick(620); privacyOpen(); });
 function authBuildUI(){
   const t=authT(), u=window.API&&window.API.user;
   authEl('authForm').style.display=u||authCh?'none':'';
@@ -6669,6 +6743,9 @@ function authBuildUI(){
   authEl('authAdmin').textContent=t.admin;
   authEl('authAdmin').style.display=u&&u.role==='admin'?'':'none';
   authEl('authLogout').textContent=t.logout;
+  const cl=authConsentWrap.querySelector('label').children; cl[0].textContent=t.consentPre; cl[1].textContent=t.consentLink; cl[2].textContent=t.consentPost;
+  authLegal.textContent=t.privacy;
+  if(pvIsOpen()) pvRender();
   if(u) pfRender();
   const ub=authEl('userBtn');
   if(ub){ ub.title=u?t.hello+', '+u.name:t.tabIn; ub.classList.toggle('active',!!u); }
@@ -6701,6 +6778,9 @@ function authApplyFields(){
   authEl('authPass2').placeholder=set&&authSetupFor==='reset'?t.newPass2:t.pass2;
   authEl('authSubmitTx').textContent=set?(authSetupFor==='register'?t.finishUp:t.savePass):authMode==='in'?t.btnIn:t.sendCode;
   authForgot.textContent=t.forgot; authForgot.style.display=!set&&authMode==='in'?'':'none';
+  const consentOn=!u&&!set&&authMode==='up';
+  authConsentWrap.style.display=consentOn?'':'none'; authLegal.style.display=consentOn?'none':'';
+  authConsentSync();
   const back=authEl('authStepBack');
   back.style.display=set||authMode==='reset'?'':'none';
   back.textContent=set?t.restart:t.backToIn;
@@ -6732,7 +6812,7 @@ function authOpen(){ if(!window.API||!window.API.online) return; authSetMode(aut
   window.__authCover=true; authEl('authView').classList.remove('off');
   if(window.API.user) pfLoad();
   setTimeout(()=>{ const f=window.API.user?authEl('authClose'):authCh?document.querySelector('#authCodeBoxes input'):authSetup?authEl(authSetupFor==='register'?'authName':'authPass'):authEl('authEmail'); if(f) f.focus({preventScroll:true}); },240); }
-function authClose(){ authEl('authView').classList.add('off'); window.__authCover=false;
+function authClose(){ privacyClose(); authEl('authView').classList.add('off'); window.__authCover=false;
   if(authPrevFocus && authPrevFocus.focus && document.contains(authPrevFocus)) authPrevFocus.focus({preventScroll:true}); authPrevFocus=null; }
 // Server xato kodlari → 3 tilli matn
 // Server (bcrypt) parolning faqat 72 baytini qabul qiladi — kirill/emoji harflar 2–4 bayt, shuning uchun alohida xabar
@@ -6910,6 +6990,7 @@ async function authSubmit(){
   const email=authEl('authEmail').value.trim().toLowerCase();
   const pass=authEl('authPass').value;
   if(authSetup) return authSubmitPassword();
+  if(authMode==='up'&&!authEl('authConsent').checked){ authShowErr(t.errConsent); authEl('authConsent').focus({preventScroll:true}); return; }
   if(authMode==='in'){ if(!email||!pass) return authShowErr(t.errFill); }
   else { if(!email) return authShowErr(t.errFill); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return authShowErr(t.errEmail); }
   authBusy=true; authEl('authSubmit').disabled=true; authEl('authSubmit').classList.add('busy');
@@ -6943,6 +7024,7 @@ async function authSubmitPassword(){
     await window.API.setPassword(authSetup,pass,reg?name:undefined);
     authSetup=null; authSetupFor='';
     ['authPass','authPass2','authName','authSurname'].forEach(id=>{ authEl(id).value=''; });
+    if(reg) authEl('authConsent').checked=false;
     document.querySelectorAll('#authView .auth-eye').forEach(b=>{ b.classList.remove('on'); authEl(b.dataset.for).type='password'; });
     authSetMode('in'); playClick(880);
     if(reg) authClose(); else { pfLoad(); pfMsg(t.resetDone,true); }
@@ -6975,6 +7057,16 @@ authEl('authView').addEventListener('click',e=>{ if(e.target.id==='authView') au
 // Escape faqat kirish oynasini yopadi (orqadagi panel/laboratoriyalarning Escape'i ishga tushmaydi);
 // Tab fokusni oyna ichida aylantiradi (fokus tuzog'i).
 document.addEventListener('keydown',e=>{
+  // Siyosat oynasi ochiq bo'lsa — Escape va Tab unga tegishli
+  if(pvIsOpen()){
+    if(e.key==='Escape'){ e.stopImmediatePropagation(); e.preventDefault(); privacyClose(); return; }
+    if(e.key==='Tab'){ const f=[...authEl('pvCard').querySelectorAll('button,a[href],[tabindex="0"]')].filter(x=>x.offsetParent!==null);
+      const first=f[0], last=f[f.length-1];
+      if(!authEl('pvCard').contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+      else if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); } }
+    return;
+  }
   if(authEl('authView').classList.contains('off')) return;
   if(e.key==='Escape'){ e.stopImmediatePropagation(); e.preventDefault(); authClose(); return; }
   if(e.key==='Tab'){

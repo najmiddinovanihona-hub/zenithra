@@ -1,0 +1,226 @@
+/* Maxfiylik siyosati (uz / ru / en). Faqat foydalanuvchi "Maxfiylik siyosati" havolasini bosganda yuklanadi
+   (script.js → privacyOpen). Matn o'zgarsa: `updated` sanasini va script.js dagi PRIVACY_V ni yangilang.
+   Tuzilishi: s — bo'limlar: [sarlavha, [abzas | ['•', band, band, ...]], ...]. Email manzillari havolaga aylanadi. */
+window.ZEN_PRIVACY = {
+  updated: '2026-11-24',
+  contact: 'najmiddinovanihona@gmail.com',
+  uz: {
+    title: 'Maxfiylik siyosati',
+    updatedL: 'Oxirgi yangilanish: 24-noyabr, 2026',
+    s: [
+      ['Umumiy', [
+        'Zenithra — Quyosh tizimi va astronomiya bo‘yicha bepul o‘quv sayti (zenithra.onrender.com). Bu siyosat sayt qanday shaxsiy ma’lumotlarni yig‘ishi, nima uchun ishlatishi, qayerda saqlashi va sizning huquqlaringizni tushuntiradi.',
+        'Ma’lumotlar uchun mas’ul — sayt muallifi (administrator). Aloqa: najmiddinovanihona@gmail.com.',
+        'Saytdan hisob ochmasdan (mehmon sifatida) ham foydalanish mumkin — bunda serverga shaxsiy ma’lumot yuborilmaydi (quyida “Texnik jurnallar” bandidan tashqari), progress faqat qurilmangizda saqlanadi.',
+      ]],
+      ['Qanday ma’lumotlar yig‘iladi', [
+        ['•',
+          'Hisob: elektron pochta manzili, ism va familiya, interfeys tili, ro‘yxatdan o‘tgan va oxirgi faollik sanasi. Parolning o‘zi saqlanmaydi — faqat uning bir tomonlama xeshi (bcrypt).',
+          'O‘quv ma’lumotlari: darslikdagi progress (o‘qilgan mavzular, xatcho‘plar), test natijalari (qaysi test, ball, sana), sayt sozlamalari.',
+          'Tasdiqlash kodlari: pochtaga yuboriladigan 6 xonali kod — serverda faqat xeshi, 10 daqiqa saqlanadi.',
+          'Sessiya: kirganingizda bitta cookie; serverda uning faqat xeshi saqlanadi.',
+          'Osmon hodisalari eslatmalari — FAQAT siz ularni yoqsangiz: brauzer bildirishnoma obunasi, taxminiy joylashuv (~10 km aniqlikkacha yaxlitlangan), vaqt mintaqasi va tanlagan eslatmalaringiz. Eslatmani o‘chirsangiz, bu yozuv o‘chiriladi.',
+          'Texnik va xavfsizlik jurnallari: kirish va kirish urinishlari, parol o‘zgartirish, administrator harakatlari — sana, IP manzil va email bilan. Hosting serveri ham odatiy so‘rov jurnallarini (IP, vaqt, so‘ralgan manzil) yuritadi.',
+        ],
+        'Biz reklama yoki kuzatuv (tracking) vositalaridan foydalanmaymiz, ma’lumotlarni sotmaymiz va reklama uchun bermaymiz. Aniq GPS joylashuvingiz serverda saqlanmaydi.',
+      ]],
+      ['Nima uchun ishlatiladi', [
+        ['•',
+          'hisob yaratish va unga xavfsiz kirish (pochtaga tasdiqlash kodlari yuborish);',
+          'progress va test natijalarini saqlash, ularni boshqa qurilmalaringizda ko‘rsatish, profil statistikasi;',
+          'siz yoqqan osmon hodisalari eslatmalarini yuborish;',
+          'saytni suiiste’moldan himoya qilish (parol tanlash hujumlari, spam) va nosozliklarni topish;',
+          'o‘quv materiallarini yaxshilash uchun umumlashtirilgan statistika (masalan, qaysi savol qiyin) — shaxsingizni aniqlamagan holda.',
+        ],
+      ]],
+      ['Huquqiy asos — rozilik', [
+        'Ma’lumotlaringiz sizning roziligingiz asosida qayta ishlanadi: ro‘yxatdan o‘tishda “Men maxfiylik siyosatiga roziman” belgisini qo‘yasiz. Eslatmalar uchun brauzer alohida ruxsat so‘raydi. Roziligingizni istalgan vaqt qaytarib olishingiz mumkin — eslatmani o‘chiring yoki hisobingizni o‘chirishni so‘rang.',
+      ]],
+      ['Qayerda saqlanadi va kimlar ishtirok etadi', [
+        ['•',
+          'Ma’lumotlar bazasi — Neon (PostgreSQL), Frankfurt, Germaniya (Yevropa Ittifoqi).',
+          'Sayt serveri (hosting) — Render.',
+          'Tasdiqlash xatlarini yuborish — Google (Gmail) yoki Brevo: ular orqali pochta manzilingiz va xat matni o‘tadi.',
+        ],
+        'Diqqat: ma’lumotlaringiz O‘zbekiston hududidan tashqarida saqlanadi va qayta ishlanadi. Ro‘yxatdan o‘tish orqali bunga rozilik bildirasiz. Agar bunga rozi bo‘lmasangiz, saytdan hisobsiz (mehmon rejimida) foydalaning.',
+        'Ba’zi bo‘limlarda brauzeringiz ochiq xizmatlarga to‘g‘ridan-to‘g‘ri murojaat qiladi: kutubxonalar (jsDelivr, cdnjs, unpkg), Wikimedia Commons rasmlari, laboratoriyalarda ob-havo, joy nomi va kosmik ma’lumotlar (masalan, Open-Meteo, OpenStreetMap, BigDataCloud, ipwho.is). Bu xizmatlar IP manzilingizni ko‘radi va o‘z siyosatlariga amal qiladi; joylashuv ularga qurilmangizdan yuboriladi, bizning serverda esa (eslatmalardan tashqari) saqlanmaydi.',
+      ]],
+      ['Qancha vaqt saqlanadi', [
+        ['•',
+          'hisob, progress, test natijalari va sozlamalar — hisob o‘chirilguncha;',
+          'sessiya — 30 kungacha yoki hisobdan chiqquningizcha;',
+          'tasdiqlash kodlari — 10 daqiqa;',
+          'eslatmalar obunasi va taxminiy joylashuv — eslatmani o‘chirguningizcha;',
+          'xavfsizlik jurnali — xavfsizlik maqsadida saqlanadi va hisob o‘chirilgandan keyin ham qolishi mumkin. So‘rovingiz bo‘yicha sizga tegishli yozuvlarni imkon qadar o‘chiramiz yoki anonimlashtiramiz.',
+        ],
+      ]],
+      ['Sizning huquqlaringiz', [
+        ['•',
+          'Ko‘rish: asosiy ma’lumotlar va statistika profilingizda; saqlangan ma’lumotlaringiz nusxasini email orqali so‘rashingiz mumkin.',
+          'Tuzatish: ism va parolni profilda o‘zgartirasiz; pochta manzilini o‘zgartirish — email orqali so‘rov bilan.',
+          'O‘chirish: hozircha saytda hisobni o‘zingiz o‘chirish tugmasi yo‘q. najmiddinovanihona@gmail.com ga ro‘yxatdan o‘tgan pochtangizdan yozing — hisobingiz va unga bog‘liq ma’lumotlar 30 kun ichida o‘chiriladi.',
+          'Rozilikni qaytarib olish va shikoyat qilish — bizga yozing yoki vakolatli davlat organiga murojaat qiling.',
+        ],
+      ]],
+      ['Bolalar va o‘quvchilar', [
+        'Sayt maktab o‘quvchilari uchun ham mo‘ljallangan. Agar 16 yoshga to‘lmagan bo‘lsangiz, ro‘yxatdan o‘tishdan oldin ota-onangiz yoki o‘qituvchingiz bilan maslahatlashing. Ota-ona yoki vasiy farzandining hisobini o‘chirishni so‘rashi mumkin. Barcha darslar hisobsiz ham ochiq. Ism maydoniga faqat ism va familiyangizni yozing — boshqa shaxsiy ma’lumot kiritmang.',
+      ]],
+      ['Cookie va brauzer xotirasi', [
+        'Sayt faqat bitta zaruriy cookie ishlatadi — kirganingizda sessiya cookie’si (HttpOnly, saytning o‘zi uchun). Til, ko‘rinish sozlamalari va mehmon progressi brauzeringiz xotirasida (localStorage) — faqat qurilmangizda saqlanadi. Reklama va kuzatuv cookie’lari yo‘q.',
+      ]],
+      ['Xavfsizlik', [
+        'Aloqa HTTPS orqali shifrlanadi, parol va kodlar xesh ko‘rinishida saqlanadi, kirish urinishlari cheklanadi. Shunga qaramay internetda to‘liq xavfsizlikni hech kim kafolatlay olmaydi — bu saytdagi parolni boshqa saytlarda takrorlamang.',
+      ]],
+      ['O‘zgarishlar va aloqa', [
+        'Siyosat o‘zgarsa, yangi matn shu yerda yangilangan sana bilan e’lon qilinadi; muhim o‘zgarishlar haqida saytda xabar beramiz.',
+        'Savollar va so‘rovlar: najmiddinovanihona@gmail.com',
+      ]],
+    ],
+  },
+  ru: {
+    title: 'Политика конфиденциальности',
+    updatedL: 'Последнее обновление: 24 ноября 2026 г.',
+    s: [
+      ['Общие положения', [
+        'Zenithra — бесплатный образовательный сайт о Солнечной системе и астрономии (zenithra.onrender.com). Эта политика объясняет, какие персональные данные собирает сайт, зачем, где они хранятся и какие у вас права.',
+        'Ответственный за данные — автор сайта (администратор). Контакт: najmiddinovanihona@gmail.com.',
+        'Сайтом можно пользоваться и без аккаунта (как гость) — тогда персональные данные на сервер не передаются (кроме технических журналов, см. ниже), а прогресс хранится только на вашем устройстве.',
+      ]],
+      ['Какие данные собираются', [
+        ['•',
+          'Аккаунт: адрес электронной почты, имя и фамилия, язык интерфейса, дата регистрации и последней активности. Сам пароль не хранится — только его необратимый хеш (bcrypt).',
+          'Учебные данные: прогресс по учебнику (прочитанные темы, закладки), результаты тестов (какой тест, баллы, дата), настройки сайта.',
+          'Коды подтверждения: 6-значный код, отправляемый на почту, — на сервере только его хеш, хранится 10 минут.',
+          'Сеанс: один cookie при входе; на сервере хранится только его хеш.',
+          'Напоминания о небесных событиях — ТОЛЬКО если вы их включили: подписка браузера на уведомления, примерное местоположение (округлено до ~10 км), часовой пояс и выбранные напоминания. При отключении запись удаляется.',
+          'Технические журналы и журнал безопасности: входы и попытки входа, смена пароля, действия администратора — с датой, IP-адресом и email. Хостинг также ведёт обычные журналы запросов (IP, время, запрошенный адрес).',
+        ],
+        'Мы не используем рекламу и трекеры, не продаём данные и не передаём их для рекламы. Точное GPS-местоположение на сервере не хранится.',
+      ]],
+      ['Для чего используются', [
+        ['•',
+          'создание аккаунта и безопасный вход (отправка кодов подтверждения на почту);',
+          'сохранение прогресса и результатов тестов, их отображение на других ваших устройствах, статистика профиля;',
+          'отправка включённых вами напоминаний о небесных событиях;',
+          'защита сайта от злоупотреблений (подбор паролей, спам) и поиск ошибок;',
+          'обобщённая статистика для улучшения учебных материалов (например, какие вопросы сложные) — без установления вашей личности.',
+        ],
+      ]],
+      ['Правовое основание — согласие', [
+        'Данные обрабатываются на основании вашего согласия: при регистрации вы отмечаете «Я согласен(на) с политикой конфиденциальности». Для напоминаний браузер отдельно запрашивает разрешение. Согласие можно отозвать в любой момент — отключите напоминания или попросите удалить аккаунт.',
+      ]],
+      ['Где хранятся данные и кто участвует', [
+        ['•',
+          'База данных — Neon (PostgreSQL), Франкфурт, Германия (Европейский союз).',
+          'Сервер сайта (хостинг) — Render.',
+          'Отправка писем с кодами — Google (Gmail) или Brevo: через них проходят ваш адрес почты и текст письма.',
+        ],
+        'Внимание: ваши данные хранятся и обрабатываются за пределами Узбекистана. Регистрируясь, вы даёте на это согласие. Если вы не согласны, пользуйтесь сайтом без аккаунта (в гостевом режиме).',
+        'В некоторых разделах ваш браузер напрямую обращается к открытым сервисам: библиотеки (jsDelivr, cdnjs, unpkg), изображения Wikimedia Commons, в лабораториях — погода, названия мест и космические данные (например, Open-Meteo, OpenStreetMap, BigDataCloud, ipwho.is). Эти сервисы видят ваш IP-адрес и действуют по своим политикам; местоположение передаётся им с вашего устройства, а на нашем сервере (кроме напоминаний) не хранится.',
+      ]],
+      ['Сроки хранения', [
+        ['•',
+          'аккаунт, прогресс, результаты тестов и настройки — до удаления аккаунта;',
+          'сеанс — до 30 дней или до выхода из аккаунта;',
+          'коды подтверждения — 10 минут;',
+          'подписка на напоминания и примерное местоположение — до отключения напоминаний;',
+          'журнал безопасности — хранится в целях безопасности и может сохраниться после удаления аккаунта. По вашему запросу мы по возможности удалим или обезличим относящиеся к вам записи.',
+        ],
+      ]],
+      ['Ваши права', [
+        ['•',
+          'Доступ: основные данные и статистика — в профиле; копию хранимых данных можно запросить по email.',
+          'Исправление: имя и пароль меняются в профиле; смена адреса почты — по запросу на email.',
+          'Удаление: кнопки самостоятельного удаления аккаунта на сайте пока нет. Напишите на najmiddinovanihona@gmail.com с почты, указанной при регистрации, — аккаунт и связанные данные будут удалены в течение 30 дней.',
+          'Отзыв согласия и жалоба — напишите нам или обратитесь в уполномоченный государственный орган.',
+        ],
+      ]],
+      ['Дети и учащиеся', [
+        'Сайт предназначен в том числе для школьников. Если вам меньше 16 лет, перед регистрацией посоветуйтесь с родителями или учителем. Родитель или опекун может попросить удалить аккаунт ребёнка. Все уроки доступны и без аккаунта. В поле имени указывайте только имя и фамилию — не вводите другие личные данные.',
+      ]],
+      ['Cookie и память браузера', [
+        'Сайт использует только один необходимый cookie — cookie сеанса при входе (HttpOnly, только для этого сайта). Язык, настройки отображения и гостевой прогресс хранятся в памяти браузера (localStorage) — только на вашем устройстве. Рекламных и отслеживающих cookie нет.',
+      ]],
+      ['Безопасность', [
+        'Соединение шифруется (HTTPS), пароли и коды хранятся в виде хешей, число попыток входа ограничено. Тем не менее полную безопасность в интернете никто гарантировать не может — не используйте пароль от этого сайта на других сайтах.',
+      ]],
+      ['Изменения и контакты', [
+        'При изменении политики новый текст публикуется здесь с датой обновления; о существенных изменениях мы сообщим на сайте.',
+        'Вопросы и запросы: najmiddinovanihona@gmail.com',
+      ]],
+    ],
+  },
+  en: {
+    title: 'Privacy Policy',
+    updatedL: 'Last updated: 24 November 2026',
+    s: [
+      ['Overview', [
+        'Zenithra is a free educational website about the Solar System and astronomy (zenithra.onrender.com). This policy explains what personal data the site collects, why, where it is stored and what your rights are.',
+        'The site author (administrator) is responsible for the data. Contact: najmiddinovanihona@gmail.com.',
+        'You can use the site without an account (as a guest) — then no personal data is sent to the server (except technical logs, see below) and your progress stays on your device only.',
+      ]],
+      ['What we collect', [
+        ['•',
+          'Account: email address, first and last name, interface language, sign-up date and last activity. Your password itself is never stored — only a one-way hash (bcrypt).',
+          'Learning data: textbook progress (topics read, bookmarks), quiz results (which quiz, score, date), site settings.',
+          'Verification codes: the 6-digit code sent to your email — the server keeps only its hash, for 10 minutes.',
+          'Session: one cookie when you sign in; the server stores only its hash.',
+          'Sky event reminders — ONLY if you turn them on: your browser’s push subscription, an approximate location (rounded to ~10 km), time zone and the reminders you chose. Turning reminders off deletes this record.',
+          'Technical and security logs: sign-ins and sign-in attempts, password changes, administrator actions — with date, IP address and email. The hosting provider also keeps standard request logs (IP, time, requested URL).',
+        ],
+        'We do not use advertising or tracking tools, and we do not sell your data or share it for advertising. Your precise GPS location is not stored on our server.',
+      ]],
+      ['Why we use it', [
+        ['•',
+          'to create your account and let you sign in securely (sending verification codes by email);',
+          'to save your progress and quiz results, show them on your other devices, and display profile statistics;',
+          'to send the sky event reminders you turned on;',
+          'to protect the site from abuse (password guessing, spam) and to find bugs;',
+          'aggregated statistics to improve learning materials (for example, which questions are hard) — without identifying you.',
+        ],
+      ]],
+      ['Legal basis — consent', [
+        'We process your data based on your consent: when signing up you tick “I agree to the Privacy Policy”. For reminders your browser asks for a separate permission. You can withdraw consent at any time — turn reminders off or ask us to delete your account.',
+      ]],
+      ['Where data is stored and who is involved', [
+        ['•',
+          'Database — Neon (PostgreSQL), Frankfurt, Germany (European Union).',
+          'Website server (hosting) — Render.',
+          'Sending verification emails — Google (Gmail) or Brevo: your email address and the message pass through them.',
+        ],
+        'Please note: your data is stored and processed outside Uzbekistan. By signing up you agree to this. If you do not agree, use the site without an account (guest mode).',
+        'In some sections your browser contacts public services directly: libraries (jsDelivr, cdnjs, unpkg), Wikimedia Commons images, and in the labs weather, place names and space data (for example Open-Meteo, OpenStreetMap, BigDataCloud, ipwho.is). These services see your IP address and follow their own policies; location is sent to them from your device and is not stored on our server (except for reminders).',
+      ]],
+      ['How long we keep it', [
+        ['•',
+          'account, progress, quiz results and settings — until the account is deleted;',
+          'session — up to 30 days or until you sign out;',
+          'verification codes — 10 minutes;',
+          'reminder subscription and approximate location — until you turn reminders off;',
+          'security log — kept for security purposes and may remain after the account is deleted. On request we will delete or anonymise entries about you where possible.',
+        ],
+      ]],
+      ['Your rights', [
+        ['•',
+          'Access: your main data and statistics are in your profile; you can request a copy of your stored data by email.',
+          'Correction: change your name and password in your profile; to change your email address, ask us by email.',
+          'Deletion: there is no self-service “delete account” button yet. Write to najmiddinovanihona@gmail.com from your registered email — your account and related data will be deleted within 30 days.',
+          'Withdrawing consent and complaints — write to us or contact the competent public authority.',
+        ],
+      ]],
+      ['Children and students', [
+        'The site is also meant for school students. If you are under 16, talk to a parent or teacher before signing up. A parent or guardian may ask us to delete their child’s account. All lessons are available without an account. Enter only your first and last name in the name field — do not enter other personal details.',
+      ]],
+      ['Cookies and browser storage', [
+        'The site uses only one essential cookie — the session cookie when you sign in (HttpOnly, first-party). Language, display settings and guest progress are kept in your browser storage (localStorage) — on your device only. There are no advertising or tracking cookies.',
+      ]],
+      ['Security', [
+        'Connections are encrypted (HTTPS), passwords and codes are stored as hashes, and sign-in attempts are rate-limited. Still, nobody can guarantee complete security on the internet — do not reuse this site’s password elsewhere.',
+      ]],
+      ['Changes and contact', [
+        'If this policy changes, the new text will be published here with the update date; we will announce significant changes on the site.',
+        'Questions and requests: najmiddinovanihona@gmail.com',
+      ]],
+    ],
+  },
+};

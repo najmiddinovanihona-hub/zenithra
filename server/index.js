@@ -2,7 +2,7 @@ import { config } from './config.js';
 import { prisma } from './db.js';
 import { createApp } from './app.js';
 import { initPush, startScheduler } from './push.js';
-import { mailConfigured, mailSender, verifyMail } from './mailer.js';
+import { mailConfigured, mailProvider, mailSender, verifyMail } from './mailer.js';
 
 // Admin tayinlash: npm run make-admin -- email@example.com (server konsoli bo'lsa).
 // Konsolsiz hosting uchun ADMIN_EMAIL — faqat BIRINCHI adminni tayinlaydi: tizimda hali birorta admin yo'q bo'lsa va shu
@@ -46,7 +46,7 @@ startScheduler();
 
 // Pochta holati: ulanmagan bo'lsa tasdiqlash kodlari xat bo'lib bormaydi — buni ochiq aytamiz
 if (mailConfigured()) {
-  verifyMail().then(() => console.log(`[mail] ✔ Pochta ulangan (${process.env.BREVO_API_KEY ? 'Brevo' : 'SMTP'}): ${mailSender()} — kodlar xat bo'lib yuboriladi`))
+  verifyMail().then(() => console.log(`[mail] ✔ Pochta ulangan (${({ gmail: 'Gmail API', brevo: 'Brevo', smtp: 'SMTP' })[mailProvider()] || '?'}): ${mailSender()} — kodlar xat bo'lib yuboriladi`))
     .catch((e) => console.warn(`[mail] ✖ Pochtaga ulanib bo'lmadi (${e.code || e.message}). Qayta sozlash: npm run mail:setup`));
 } else {
   console.warn("[mail] ⚠ Pochta ULANMAGAN — kodlar xat bo'lib bormaydi, faqat shu oynada ko'rinadi. Ulash: npm run mail:setup");
