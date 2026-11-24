@@ -65,9 +65,13 @@ export function createApp() {
   api.use(sameOrigin);
   api.use(loadUser);
   api.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
-  api.get('/health', async (req, res) => {
-    try { await prisma.$queryRaw`SELECT 1`; res.json({ ok: true }); }
-    catch { res.status(503).json({ ok: false }); }
+  // Render har bir necha soniyada /health ni tekshiradi (va uyg'otgich ham shu yerga so'rov yuboradi) — bazaga TEGMAYDI,
+  // aks holda Neon hech qachon uxlamaydi va oylik bepul hisoblash soatlari (100 CU-soat) tugab, baza to'xtatiladi.
+  api.get('/health', (req, res) => res.json({ ok: true }));
+  // Baza holati — faqat qo'lda tekshirish uchun
+  api.get('/health/db', async (req, res) => {
+    try { await prisma.$queryRaw`SELECT 1`; res.json({ ok: true, db: true }); }
+    catch { res.status(503).json({ ok: false, db: false }); }
   });
   api.use('/auth', authRoutes);
   api.use('/me', meRoutes);

@@ -1,0 +1,2 @@
+# Bash skriptlar Windows (Git Bash) da ham ishlashi uchun doim LF bilan
+*.sh text eol=lf

@@ -1,0 +1,153 @@
+# Har kuni Neon (PostgreSQL) bazasining SHIFRLANGAN zaxira nusxasini oladi va GitHub Actions artifact sifatida
+# 30 kun saqlaydi. Tiklash: scripts/restore-backup.md
+#
+# DIQQAT: repo OMMAVIY — artifact'larni GitHub'ga kirgan istalgan odam yuklab olishi mumkin. Shuning uchun dump
+# yuklashdan OLDIN gpg (AES-256) bilan shifrlanadi; shifrlanmagan fayl hech qachon yuklanmaydi (pastda tekshiriladi).
+#
+# Kerakli repo secretlari (Settings → Secrets and variables → Actions → New repository secret):
+#   DATABASE_URL       — Neon ulanish manzili (Render'dagi bilan bir xil; pooled bo'lsa ham bo'ladi)
+#   BACKUP_PASSPHRASE  — uzun tasodifiy parol (≥ 20 belgi). YO'QOTMANG: busiz zaxirani ochib bo'lmaydi.
+# Secretlar qo'shilmagan bo'lsa, workflow xato bermaydi — eslatma chiqarib, o'tkazib yuboradi.
+name: DB backup (shifrlangan)
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # har kuni 02:30 UTC (Toshkent 07:30)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  PG_MAJOR: "17" # Neon Postgres versiyasi; server yangiroq bo'lsa, mos pg_dump avtomatik o'rnatiladi
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Secretlarni tekshirish
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::notice title=Zaxira o'tkazib yuborildi::DATABASE_URL va/yoki BACKUP_PASSPHRASE secreti yo'q. Settings → Secrets and variables → Actions bo'limida qo'shing (README.md → «Zaxira nusxa»)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${#BACKUP_PASSPHRASE}" -lt 20 ]; then
+            echo "::warning title=Zaif parol::BACKUP_PASSPHRASE 20 belgidan qisqa. Repo ommaviy — uzunroq tasodifiy parol qo'ying."
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Kodni olish (faqat scripts/)
+        if: steps.check.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+
+      - name: PostgreSQL client o'rnatish (PGDG apt)
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          if ! grep -rqs "apt.postgresql.org" /etc/apt/sources.list /etc/apt/sources.list.d/; then
+            sudo install -d /usr/share/postgresql-common/pgdg
+            sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            . /etc/os-release
+            echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+              | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends "postgresql-client-${PG_MAJOR}"
+          "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_dump" --version
+
+      - name: Dump + shifrlash
+        if: steps.check.outputs.ok == 'true'
+        id: dump
+        env:
+          SRC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/dbbackup"
+          out="$RUNNER_TEMP/dbbackup-out"
+          mkdir -p "$work" "$out"
+
+          # Parol va tozalangan URL log'da ko'rinmasin (secret o'zi avtomatik yashiriladi, lekin uning qismlari — yo'q)
+          pw="$(node scripts/pg-url.mjs --password)"
+          [ -n "$pw" ] && echo "::add-mask::$pw"
+          url="$(node scripts/pg-url.mjs)"
+          echo "::add-mask::$url"
+          unset pw
+
+          bin="/usr/lib/postgresql/${PG_MAJOR}/bin"
+          # Server versiyasini aniqlash: pg_dump server'dan eski bo'lmasligi kerak
+          server_num="$("$bin/psql" "$url" -XAtqc 'show server_version_num')"
+          server_major=$(( server_num / 10000 ))
+          echo "Server: PostgreSQL $server_major (pg_dump: $PG_MAJOR)"
+          if [ "$server_major" -gt "$PG_MAJOR" ]; then
+            echo "::warning::Neon PostgreSQL $server_major — workflow'dagi PG_MAJOR ni yangilang. Hozircha mos client o'rnatilmoqda."
+            sudo apt-get install -y -qq --no-install-recommends "postgresql-client-${server_major}"
+            bin="/usr/lib/postgresql/${server_major}/bin"
+          fi
+
+          stamp="$(date -u +%Y-%m-%dT%H%MZ)"
+          plain="$work/zenithra-${stamp}.dump"
+          enc="$out/zenithra-${stamp}.dump.gpg"
+
+          "$bin/pg_dump" --dbname="$url" --format=custom --compress=9 --no-owner --no-privileges --file="$plain"
+          unset url
+          tables=$("$bin/pg_restore" --list "$plain" | grep -c " TABLE DATA " || true)
+          echo "Dump: $(du -h "$plain" | cut -f1), jadvallar: $tables"
+          [ "$tables" -gt 0 ] || { echo "::error::Dumpda birorta ham jadval yo'q — DATABASE_URL to'g'ri bazaga qaraganini tekshiring"; exit 1; }
+
+          # Shifrlash: AES-256, parol faqat fayl orqali beriladi (buyruq qatorida ko'rinmaydi)
+          pf="$work/pass"
+          printf '%s' "$BACKUP_PASSPHRASE" > "$pf"
+          gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-file "$pf" \
+              --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 --s2k-mode 3 --s2k-count 65011712 \
+              --compress-algo none --output "$enc" "$plain"
+
+          # Tekshiruv 1: chiqgan fayl ochiq dump EMAS (custom format "PGDMP" bilan boshlanadi)
+          if [ "$(head -c 5 "$enc" | tr -d '\0')" = "PGDMP" ]; then echo "::error::Fayl shifrlanmagan!"; exit 1; fi
+          # Tekshiruv 2: shifrni ochib, dump butunligini tekshirish (diskka ochiq yozmasdan)
+          gpg --batch --quiet --pinentry-mode loopback --passphrase-file "$pf" --decrypt "$enc" \
+            | "$bin/pg_restore" --list > /dev/null
+          rm -f "$pf"
+
+          # Ochiq dump darhol o'chiriladi
+          shred -u "$plain" 2>/dev/null || rm -f "$plain"
+
+          (cd "$out" && sha256sum "$(basename "$enc")" > "$(basename "$enc").sha256")
+          echo "name=zenithra-db-${stamp}" >> "$GITHUB_OUTPUT"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Zaxira tayyor"
+            echo ""
+            echo "- Fayl: \`$(basename "$enc")\` ($(du -h "$enc" | cut -f1), shifrlangan AES-256)"
+            echo "- Jadvallar: $tables"
+            echo "- Saqlanish: 30 kun (Actions → shu run → Artifacts)"
+            echo "- Tiklash: \`scripts/restore-backup.md\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artifact sifatida yuklash
+        if: steps.check.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.dump.outputs.name }}
+          path: ${{ steps.dump.outputs.dir }}/*
+          retention-days: 30
+          compression-level: 0 # shifrlangan ma'lumot siqilmaydi
+          if-no-files-found: error
+
+      - name: Tozalash
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/dbbackup" "$RUNNER_TEMP/dbbackup-out"

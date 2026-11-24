@@ -17,23 +17,27 @@ kirish/ro'yxatdan o'tish (email kodi bilan), darslik progressi va test natijalar
 
 Suratlar Wikimedia Commons'dan, faqat erkin litsenziyalar ostida — mualliflar `photos/*/CREDITS.md` fayllarida.
 
-## Ishga tushirish
+## Lokal ishga tushirish (tezkor boshlash)
 
-Talab: **Node.js 22+** (tavsiya: 24).
+Talab: **Node.js 22+** (tavsiya: 24). Lokal baza — SQLite (`prisma/dev.db`), hech narsa o'rnatish shart emas.
 
 ```bash
 npm install
 cp .env.example .env        # Windows: copy .env.example .env
 npm run db:push             # bazani yaratadi (prisma/dev.db)
 npm start                   # http://localhost:3000
+npm test                    # avtomatik testlar (alohida test bazalari bilan)
 ```
 
 Ishlab chiqishda `npm run dev` — `server/` dagi o'zgarishda server o'zi qayta ishga tushadi.
+Pochta sozlanmagan bo'lsa (development), tasdiqlash kodi server oynasiga (konsolga) chiqadi.
+Pochtani sozlash: [docs/email-setup.md](docs/email-setup.md).
 
 **Admin tayinlash:** avval saytda oddiy ro'yxatdan o'ting, so'ng server kompyuterida:
 `npm run make-admin -- email@example.com`. Admin paneli: `http://localhost:3000/admin`
-(yoki saytda 👤 → «Admin panel»). Ro'yxatdan o'tish orqali admin bo'lib bo'lmaydi — email tasdiqlanmagani
-uchun bu xavfsiz emas edi (oldingi `ADMIN_EMAIL` sozlamasi olib tashlandi).
+(yoki saytda 👤 → «Admin panel»). Konsolsiz hostingda (Render) — `ADMIN_EMAIL`: tizimda hali birorta admin
+bo'lmasa, shu email bilan ro'yxatdan o'tib, emailini tasdiqlagan foydalanuvchi server ishga tushganda admin bo'ladi.
+Admin paydo bo'lgach, `ADMIN_EMAIL` hech narsa qilmaydi (keyingi adminlar — admin panelidan).
 
 Backend o'chiq bo'lsa ham sayt ishlaydi: `index.html` ni to'g'ridan-to'g'ri ochsangiz yoki statik
 hostingga qo'ysangiz, 👤 tugma ko'rinmaydi va hamma narsa avvalgidek localStorage'da saqlanadi (mehmon rejimi).
@@ -48,6 +52,10 @@ hostingga qo'ysangiz, 👤 tugma ko'rinmaydi va hamma narsa avvalgidek localStor
 | `server/` | Express server: `app.js` (marshrutlar, statik fayllar), `routes/auth.js`, `routes/me.js`, `routes/admin.js` |
 | `prisma/schema.prisma` | Ma'lumotlar bazasi sxemasi |
 | `test/` | Avtomatik testlar (`npm test`) |
+| `server/scripts/` | Yordamchi buyruqlar: `make-admin`, pochta sozlash, `prepare-db.js` (deployda bazani PostgreSQL'ga o'tkazadi) |
+| `render.yaml` | Render Blueprint — hosting sozlamalari |
+| `.github/workflows/` | GitHub Actions: CI, keepalive, zaxira, workflow-keepalive |
+| `scripts/` | Zaxiradan tiklash: `restore-backup.md`, `restore-backup.sh`, `pg-url.mjs` |
 
 ## Sayyora teksturalari
 
@@ -115,16 +123,112 @@ Test ID'lari: `quiz:easy|medium|hard` (asosiy test), `quiz:dz:1-40` (darslik sav
 - Statik fayllar oq ro'yxat bo'yicha beriladi — `server/`, `prisma/`, `.env`, `uploads/`, `node_modules/` brauzerga hech qachon berilmaydi.
 - Admin o'zini bloklay, o'chira yoki rolini pasaytira olmaydi (tizim adminsiz qolmasligi uchun).
 
-## PostgreSQL'ga o'tish
+## Hosting arxitekturasi
 
-1. `prisma/schema.prisma` da `provider = "postgresql"` qiling.
-2. `.env` da `DATABASE_URL="postgresql://user:parol@host:5432/astro"`.
-3. `npm run db:push`.
+Sayt: **https://zenithra.onrender.com** — hammasi bepul tariflarda.
 
-Kod o'zgarmaydi (qidiruvdagi katta-kichik harf farqi avtomatik hisobga olinadi).
+```
+ Brauzer ──HTTPS──► Render (web service, Node 22, Frankfurt)
+                     │  node server/index.js — statik fayllar + /api
+                     ├──► Neon (PostgreSQL 17, bepul) ............ DATABASE_URL
+                     └──► Pochta (HTTPS API: Gmail API yoki Brevo) . tasdiqlash kodlari
 
-## Production
+ GitHub (najmiddinovanihona-hub/zenithra)
+   ├─ push → main ──────────────► Render avtomatik deploy
+   └─ Actions: CI (testlar) · keepalive (/api/health) · DB backup (shifrlangan) · workflow-keepalive
+```
+
+| Xizmat | Vazifasi | Qayerda boshqariladi |
+|---|---|---|
+| **Render** (web service, free) | Node.js serveri, statik fayllar, HTTPS | dashboard.render.com → `zenithra` |
+| **Neon** (PostgreSQL, free) | Foydalanuvchilar, progress, natijalar, sessiyalar | console.neon.tech |
+| **Brevo** / **Gmail API** | Ro'yxatdan o'tish va kirish kodlari (Render bepul tarifida SMTP portlari yopiq — faqat HTTP API) | [docs/email-setup.md](docs/email-setup.md) |
+| **GitHub Actions** | CI, keepalive, kunlik zaxira, workflow-keepalive | repo → Actions |
+
+Lokal ishlab chiqish va testlar **SQLite**'da qoladi. Deployda `server/scripts/prepare-db.js` `DATABASE_URL`
+`postgresql://` bilan boshlanganini ko'rib, `schema.prisma` dagi provider'ni faqat build serverida `postgresql` ga
+almashtiradi (repo'dagi fayl o'zgarmaydi). Kod ikkala bazada bir xil ishlaydi.
+
+## Deploy qanday ishlaydi
+
+1. `main` branch'ga push qilinadi.
+2. GitHub'da **CI** ishga tushadi (sintaksis + `npm test`). Render CI'ni kutmaydi — shuning uchun testlarni
+   push'dan oldin lokal ham ishlating (`npm test`) yoki o'zgarishni avval boshqa branch'da sinang (CI har bir branch'da ishlaydi).
+3. **Render** `render.yaml` bo'yicha avtomatik build qiladi:
+   `npm ci --include=dev && node server/scripts/prepare-db.js && npx prisma generate && npx prisma db push --skip-generate`
+   — ya'ni Neon'dagi sxema `prisma/schema.prisma` ga moslanadi (migratsiya fayllarisiz). Sxemadan ustun/jadval
+   olib tashlansa, `db push` ma'lumot yo'qolishi haqida to'xtaydi — bunday o'zgarishdan oldin zaxira oling.
+4. Build muvaffaqiyatli bo'lsa, `/api/health` javob bergach yangi versiya ishga tushadi (eski versiya shu paytgacha ishlaydi).
+   Xato bo'lsa, eski versiya qoladi — Render → `zenithra` → **Events / Logs**.
+5. Brauzer keshi: o'zgargan JS/CSS fayllarning `index.html` dagi `?v=N` raqamini oshiring.
+
+Orqaga qaytarish: Render → `zenithra` → **Events** → oldingi deploy → **Rollback** (kodni qaytaradi, bazani emas).
+
+## Muhit o'zgaruvchilari
+
+Qiymatlar **hech qachon** repo'ga yozilmaydi: lokal — `.env` (git'ga kirmaydi), production — Render → `zenithra` →
+**Environment**, GitHub Actions — repo **Settings → Secrets and variables → Actions**.
+
+| O'zgaruvchi | Qayerda | Nima |
+|---|---|---|
+| `DATABASE_URL` | Render, GitHub secret, `.env` | Lokal: `file:./dev.db`. Production: Neon manzili `postgresql://...?sslmode=require` |
+| `NODE_ENV` | Render (`production`) | production'da cookie faqat HTTPS orqali, pochta majburiy |
+| `TRUST_PROXY` | Render (`1`) | Render proksisi orqali haqiqiy IP (login cheklovi uchun) |
+| `NODE_VERSION` | Render (`22`) | Render qaysi Node versiyasini ishlatishi |
+| `PORT` | lokal | Standart 3000 (Render o'zi beradi) |
+| `ADMIN_EMAIL` | Render | Birinchi admin (yuqoriga qarang) |
+| `MAIL_FROM` | Render, `.env` | Jo'natuvchi, masalan `Zenithra <siz@gmail.com>` |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER` | Render | Gmail API orqali pochta ([docs/email-setup.md](docs/email-setup.md)) |
+| `BREVO_API_KEY` | Render | Brevo HTTP API orqali pochta |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | `.env` | Lokal SMTP (Render bepul tarifida ishlamaydi) |
+| `SITE_URL` | Render (ixtiyoriy) | Xatlardagi sayt manzili (standart: `https://zenithra.onrender.com`) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Render (ixtiyoriy) | Web Push kalitlari; bo'sh bo'lsa bazada yaratiladi va saqlanadi |
+| `COOKIE_SECURE`, `BCRYPT_ROUNDS` | ixtiyoriy | Majburiy Secure cookie (`1`/`0`), bcrypt raundlari (10–14) |
+| `BACKUP_PASSPHRASE` | faqat GitHub secret | Kunlik zaxirani shifrlash paroli (pastga qarang) |
+
+## GitHub Actions
+
+| Workflow | Qachon | Nima qiladi |
+|---|---|---|
+| `ci.yml` — **CI** | har push (istalgan branch) va PR | `npm ci`, `prisma generate`, barcha JS fayllarga `node --check`, `npm test` (SQLite — secret kerak emas) |
+| `keepalive.yml` — **Keep Render awake** | har 10 daqiqa (jadval) | `/api/health` ga so'rov — Render uxlab qolmasin |
+| `backup.yml` — **DB backup (shifrlangan)** | har kuni 02:30 UTC + qo'lda | Neon → `pg_dump` → gpg AES-256 → artifact (30 kun) |
+| `workflow-keepalive.yml` | har oyning 1- va 15-kuni | Jadvalli workflow'larni API orqali qayta yoqadi (60 kun qoidasi, pastga qarang) |
+
+**Kerakli GitHub secretlari** (repo → **Settings → Secrets and variables → Actions → New repository secret**):
+
+| Nomi | Qiymati |
+|---|---|
+| `DATABASE_URL` | Render'dagi `DATABASE_URL` bilan bir xil Neon manzili (Neon → Connect; pooled bo'lsa ham bo'ladi) |
+| `BACKUP_PASSPHRASE` | Uzun tasodifiy parol, kamida 20 belgi (masalan, parol menejerida yarating). **Parol menejerida saqlang** — busiz zaxiralarni hech kim ocha olmaydi |
+
+Secretlar qo'shilmaguncha backup workflow xato bermaydi, faqat «o'tkazib yuborildi» eslatmasini chiqaradi.
+Birinchi tekshiruv: Actions → **DB backup (shifrlangan)** → **Run workflow**.
+
+## Zaxira nusxa va tiklash
+
+- Har kuni Neon bazasi to'liq zaxiralanadi (`pg_dump --format=custom`), **yuklashdan oldin gpg AES-256 bilan
+  shifrlanadi** va Actions artifact sifatida 30 kun saqlanadi. Repo ommaviy — artifact'larni har qanday GitHub
+  foydalanuvchisi yuklab olishi mumkin, shuning uchun shifrsiz fayl hech qachon yuklanmaydi (workflow buni tekshiradi).
+- Neon'ning o'z tarixi (bepul tarifda 6 soat) — so'nggi xatolarni tez qaytarish uchun; undan eskisi — shu zaxiralar.
+- **Tiklash:** to'liq yo'riqnoma — [scripts/restore-backup.md](scripts/restore-backup.md). Qisqasi:
+  Actions → kerakli run → Artifacts'dan yuklab olish → Neon'da yangi branch → 
+  `TARGET_DATABASE_URL=... bash scripts/restore-backup.sh zenithra-<sana>.dump.gpg` → tekshirib, Render'dagi
+  `DATABASE_URL` ni yangi branch'ga almashtirish.
+
+## Bepul tarif chegaralari (kuzatib boring)
+
+| Xizmat | Chegara | Nima bo'ladi / nima qilish kerak |
+|---|---|---|
+| **Render** | Oyiga 750 soat (workspace'dagi barcha bepul servislar uchun umumiy); 15 daqiqa so'rovsiz qolsa uxlaydi (keyingi ochilish ~50 s) | Bitta servis 24/7 ga yetadi (~730 soat). Ikkinchi bepul servis qo'shsangiz, soat yetmaydi. Dashboard → Billing |
+| **Neon** | 1 GB saqlash (loyiha boshiga), oyiga 100 CU-soat hisoblash, 6 soatlik tarix, 10 branch; 5 daqiqa faoliyatsiz qolsa compute uxlaydi | 1 GB to'lsa — yozish bloklanadi; CU-soat tugasa — baza oy oxirigacha to'xtaydi. 24/7 ishlagan compute (0,25 CU) oyiga ~180 CU-soat sarflaydi — bazaga har 5 daqiqadan tez-tez so'rov ketmasligi kerak (Render health check'i ham shunga kiradi). Console → Usage |
+| **Brevo** | Kuniga 300 ta xat; API kaliti 1 yildan keyin yoki 90 kun ishlatilmasa eskirishi mumkin | Kalit eskirsa — kodlar kelmaydi: yangi kalit yaratib, Render'dagi `BREVO_API_KEY` ni almashtiring |
+| **GitHub Actions** | Ommaviy repo'da daqiqalar bepul; **60 kun commit bo'lmasa, jadvalli workflow'lar o'chiriladi** | `workflow-keepalive.yml` buni oldini oladi. Baribir o'chsa: GitHub email yuboradi → Actions → workflow → **Enable workflow** |
+| **GitHub cron** | Jadval kafolatlanmaydi — yuklama paytida kechikadi yoki tushib qoladi (`*/10` amalda kamdan-kam ishlaydi) | Sayt uyg'oq turishi muhim bo'lsa, tashqi bepul pinger qo'shing (cron-job.org yoki UptimeRobot, 5–10 daqiqada bir) |
+
+## Production (o'z serveringizda)
 
 - `NODE_ENV=production` (cookie faqat HTTPS orqali), nginx/Caddy orqasida bo'lsa `TRUST_PROXY=1`.
+- PostgreSQL: `DATABASE_URL="postgresql://..."`, so'ng `node server/scripts/prepare-db.js && npx prisma db push`.
 - Serverni `pm2` yoki systemd bilan ishga tushiring: `node server/index.js`.
 - `uploads/` deployga kirmaydi (server uni bermaydi).

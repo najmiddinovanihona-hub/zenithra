@@ -1,0 +1,42 @@
+# GitHub ommaviy repo'da 60 kun davomida hech qanday faollik (commit) bo'lmasa, barcha jadvalli (schedule)
+# workflow'larni avtomatik o'chirib qo'yadi — keepalive (sayt uyg'oqligi) va backup (zaxira) to'xtab qoladi.
+#
+# Bu workflow oyiga 2 marta GitHub API orqali ularni "qayta yoqadi" (PUT .../actions/workflows/{id}/enable).
+# Faol workflow'ni qayta yoqish 60 kunlik hisoblagichni nolga qaytaradi — soxta commit kerak emas, qo'shimcha
+# secret ham kerak emas (o'rnatilgan GITHUB_TOKEN, faqat `actions: write`). O'zini ham yoqadi, shuning uchun
+# o'zi ham hech qachon o'chmaydi.
+#
+# Baribir o'chib qolsa: GitHub egasiga oldindan email yuboradi; Actions → workflow → «Enable workflow».
+name: Workflow keepalive
+
+on:
+  schedule:
+    - cron: "17 5 1,15 * *" # har oyning 1- va 15-kuni 05:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WORKFLOWS: keepalive.yml backup.yml workflow-keepalive.yml
+    steps:
+      - name: Jadvalli workflow'larni qayta yoqish
+        run: |
+          ok=0
+          for wf in $WORKFLOWS; do
+            if gh api --silent -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/enable"; then
+              echo "✔ $wf yoqildi (60 kunlik hisoblagich yangilandi)"
+              ok=$((ok + 1))
+            else
+              echo "::warning::$wf ni yoqib bo'lmadi (fayl o'chirilgan yoki nomi o'zgargan bo'lishi mumkin)"
+            fi
+          done
+          [ "$ok" -gt 0 ] || { echo "::error::Birorta ham workflow yoqilmadi"; exit 1; }
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" \
+            --jq '.workflows[] | select(.path | startswith(".github/")) | "\(.state)\t\(.path)"'

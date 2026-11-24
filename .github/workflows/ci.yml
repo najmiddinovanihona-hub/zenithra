@@ -1,0 +1,64 @@
+# Har push (istalgan branch) va pull request'da: bog'liqliklarni o'rnatish, Prisma client yaratish,
+# barcha JS fayllarning sintaksisini tekshirish va testlar (npm test, SQLite — tashqi baza kerak emas).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bog'liqliklarni o'rnatish
+        run: npm ci --include=dev
+
+      # npm 11 install skriptlarini (postinstall) bloklashi mumkin — Prisma client'ni aniq yaratamiz
+      - name: Prisma client
+        run: npx prisma generate
+
+      - name: Sintaksis tekshiruvi (node --check)
+        run: |
+          set -euo pipefail
+          fail=0; n=0
+          while IFS= read -r -d '' f; do
+            n=$((n + 1))
+            if ! out=$(node --check "$f" 2>&1); then
+              echo "::error file=${f#./}::$(printf '%s' "$out" | head -n 5 | tr '\n' ' ')"
+              fail=1
+            fi
+          done < <(find . \
+                     \( -path ./node_modules -o -path ./labs/vendor -o -path ./labs/leaflet -o -path ./.git \) -prune -o \
+                     -type f \( -name '*.js' -o -name '*.mjs' \) \
+                     \( -regex '\./[^/]*\.m?js' -o -regex '\./labs/[^/]*\.js' -o -regex '\./server/.*\.js' \
+                        -o -regex '\./scripts/.*\.m?js' -o -regex '\./test/.*\.js' \) \
+                     -print0)
+          for f in scripts/*.sh; do
+            [ -e "$f" ] || continue
+            n=$((n + 1))
+            bash -n "$f" || { echo "::error file=$f::bash sintaksis xatosi"; fail=1; }
+          done
+          echo "Tekshirildi: $n fayl"
+          [ "$n" -gt 100 ] || { echo "::error::Juda kam fayl topildi ($n) — find filtrini tekshiring"; exit 1; }
+          exit $fail
+
+      - name: Testlar
+        run: npm test
